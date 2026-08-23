@@ -1,0 +1,191 @@
+{
+  "meta": {
+    "title": "Flowin",
+    "description": "Markaların LinkedIn outreach operasyonlarını tek merkezden izleyin ve yönetin."
+  },
+  "common": {
+    "loading": "Yükleniyor...",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "close": "Kapat",
+    "search": "Ara",
+    "empty": "Gösterilecek kayıt yok.",
+    "viewAll": "Tümünü görüntüle",
+    "days": "gün",
+    "edit": "Düzenle",
+    "back": "Geri"
+  },
+  "auth": {
+    "role": "Yönetici",
+    "signOut": "Çıkış yap",
+    "invalidCredentials": "E-posta veya şifre hatalı.",
+    "required": "Bu alan zorunludur."
+  },
+  "login": {
+    "badge": "Yönetim Paneli",
+    "title": "Admin Girişi",
+    "subtitle": "Devam etmek için ekip bilgilerinizle giriş yapın.",
+    "email": "E-posta",
+    "emailPlaceholder": "E-posta adresi",
+    "password": "Şifre",
+    "passwordPlaceholder": "Şifre",
+    "submit": "Giriş Yap",
+    "submitting": "Giriş yapılıyor...",
+    "footer": "Bu alan yalnızca yetkili ekip üyeleri içindir.",
+    "showPassword": "Şifreyi göster",
+    "hidePassword": "Şifreyi gizle",
+    "demoHint": "Firebase yapılandırılmadığı için giriş, yerel demo oturumu oluşturur."
+  },
+  "brands": {
+    "title": "Bir marka seçin",
+    "subtitle": "Devam etmek için görüntülemek istediğiniz markayı seçin.",
+    "searchPlaceholder": "Marka ara...",
+    "activeCampaigns": "{count} aktif kampanya",
+    "success": "Başarı {rate}",
+    "addTitle": "Yeni Marka Ekle",
+    "addSubtitle": "Yeni bir marka profili oluşturun",
+    "modalCreateTitle": "Yeni marka",
+    "modalEditTitle": "Markayı düzenle",
+    "nameLabel": "Marka adı",
+    "namePlaceholder": "Marka adı",
+    "colorLabel": "Avatar rengi",
+    "create": "Marka oluştur",
+    "update": "Değişiklikleri kaydet",
+    "delete": "Sil",
+    "deleteConfirmTitle": "Markayı sil",
+    "deleteConfirm": "“{name}” markasını silmek istiyor musunuz? Bu işlem geri alınamaz.",
+    "emptySearch": "Aramanızla eşleşen marka bulunamadı."
+  },
+  "nav": {
+    "overview": "Genel Bakış",
+    "campaigns": "Kampanyalar",
+    "leads": "Leadler",
+    "messages": "Mesajlar",
+    "reports": "Raporlar",
+    "settings": "Ayarlar",
+    "viewProfiles": "Profilleri Gör",
+    "collapse": "Menüyü daralt",
+    "expand": "Menüyü genişlet",
+    "openMenu": "Menüyü aç",
+    "closeMenu": "Menüyü kapat"
+  },
+  "header": {
+    "management": "Yönetim",
+    "last7": "Son 7 Gün",
+    "thisMonth": "Bu Ay",
+    "custom": "Özel Aralık",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "apply": "Uygula",
+    "language": "Dil",
+    "customHint": "En fazla son 2 yıl, 12 aylık aralık. Bitiş bugünü geçemez."
+  },
+  "dashboard": {
+    "metrics": {
+      "activeCampaigns": "Aktif Kampanya",
+      "activeCampaignsHint": "Şu anda aktif kampanya sayısı.",
+      "sentMessages": "Gönderilen Mesaj",
+      "receivedReplies": "Alınan Yanıt",
+      "successRate": "Başarı Oranı",
+      "successRateHint": "Yanıt / gönderilen mesaj.",
+      "vsLastPeriod": "{value} geçen döneme göre.",
+      "vsLastPeriodHint": "geçen döneme göre."
+    },
+    "chart": {
+      "title": "Performans Özeti",
+      "successRate": "Başarı Oranı (%)",
+      "sent": "Gönderilen Mesaj",
+      "replied": "Alınan Yanıt",
+      "metric": "Metrik"
+    },
+    "table": {
+      "title": "Aktif Kampanyalar",
+      "name": "Kampanya Adı",
+      "sent": "Gönderilen Mesaj",
+      "replied": "Alınan Yanıt",
+      "success": "Başarı Oranı",
+      "status": "Durum",
+      "viewAll": "Tüm kampanyaları görüntüle"
+    },
+    "attention": {
+      "title": "Dikkat Gerektirenler",
+      "unresponsive": "Yanıtsız Leadler",
+      "unresponsiveHint": "{count} adet yanıtsız lead bulunuyor",
+      "expiring": "Süresi Dolan Kampanyalar",
+      "expiringHint": "{count} kampanyanın süresi yaklaşıyor",
+      "lowResponse": "Düşük Yanıtlı Kampanya",
+      "lowResponseHint": "{count} düşük yanıtlı kampanya var",
+      "followUp": "Takip Bekleyen Leadler",
+      "followUpHint": "{count} lead takip mesajı bekliyor"
+    },
+    "insights": {
+      "title": "Öne Çıkan İçgörüler",
+      "bestCampaign": "En İyi Kampanya",
+      "mostReplies": "En Çok Yanıt Alan Kampanya",
+      "avgReply": "Ortalama Yanıt Süresi",
+      "replies": "{count} yanıt",
+      "repliesLabel": "Yanıt",
+      "successLabel": "Başarı Oranı",
+      "durationLabel": "Ortalama süre",
+      "empty": "Bu dönem için yeterli veri yok."
+    }
+  },
+  "status": {
+    "active": "Aktif",
+    "expiring": "Süresi Yaklaşıyor",
+    "draft": "Taslak",
+    "completed": "Tamamlandı",
+    "unresponsive": "Yanıtsız",
+    "replied": "Yanıtlandı",
+    "in_progress": "Devam ediyor"
+  },
+  "campaigns": {
+    "title": "Kampanyalar",
+    "subtitle": "Seçili markanın tüm kampanyaları.",
+    "name": "Kampanya Adı",
+    "sent": "Gönderilen",
+    "replied": "Yanıt",
+    "success": "Başarı",
+    "status": "Durum",
+    "dates": "Tarih"
+  },
+  "leads": {
+    "title": "Leadler",
+    "subtitle": "Kampanyalara bağlı lead listesi.",
+    "name": "Ad Soyad",
+    "campaign": "Kampanya",
+    "linkedin": "LinkedIn",
+    "status": "Durum",
+    "lastMessage": "Son mesaj",
+    "filterAll": "Tümü",
+    "filterUnresponsive": "Yanıtsız",
+    "filterFollowUp": "Takip bekleyen"
+  },
+  "messages": {
+    "title": "Mesajlar",
+    "subtitle": "Gönderilen mesajlar ve alınan yanıtlar.",
+    "lead": "Lead",
+    "campaign": "Kampanya",
+    "direction": "Yön",
+    "time": "Zaman",
+    "outbound": "Gönderildi",
+    "inbound": "Yanıt"
+  },
+  "reports": {
+    "title": "Raporlar",
+    "subtitle": "Seçili tarih aralığındaki performans özeti.",
+    "sent": "Gönderilen mesaj",
+    "replied": "Alınan yanıt",
+    "success": "Başarı oranı",
+    "campaigns": "Kampanya performansı"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "subtitle": "Seçili marka ve tercihleriniz.",
+    "brand": "Marka",
+    "brandName": "Marka adı",
+    "createdAt": "Oluşturulma",
+    "language": "Dil tercihi",
+    "languageHint": "Arayüz dilini buradan değiştirebilirsiniz."
+  }
+}

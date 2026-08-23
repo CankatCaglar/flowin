@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="135" viewBox="0 0 480 135"><defs><linearGradient id="flowinAccent" x1="199" y1="0" x2="337" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#6D1472"/><stop offset="1" stop-color="#AE1BB6"/></linearGradient></defs>
+<g fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M34 116 L34 48 Q34 21 57 21"/>
+  <path d="M20 56 L60 56"/>
+  <path d="M84 20 L84 104 Q84 118 99 118"/>
+  <ellipse cx="150" cy="85" rx="32" ry="29"/>
+  <path d="M355 52 L355 91 C355 108 367 118 379 112 C391 106 393 96 393 80 C393 62 406 51 420 51 C437 51 448 64 448 81 L448 116"/>
+</g>
+<circle cx="355" cy="34" r="8" fill="#FFFFFF"/>
+<path d="M199 92 C208 111 219 112 230 92 C242 70 253 69 265 91 C278 114 289 113 302 90 C314 69 327 48 337 47" fill="none" stroke="url(#flowinAccent)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

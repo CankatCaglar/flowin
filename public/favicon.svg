@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#200624"/>
+  <defs>
+    <linearGradient id="flowinFavicon" x1="8" y1="32" x2="56" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6D1472"/>
+      <stop offset="1" stop-color="#AE1BB6"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M10 38 C14 50 20 50 26 38 C32 24 38 24 44 38 C50 52 54 50 56 36"
+    fill="none"
+    stroke="url(#flowinFavicon)"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

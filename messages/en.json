@@ -1,0 +1,191 @@
+{
+  "meta": {
+    "title": "Flowin",
+    "description": "Monitor and manage LinkedIn outreach operations for every brand from one place."
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "search": "Search",
+    "empty": "No records to display.",
+    "viewAll": "View all",
+    "days": "days",
+    "edit": "Edit",
+    "back": "Back"
+  },
+  "auth": {
+    "role": "Admin",
+    "signOut": "Sign out",
+    "invalidCredentials": "Email or password is incorrect.",
+    "required": "This field is required."
+  },
+  "login": {
+    "badge": "Management Panel",
+    "title": "Admin Sign In",
+    "subtitle": "Sign in with your team credentials to continue.",
+    "email": "Email",
+    "emailPlaceholder": "Email address",
+    "password": "Password",
+    "passwordPlaceholder": "Password",
+    "submit": "Sign In",
+    "submitting": "Signing in...",
+    "footer": "This area is for authorized team members only.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "demoHint": "Firebase is not configured, so sign-in creates a local demo session."
+  },
+  "brands": {
+    "title": "Select a brand",
+    "subtitle": "Choose the brand you want to view to continue.",
+    "searchPlaceholder": "Search brands...",
+    "activeCampaigns": "{count} active campaigns",
+    "success": "Success {rate}",
+    "addTitle": "Add New Brand",
+    "addSubtitle": "Create a new brand profile",
+    "modalCreateTitle": "New brand",
+    "modalEditTitle": "Edit brand",
+    "nameLabel": "Brand name",
+    "namePlaceholder": "Brand name",
+    "colorLabel": "Avatar color",
+    "create": "Create brand",
+    "update": "Save changes",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete brand",
+    "deleteConfirm": "Delete “{name}”? This cannot be undone.",
+    "emptySearch": "No brands match your search."
+  },
+  "nav": {
+    "overview": "Overview",
+    "campaigns": "Campaigns",
+    "leads": "Leads",
+    "messages": "Messages",
+    "reports": "Reports",
+    "settings": "Settings",
+    "viewProfiles": "View Profiles",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "header": {
+    "management": "Admin",
+    "last7": "Last 7 Days",
+    "thisMonth": "This Month",
+    "custom": "Custom Range",
+    "from": "Start",
+    "to": "End",
+    "apply": "Apply",
+    "language": "Language",
+    "customHint": "Last 2 years only, up to 12 months. End date cannot be after today."
+  },
+  "dashboard": {
+    "metrics": {
+      "activeCampaigns": "Active Campaigns",
+      "activeCampaignsHint": "Number of campaigns currently running.",
+      "sentMessages": "Sent Messages",
+      "receivedReplies": "Received Replies",
+      "successRate": "Success Rate",
+      "successRateHint": "Replies / sent messages.",
+      "vsLastPeriod": "{value} vs previous period.",
+      "vsLastPeriodHint": "vs previous period."
+    },
+    "chart": {
+      "title": "Performance Summary",
+      "successRate": "Success Rate (%)",
+      "sent": "Sent Messages",
+      "replied": "Received Replies",
+      "metric": "Metric"
+    },
+    "table": {
+      "title": "Active Campaigns",
+      "name": "Campaign Name",
+      "sent": "Sent Messages",
+      "replied": "Received Replies",
+      "success": "Success Rate",
+      "status": "Status",
+      "viewAll": "View all campaigns"
+    },
+    "attention": {
+      "title": "Needs Attention",
+      "unresponsive": "Unresponsive Leads",
+      "unresponsiveHint": "{count} unresponsive leads need follow-up",
+      "expiring": "Expiring Campaigns",
+      "expiringHint": "{count} campaigns are ending soon",
+      "lowResponse": "Low-response Campaign",
+      "lowResponseHint": "{count} campaigns have a low reply rate",
+      "followUp": "Leads Waiting Follow-up",
+      "followUpHint": "{count} leads are waiting for a follow-up"
+    },
+    "insights": {
+      "title": "Featured Insights",
+      "bestCampaign": "Best Campaign",
+      "mostReplies": "Most Replies",
+      "avgReply": "Average Reply Time",
+      "replies": "{count} replies",
+      "repliesLabel": "Replies",
+      "successLabel": "Success Rate",
+      "durationLabel": "Average time",
+      "empty": "Not enough data for this period."
+    }
+  },
+  "status": {
+    "active": "Active",
+    "expiring": "Ending Soon",
+    "draft": "Draft",
+    "completed": "Completed",
+    "unresponsive": "Unresponsive",
+    "replied": "Replied",
+    "in_progress": "In progress"
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "subtitle": "All campaigns for the selected brand.",
+    "name": "Campaign Name",
+    "sent": "Sent",
+    "replied": "Replies",
+    "success": "Success",
+    "status": "Status",
+    "dates": "Dates"
+  },
+  "leads": {
+    "title": "Leads",
+    "subtitle": "Leads attached to campaigns.",
+    "name": "Full name",
+    "campaign": "Campaign",
+    "linkedin": "LinkedIn",
+    "status": "Status",
+    "lastMessage": "Last message",
+    "filterAll": "All",
+    "filterUnresponsive": "Unresponsive",
+    "filterFollowUp": "Follow-up"
+  },
+  "messages": {
+    "title": "Messages",
+    "subtitle": "Outbound messages and inbound replies.",
+    "lead": "Lead",
+    "campaign": "Campaign",
+    "direction": "Direction",
+    "time": "Time",
+    "outbound": "Sent",
+    "inbound": "Reply"
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Performance summary for the selected date range.",
+    "sent": "Sent messages",
+    "replied": "Received replies",
+    "success": "Success rate",
+    "campaigns": "Campaign performance"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Selected brand and your preferences.",
+    "brand": "Brand",
+    "brandName": "Brand name",
+    "createdAt": "Created",
+    "language": "Language preference",
+    "languageHint": "You can change the interface language here."
+  }
+}

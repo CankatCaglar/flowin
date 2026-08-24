@@ -37,7 +37,7 @@
     "demoHint": "Firebase yapılandırılmadığı için giriş, yerel demo oturumu oluşturur."
   },
   "brands": {
-    "title": "Bir marka seçin",
+    "title": "Bir Marka Seçin",
     "subtitle": "Devam etmek için görüntülemek istediğiniz markayı seçin.",
     "searchPlaceholder": "Marka ara...",
     "activeCampaigns": "{count} aktif kampanya",
@@ -119,7 +119,7 @@
       "followUpHint": "{count} lead takip mesajı bekliyor"
     },
     "insights": {
-      "title": "Öne Çıkan İçgörüler",
+      "title": "Öne Çıkanlar",
       "bestCampaign": "En İyi Kampanya",
       "mostReplies": "En Çok Yanıt Alan Kampanya",
       "avgReply": "Ortalama Yanıt Süresi",
@@ -185,7 +185,7 @@
     "brand": "Marka",
     "brandName": "Marka adı",
     "createdAt": "Oluşturulma",
-    "language": "Dil tercihi",
+    "language": "Dil Tercihi",
     "languageHint": "Arayüz dilini buradan değiştirebilirsiniz."
   }
 }

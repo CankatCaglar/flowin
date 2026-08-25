@@ -7,6 +7,7 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
+import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { getFirebaseDb, isFirebaseConfigured } from "@/lib/firebase";
 import {
   getSeedBrandStats,
@@ -17,16 +18,97 @@ import {
 } from "@/lib/seed";
 import {
   hydrateBrandDates,
+  hydrateCampaignDates,
   readBrandOverlay,
+  readCampaignOverlay,
   writeBrandOverlay,
+  writeCampaignOverlay,
 } from "@/lib/storage";
-import type { Brand, Campaign, DailyStat, Lead } from "@/types";
+import type {
+  Brand,
+  Campaign,
+  CampaignFlowStep,
+  CampaignStatus,
+  DailyStat,
+  Lead,
+  LeadStage,
+} from "@/types";
 
 function asDate(value: unknown) {
   if (value instanceof Date) return value;
   if (value instanceof Timestamp) return value.toDate();
   if (typeof value === "string" || typeof value === "number") return new Date(value);
   return new Date();
+}
+
+function stageFromStatus(status: Lead["status"]): LeadStage {
+  if (status === "replied") return "replied";
+  if (status === "in_progress") return "first_contact";
+  return "awaiting_reply";
+}
+
+function hydrateCampaign(input: Partial<Campaign> & Pick<Campaign, "id" | "brandId" | "name">): Campaign {
+  const startDate = asDate(input.startDate);
+  const flow = (
+    Array.isArray(input.flow) && input.flow.length > 0
+      ? input.flow
+      : defaultCampaignFlow()
+  ).map((step) => ({
+    ...step,
+    delayDays: Number(step.delayDays ?? 0),
+    delayUnit: step.delayUnit === "hours" ? "hours" : "days",
+  }));
+  return hydrateCampaignDates({
+    id: input.id,
+    brandId: input.brandId,
+    name: input.name,
+    status: (input.status as CampaignStatus) ?? "draft",
+    sentCount: Number(input.sentCount ?? 0),
+    repliedCount: Number(input.repliedCount ?? 0),
+    startDate,
+    endDate: asDate(input.endDate ?? startDate),
+    createdAt: asDate(input.createdAt ?? startDate),
+    targetAudience: String(input.targetAudience ?? input.name),
+    leadGoal: Number(input.leadGoal ?? input.sentCount ?? 0),
+    flow,
+  });
+}
+
+function hydrateLead(input: Partial<Lead> & Pick<Lead, "id" | "brandId" | "campaignId" | "fullName">): Lead {
+  const status = input.status ?? "in_progress";
+  const slug = input.fullName.toLowerCase().replace(/\s+/g, ".");
+  return {
+    id: input.id,
+    brandId: input.brandId,
+    campaignId: input.campaignId,
+    fullName: input.fullName,
+    linkedinUrl: String(input.linkedinUrl ?? ""),
+    status,
+    lastMessageSentAt: asDate(input.lastMessageSentAt),
+    firstReplyReceivedAt: input.firstReplyReceivedAt
+      ? asDate(input.firstReplyReceivedAt)
+      : undefined,
+    company: String(input.company ?? "—"),
+    position: String(input.position ?? "—"),
+    stage: input.stage ?? stageFromStatus(status),
+    email: String(input.email ?? `${slug}@example.com`),
+    phone: String(input.phone ?? ""),
+  };
+}
+
+function mergeCampaigns(brandId: string, base: Campaign[]): Campaign[] {
+  const overlay = readCampaignOverlay();
+  const deleted = new Set(overlay.deleted ?? []);
+  const updated = base.map((campaign) => {
+    const patch = overlay.updates[campaign.id];
+    return hydrateCampaign({ ...campaign, ...patch, id: campaign.id, brandId: campaign.brandId });
+  });
+  const created = overlay.created
+    .filter((campaign) => campaign.brandId === brandId)
+    .map((campaign) => hydrateCampaign(campaign));
+  return [...updated, ...created].filter(
+    (campaign) => !deleted.has(campaign.id) && campaign.brandId === brandId,
+  );
 }
 
 function mergeSeedBrands() {
@@ -69,9 +151,9 @@ export async function fetchCampaigns(brandId: string): Promise<Campaign[]> {
     try {
       const snapshot = await getDocs(collection(db, "brands", brandId, "campaigns"));
       if (!snapshot.empty) {
-        return snapshot.docs.map((item) => {
+        const fromDb = snapshot.docs.map((item) => {
           const data = item.data();
-          return {
+          return hydrateCampaign({
             id: item.id,
             brandId,
             name: String(data.name ?? ""),
@@ -80,14 +162,22 @@ export async function fetchCampaigns(brandId: string): Promise<Campaign[]> {
             repliedCount: Number(data.repliedCount ?? 0),
             startDate: asDate(data.startDate),
             endDate: asDate(data.endDate),
-          } as Campaign;
+            createdAt: data.createdAt ? asDate(data.createdAt) : asDate(data.startDate),
+            targetAudience: data.targetAudience,
+            leadGoal: data.leadGoal,
+            flow: data.flow,
+          });
         });
+        return mergeCampaigns(brandId, fromDb);
       }
     } catch {
       // Fall through to seed data when Firestore is unavailable.
     }
   }
-  return seedCampaigns.filter((campaign) => campaign.brandId === brandId);
+  return mergeCampaigns(
+    brandId,
+    seedCampaigns.filter((campaign) => campaign.brandId === brandId),
+  );
 }
 
 export async function fetchLeads(brandId: string): Promise<Lead[]> {
@@ -98,7 +188,7 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
       if (!snapshot.empty) {
         return snapshot.docs.map((item) => {
           const data = item.data();
-          return {
+          return hydrateLead({
             id: item.id,
             brandId,
             campaignId: String(data.campaignId ?? ""),
@@ -109,14 +199,19 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
             firstReplyReceivedAt: data.firstReplyReceivedAt
               ? asDate(data.firstReplyReceivedAt)
               : undefined,
-          } as Lead;
+            company: data.company,
+            position: data.position,
+            stage: data.stage,
+            email: data.email,
+            phone: data.phone,
+          });
         });
       }
     } catch {
       // Fall through to seed data when Firestore is unavailable.
     }
   }
-  return seedLeads.filter((lead) => lead.brandId === brandId);
+  return seedLeads.filter((lead) => lead.brandId === brandId).map(hydrateLead);
 }
 
 export async function fetchDailyStats(brandId: string): Promise<DailyStat[]> {
@@ -139,6 +234,51 @@ export async function fetchDailyStats(brandId: string): Promise<DailyStat[]> {
     }
   }
   return seedDailyStats[brandId] ?? [];
+}
+
+export async function createCampaign(input: {
+  brandId: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  targetAudience: string;
+  leadGoal: number;
+  flow: CampaignFlowStep[];
+  status?: CampaignStatus;
+}) {
+  const payload: Campaign = {
+    id: `local-${crypto.randomUUID()}`,
+    brandId: input.brandId,
+    name: input.name.trim(),
+    status: input.status ?? "draft",
+    sentCount: 0,
+    repliedCount: 0,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    createdAt: new Date(),
+    targetAudience: input.targetAudience.trim() || input.name.trim(),
+    leadGoal: input.leadGoal,
+    flow: input.flow,
+  };
+
+  const overlay = readCampaignOverlay();
+  overlay.created.push(payload);
+  writeCampaignOverlay(overlay);
+  return payload;
+}
+
+export async function updateCampaign(
+  campaignId: string,
+  patch: Partial<Pick<Campaign, "name" | "flow" | "status" | "targetAudience" | "leadGoal">>,
+) {
+  const overlay = readCampaignOverlay();
+  const createdIndex = overlay.created.findIndex((campaign) => campaign.id === campaignId);
+  if (createdIndex >= 0) {
+    overlay.created[createdIndex] = { ...overlay.created[createdIndex], ...patch };
+  } else {
+    overlay.updates[campaignId] = { ...overlay.updates[campaignId], ...patch };
+  }
+  writeCampaignOverlay(overlay);
 }
 
 export async function createBrand(input: { name: string; avatarColor: string }) {

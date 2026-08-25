@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   LayoutDashboard,
+  LogOut,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FlowinLogo } from "@/components/brand/FlowinLogo";
+import { AnchoredMenu, selectOptionClass } from "@/components/ui/SelectMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBrand } from "@/contexts/BrandContext";
 import { useMenu } from "@/contexts/MenuContext";
@@ -48,7 +50,8 @@ export function Sidebar({
   const router = useRouter();
   const { open, toggle: toggleUserMenu, close } = useMenu("sidebar-user");
   const userMenuRef = useRef<HTMLDivElement>(null);
-  useDismissable(userMenuRef, open, close);
+  const userPanelRef = useRef<HTMLDivElement>(null);
+  useDismissable([userMenuRef, userPanelRef], open, close);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -110,7 +113,10 @@ export function Sidebar({
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2">
         {items.map((item) => {
-          const active = pathname === item.href;
+          const active =
+            item.href === "/campaigns"
+              ? pathname === "/campaigns" || pathname.startsWith("/campaigns/")
+              : pathname === item.href;
           const Icon = item.icon;
           const label = t(item.key);
           return (
@@ -119,7 +125,7 @@ export function Sidebar({
               href={item.href}
               title={label}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 font-display text-sm font-medium transition-colors",
                 collapsed && "lg:justify-center lg:gap-0 lg:px-0",
                 active
                   ? "bg-barney/25 text-white"
@@ -132,19 +138,7 @@ export function Sidebar({
           );
         })}
       </nav>
-      <div className="space-y-2 px-2 pb-4">
-        <Link
-          href="/brands"
-          title={t("viewProfiles")}
-          onClick={() => selectBrand(null)}
-          className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white",
-            collapsed && "lg:justify-center lg:gap-0 lg:px-0",
-          )}
-        >
-          <ArrowLeftRight className="h-4 w-4 shrink-0" />
-          <span className={cn(collapsed && "lg:sr-only")}>{t("viewProfiles")}</span>
-        </Link>
+      <div className="px-2 pb-4">
         {user ? (
           <div className="relative" ref={userMenuRef}>
             <button
@@ -166,28 +160,40 @@ export function Sidebar({
                 <span className="block text-xs text-white/50">{role("role")}</span>
               </span>
             </button>
-            {open ? (
-              <div
-                className={cn(
-                  "absolute z-20 rounded-xl border border-purple-jam/40 bg-midnight p-1 shadow-lg",
-                  collapsed
-                    ? "bottom-full left-0 right-0 mb-1 lg:bottom-0 lg:left-full lg:right-auto lg:mb-0 lg:ml-2 lg:w-44"
-                    : "bottom-full left-0 right-0 mb-1",
-                )}
+            <AnchoredMenu
+              open={open}
+              anchorRef={userMenuRef}
+              placement="end"
+              compact
+              panelRef={userPanelRef}
+              className="w-48 border-purple-jam/40 bg-midnight"
+            >
+              <button
+                type="button"
+                className={cn(selectOptionClass(false), "text-white/80 hover:bg-barney hover:text-white")}
+                onClick={() => {
+                  close();
+                  selectBrand(null);
+                  onMobileClose?.();
+                  router.push("/brands");
+                }}
               >
-                <button
-                  type="button"
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/5"
-                  onClick={async () => {
-                    close();
-                    await signOut();
-                    router.replace("/login");
-                  }}
-                >
-                  {role("signOut")}
-                </button>
-              </div>
-            ) : null}
+                <ArrowLeftRight className="h-4 w-4 shrink-0" />
+                {t("viewProfiles")}
+              </button>
+              <button
+                type="button"
+                className={cn(selectOptionClass(false), "text-white/80 hover:bg-barney hover:text-white")}
+                onClick={async () => {
+                  close();
+                  await signOut();
+                  router.replace("/login");
+                }}
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                {role("signOut")}
+              </button>
+            </AnchoredMenu>
           </div>
         ) : null}
       </div>

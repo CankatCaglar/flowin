@@ -3,19 +3,18 @@
 import { useEffect, type RefObject } from "react";
 
 export function useDismissable(
-  ref: RefObject<HTMLElement | null>,
+  ref: RefObject<HTMLElement | null> | RefObject<HTMLElement | null>[],
   open: boolean,
   onClose: () => void,
 ) {
   useEffect(() => {
     if (!open) return;
+    const refs = Array.isArray(ref) ? ref : [ref];
 
     const onPointerDown = (event: PointerEvent) => {
-      const node = ref.current;
-      if (!node) return;
-      if (event.target instanceof Node && !node.contains(event.target)) {
-        onClose();
-      }
+      if (!(event.target instanceof Node)) return;
+      const inside = refs.some((item) => item.current?.contains(event.target as Node));
+      if (!inside) onClose();
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -28,5 +27,6 @@ export function useDismissable(
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose, ref]);
+    // refs are stable; omitting from deps avoids re-subscribing when callers pass `[a, b]`
+  }, [open, onClose]);
 }

@@ -9,6 +9,8 @@ export function useBrandData(brandId: string | null) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stats, setStats] = useState<DailyStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((value) => value + 1);
 
   useEffect(() => {
     if (!brandId) {
@@ -40,7 +42,7 @@ export function useBrandData(brandId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [brandId]);
+  }, [brandId, refreshKey]);
 
-  return { campaigns, leads, stats, loading };
+  return { campaigns, leads, stats, loading, refresh };
 }

@@ -34,7 +34,11 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
           <tbody>
             {rows.map((campaign) => (
               <tr key={campaign.id} className="border-t border-purple-jam/8">
-                <td className="px-3 py-3 font-medium text-ink">{campaign.name}</td>
+                <td className="px-3 py-3 font-medium text-ink">
+                  <Link href={`/campaigns/${campaign.id}`} className="hover:text-barney">
+                    {campaign.name}
+                  </Link>
+                </td>
                 <td className="px-3 py-3 text-muted">
                   {formatNumber(campaign.sentCount, locale)}
                 </td>

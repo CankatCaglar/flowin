@@ -1,5 +1,6 @@
+import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { addDays, APP_TODAY, toDateKey } from "@/lib/dates";
-import type { Brand, Campaign, DailyStat, Lead } from "@/types";
+import type { Brand, Campaign, CampaignStatus, DailyStat, Lead, LeadStage } from "@/types";
 
 function atDay(offset: number, hours = 10) {
   const date = addDays(APP_TODAY, offset);
@@ -52,7 +53,7 @@ export const seedBrands: Brand[] = [
   { id: "nera", name: "Nera", avatarColor: "#3D0A45", createdAt: atDay(-60) },
 ];
 
-export const seedCampaigns: Campaign[] = [
+const rawSeedCampaigns = [
   {
     id: "bimaks-saas",
     brandId: "bimaks",
@@ -205,6 +206,38 @@ export const seedCampaigns: Campaign[] = [
   },
 ];
 
+const audienceByCampaign: Record<string, string> = {
+  "bimaks-saas": "SaaS Karar Vericiler",
+  "bimaks-ecom": "E-ticaret Profesyonelleri",
+  "bimaks-fintech": "Fintech Yöneticileri",
+  "bimaks-cold": "Kurumsal Satın Alma",
+  "bimaks-hr": "HR Tech Ekipleri",
+};
+
+export const seedCampaigns: Campaign[] = rawSeedCampaigns.map((campaign) => ({
+  ...campaign,
+  status: campaign.status as CampaignStatus,
+  createdAt: addDays(campaign.startDate, -1),
+  targetAudience: audienceByCampaign[campaign.id] ?? campaign.name,
+  leadGoal: campaign.id === "bimaks-ecom" ? 500 : Math.max(campaign.sentCount + 80, 120),
+  flow: defaultCampaignFlow(),
+}));
+
+const companies = [
+  "ModaLine", "RetailCo", "NovaShop", "Pazarama", "TrendKart", "BlueBasket",
+  "KiteOps", "NorthPeak", "ViraPay", "AtlasTrade", "LumenTech", "OrbitLabs",
+];
+const positions = [
+  "E-ticaret Yöneticisi", "Operasyon Müdürü", "Dijital Pazarlama Lideri",
+  "Satın Alma Uzmanı", "Growth Manager", "CRM Yöneticisi",
+];
+
+function stageForLead(status: Lead["status"], index: number): LeadStage {
+  if (status === "replied") return index % 2 === 0 ? "replied" : "interested";
+  if (status === "in_progress") return index % 2 === 0 ? "first_contact" : "proposal";
+  return index % 5 === 0 ? "failed" : "awaiting_reply";
+}
+
 const firstNames = [
   "Elif", "Mert", "Ayşe", "Can", "Zeynep", "Emre", "Deniz", "Burak",
   "Selin", "Kaan", "İrem", "Onur", "Ece", "Barış", "Melis", "Tolga",
@@ -230,17 +263,25 @@ function buildLeads(): Lead[] {
       const sentOffset = isUnresponsive ? -(8 + (index % 12)) : -(1 + (index % 6));
       const lastMessageSentAt = atDay(sentOffset, 9 + (index % 8));
 
+      const status = isUnresponsive ? "unresponsive" : isReplied ? "replied" : "in_progress";
+      const company = companies[(hash(campaign.id) + index) % companies.length];
+      const slug = fullName.toLowerCase().replace(/\s+/g, ".");
       leads.push({
         id: `${campaign.id}-lead-${index + 1}`,
         brandId: campaign.brandId,
         campaignId: campaign.id,
         fullName,
         linkedinUrl: `https://www.linkedin.com/in/${fullName.toLowerCase().replace(/\s+/g, "-")}`,
-        status: isUnresponsive ? "unresponsive" : isReplied ? "replied" : "in_progress",
+        status,
         lastMessageSentAt,
         firstReplyReceivedAt: isReplied
           ? addDays(lastMessageSentAt, 1 + (index % 3) + ((index % 2) ? 0.3 : 0.8))
           : undefined,
+        company,
+        position: positions[(hash(campaign.name) + index) % positions.length],
+        stage: stageForLead(status, index),
+        email: `${slug}@${company.toLowerCase()}.com`,
+        phone: `+90 53${(hash(fullName) % 10)}${(100 + (index * 17) % 90).toString().padStart(2, "0")} ${1000 + (hash(campaign.id + index) % 8000)}`,
       });
     }
   });

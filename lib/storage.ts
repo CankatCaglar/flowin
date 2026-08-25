@@ -1,8 +1,9 @@
-import type { Brand } from "@/types";
+import type { Brand, Campaign } from "@/types";
 
 const AUTH_KEY = "flowin.auth";
 const BRAND_KEY = "flowin.selectedBrandId";
 const OVERLAY_KEY = "flowin.seed.brandOverlay";
+const CAMPAIGN_OVERLAY_KEY = "flowin.seed.campaignOverlay";
 
 export interface BrandOverlay {
   created: Brand[];
@@ -70,5 +71,36 @@ export function hydrateBrandDates(brand: Brand): Brand {
   return {
     ...brand,
     createdAt: brand.createdAt instanceof Date ? brand.createdAt : new Date(brand.createdAt),
+  };
+}
+
+export interface CampaignOverlay {
+  created: Campaign[];
+  updates: Record<string, Partial<Campaign>>;
+  deleted?: string[];
+}
+
+export function readCampaignOverlay(): CampaignOverlay {
+  return (
+    readJson<CampaignOverlay>(CAMPAIGN_OVERLAY_KEY) ?? {
+      created: [],
+      updates: {},
+      deleted: [],
+    }
+  );
+}
+
+export function writeCampaignOverlay(overlay: CampaignOverlay) {
+  writeJson(CAMPAIGN_OVERLAY_KEY, overlay);
+}
+
+export function hydrateCampaignDates(campaign: Campaign): Campaign {
+  return {
+    ...campaign,
+    startDate:
+      campaign.startDate instanceof Date ? campaign.startDate : new Date(campaign.startDate),
+    endDate: campaign.endDate instanceof Date ? campaign.endDate : new Date(campaign.endDate),
+    createdAt:
+      campaign.createdAt instanceof Date ? campaign.createdAt : new Date(campaign.createdAt),
   };
 }

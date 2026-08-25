@@ -35,6 +35,23 @@ export function formatDate(value: Date, locale: string) {
   }).format(value);
 }
 
+export function formatDateTime(value: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(value);
+}
+
+export function personInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
+}
+
 export function successRate(sent: number, replied: number) {
   if (sent <= 0) return 0;
   return (replied / sent) * 100;
@@ -43,6 +60,25 @@ export function successRate(sent: number, replied: number) {
 export function trendPercent(current: number, previous: number) {
   if (previous <= 0) return current > 0 ? 100 : 0;
   return ((current - previous) / previous) * 100;
+}
+
+export function formatDurationShort(days: number, locale: string) {
+  const totalMinutes = Math.max(0, Math.round(days * 24 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (locale === "tr") {
+    if (hours <= 0) return `${minutes}dk`;
+    return minutes > 0 ? `${hours}s ${minutes}dk` : `${hours}s`;
+  }
+  if (hours <= 0) return `${minutes}m`;
+  return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+export function toInputDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function displayNameFromEmail(email: string) {

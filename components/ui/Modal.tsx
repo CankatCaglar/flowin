@@ -10,12 +10,14 @@ export function Modal({
   children,
   onClose,
   className,
+  variant = "dark",
 }: {
   open: boolean;
   title: string;
   children: React.ReactNode;
   onClose: () => void;
   className?: string;
+  variant?: "dark" | "light";
 }) {
   const t = useTranslations("common");
   if (!open) return null;
@@ -30,7 +32,8 @@ export function Modal({
       />
       <div
         className={cn(
-          "admin-card relative z-10 w-full max-w-md rounded-2xl p-6 text-white",
+          "relative z-10 w-full max-w-md rounded-2xl p-6",
+          variant === "dark" ? "admin-card text-white" : "surface-card text-ink",
           className,
         )}
       >
@@ -39,7 +42,12 @@ export function Modal({
           <button
             type="button"
             aria-label={t("close")}
-            className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
+            className={cn(
+              "rounded-lg p-1",
+              variant === "dark"
+                ? "text-white/60 hover:bg-white/10 hover:text-white"
+                : "text-muted hover:bg-canvas hover:text-ink",
+            )}
             onClick={onClose}
           >
             <X className="h-4 w-4" />

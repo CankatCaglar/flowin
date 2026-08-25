@@ -77,7 +77,7 @@ export function KpiCards(props: KpiCardsProps) {
               <Icon className={`h-4 w-4 ${card.iconClass}`} />
               {card.title}
             </p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-ink">
+            <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
               {card.value}
             </p>
             {"trend" in card && card.trend !== undefined ? (

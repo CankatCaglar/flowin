@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
+import { AnchoredMenu, SelectOptionCheck, selectOptionClass } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useMenu } from "@/contexts/MenuContext";
 import { useDismissable } from "@/hooks/useDismissable";
@@ -13,7 +14,7 @@ import {
   parseDateKey,
   toDateKey,
 } from "@/lib/dates";
-import { cn, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import type { DatePreset } from "@/types";
 
 export function DateRangePicker() {
@@ -22,7 +23,8 @@ export function DateRangePicker() {
   const { range, setPreset } = useDateRange();
   const { open, toggle, close } = useMenu("date-range");
   const rootRef = useRef<HTMLDivElement>(null);
-  useDismissable(rootRef, open, close);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissable([rootRef, panelRef], open, close);
   const [pickingCustom, setPickingCustom] = useState(range.preset === "custom");
   const [customStart, setCustomStart] = useState(toDateKey(range.start));
   const [customEnd, setCustomEnd] = useState(toDateKey(range.end));
@@ -66,62 +68,65 @@ export function DateRangePicker() {
         <Calendar className="h-4 w-4 text-barney" />
         {label}
       </button>
-      {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-purple-jam/10 bg-white p-3 shadow-xl">
-          <div className="space-y-1">
-            {(["last7", "thisMonth", "custom"] as const).map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => applyPreset(preset)}
-                className={cn(
-                  "block w-full rounded-lg px-3 py-2 text-left text-sm",
-                  selected === preset ? "bg-canvas font-medium text-ink" : "hover:bg-canvas",
-                )}
-              >
-                {t(preset)}
-              </button>
-            ))}
-          </div>
-          {pickingCustom ? (
-            <div className="mt-3 space-y-2 border-t border-purple-jam/10 pt-3">
-              <label className="block text-xs text-muted">
-                {t("from")}
-                <input
-                  type="date"
-                  min={min}
-                  max={max}
-                  value={customStart}
-                  onChange={(event) => setCustomStart(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-purple-jam/20 px-2 py-1.5 text-sm text-ink"
-                />
-              </label>
-              <label className="block text-xs text-muted">
-                {t("to")}
-                <input
-                  type="date"
-                  min={min}
-                  max={max}
-                  value={customEnd}
-                  onChange={(event) => setCustomEnd(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-purple-jam/20 px-2 py-1.5 text-sm text-ink"
-                />
-              </label>
-              <p className="text-[11px] leading-4 text-muted">{t("customHint")}</p>
-              <Button
-                variant="primary"
-                className="w-full"
-                onClick={() => {
-                  setPreset("custom", parseDateKey(customStart), parseDateKey(customEnd));
-                  close();
-                }}
-              >
-                {t("apply")}
-              </Button>
-            </div>
-          ) : null}
+      <AnchoredMenu
+        open={open}
+        anchorRef={rootRef}
+        align="right"
+        maxHeight={360}
+        panelRef={panelRef}
+        className="w-72 p-3"
+      >
+        <div className="space-y-0.5">
+          {(["last7", "thisMonth", "custom"] as const).map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className={selectOptionClass(selected === preset)}
+            >
+              <SelectOptionCheck selected={selected === preset} />
+              {t(preset)}
+            </button>
+          ))}
         </div>
-      ) : null}
+        {pickingCustom ? (
+          <div className="mt-3 space-y-2 border-t border-purple-jam/10 pt-3">
+            <label className="block text-xs text-muted">
+              {t("from")}
+              <input
+                type="date"
+                min={min}
+                max={max}
+                value={customStart}
+                onChange={(event) => setCustomStart(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-purple-jam/20 px-2 py-1.5 text-sm text-ink"
+              />
+            </label>
+            <label className="block text-xs text-muted">
+              {t("to")}
+              <input
+                type="date"
+                min={min}
+                max={max}
+                value={customEnd}
+                onChange={(event) => setCustomEnd(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-purple-jam/20 px-2 py-1.5 text-sm text-ink"
+              />
+            </label>
+            <p className="text-[11px] leading-4 text-muted">{t("customHint")}</p>
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={() => {
+                setPreset("custom", parseDateKey(customStart), parseDateKey(customEnd));
+                close();
+              }}
+            >
+              {t("apply")}
+            </Button>
+          </div>
+        ) : null}
+      </AnchoredMenu>
     </div>
   );
 }

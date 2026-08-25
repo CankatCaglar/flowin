@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { DateRangePicker } from "@/components/layout/DateRangePicker";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { useBrand } from "@/contexts/BrandContext";
+import { useBrandData } from "@/hooks/useBrandData";
 import { usePathname } from "@/i18n/navigation";
 import { brandInitial } from "@/lib/utils";
 
@@ -17,16 +18,32 @@ const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "
   "/settings": "settings",
 };
 
+function campaignBreadcrumb(pathname: string) {
+  if (!pathname.startsWith("/campaigns")) return null;
+  const parts = pathname.split("/").filter(Boolean);
+  const segment = parts[1];
+  if (!segment) return { kind: "list" as const };
+  if (segment === "new") return { kind: "new" as const };
+  return { kind: "detail" as const, id: segment };
+}
+
 export function Header({
   onOpenMobileMenu,
 }: {
   onOpenMobileMenu?: () => void;
 }) {
   const t = useTranslations("nav");
+  const campaignsT = useTranslations("campaigns");
   const { selectedBrand } = useBrand();
   const pathname = usePathname();
-  const pageKey = titles[pathname] ?? "overview";
+  const pageKey = titles[pathname] ?? (pathname.startsWith("/campaigns") ? "campaigns" : "overview");
   const showDate = pathname === "/dashboard" || pathname === "/reports";
+  const crumb = campaignBreadcrumb(pathname);
+  const { campaigns } = useBrandData(crumb?.kind === "detail" ? selectedBrand?.id ?? null : null);
+  const campaignName =
+    crumb?.kind === "detail"
+      ? campaigns.find((campaign) => campaign.id === crumb.id)?.name
+      : null;
 
   if (!selectedBrand) return null;
 
@@ -47,9 +64,13 @@ export function Header({
         >
           {brandInitial(selectedBrand.name)}
         </span>
-        <p className="truncate text-sm font-medium text-ink">
+        <p className="truncate font-display text-sm font-medium text-ink">
           {selectedBrand.name}
           <span className="text-muted"> / {t(pageKey)}</span>
+          {crumb?.kind === "new" ? (
+            <span className="text-muted"> / {campaignsT("create.title")}</span>
+          ) : null}
+          {campaignName ? <span className="text-muted"> / {campaignName}</span> : null}
         </p>
       </div>
       <div className="flex items-center gap-3">

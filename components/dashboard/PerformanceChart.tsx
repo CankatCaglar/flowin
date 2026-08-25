@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Area,
@@ -13,11 +12,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useMenu } from "@/contexts/MenuContext";
-import { useDismissable } from "@/hooks/useDismissable";
+import { SelectMenu } from "@/components/ui/SelectMenu";
 import { parseDateKey } from "@/lib/dates";
 import { bucketChartSeries } from "@/lib/metrics";
-import { cn, formatNumber, formatPercent } from "@/lib/utils";
+import { formatNumber, formatPercent } from "@/lib/utils";
 import type { ChartMetric } from "@/types";
 
 interface Point {
@@ -69,9 +67,6 @@ export function PerformanceChart({ data }: { data: Point[] }) {
   const t = useTranslations("dashboard.chart");
   const locale = useLocale();
   const [metric, setMetric] = useState<ChartMetric>("successRate");
-  const { open, toggle, close } = useMenu("performance-metric");
-  const rootRef = useRef<HTMLDivElement>(null);
-  useDismissable(rootRef, open, close);
 
   const { points, grain } = useMemo(() => bucketChartSeries(data), [data]);
   const showDots = grain === "day";
@@ -113,53 +108,15 @@ export function PerformanceChart({ data }: { data: Point[] }) {
     <article className="surface-card rounded-2xl p-5">
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-ink">{t("title")}</h2>
-        <div className="relative" ref={rootRef}>
-          <button
-            type="button"
-            onClick={toggle}
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            aria-label={t("metric")}
-            className="inline-flex items-center gap-2 rounded-xl border border-purple-jam/15 bg-white px-3 py-2 text-sm text-ink"
-          >
-            {t(metric)}
-            <ChevronDown className="h-4 w-4 text-muted" />
-          </button>
-          {open ? (
-            <div
-              role="listbox"
-              className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-2xl border border-purple-jam/10 bg-white py-1.5 shadow-xl"
-            >
-              {metrics.map((option) => {
-                const selected = option === metric;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    onClick={() => {
-                      setMetric(option);
-                      close();
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm",
-                      selected ? "font-medium text-ink" : "text-ink hover:bg-canvas",
-                    )}
-                  >
-                    <Check
-                      className={cn(
-                        "h-4 w-4 shrink-0",
-                        selected ? "text-ink" : "text-transparent",
-                      )}
-                    />
-                    {t(option)}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
+        <SelectMenu
+          id="performance-metric"
+          align="right"
+          className="w-56"
+          ariaLabel={t("metric")}
+          value={metric}
+          options={metrics.map((option) => ({ value: option, label: t(option) }))}
+          onChange={(value) => setMetric(value as ChartMetric)}
+        />
       </div>
       <div
         className="h-72 select-none outline-none [&_*]:outline-none [&_svg]:outline-none"

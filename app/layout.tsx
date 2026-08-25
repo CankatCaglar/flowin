@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AppProviders } from "@/components/providers/AppProviders";
 import "./globals.css";
 
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang="tr" className={`${inter.variable} h-full antialiased`}>
       <body className="h-full overflow-hidden font-sans">
         <AppProviders>{children}</AppProviders>
+        <Analytics />
       </body>
     </html>
   );

@@ -30,6 +30,7 @@ import type {
   CampaignFlowStep,
   CampaignStatus,
   DailyStat,
+  FlowDelayUnit,
   Lead,
   LeadStage,
 } from "@/types";
@@ -56,7 +57,7 @@ function hydrateCampaign(input: Partial<Campaign> & Pick<Campaign, "id" | "brand
   ).map((step) => ({
     ...step,
     delayDays: Number(step.delayDays ?? 0),
-    delayUnit: step.delayUnit === "hours" ? "hours" : "days",
+    delayUnit: (step.delayUnit === "hours" ? "hours" : "days") as FlowDelayUnit,
   }));
   return hydrateCampaignDates({
     id: input.id,

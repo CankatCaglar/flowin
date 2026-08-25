@@ -10,6 +10,7 @@ export type LeadStage =
 export type DatePreset = "last7" | "thisMonth" | "custom";
 export type ChartMetric = "successRate" | "sent" | "replied";
 export type FlowDelayUnit = "days" | "hours";
+export type FlowStepKind = "connection" | "message" | "connection_check";
 
 export interface Brand {
   id: string;

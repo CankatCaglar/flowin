@@ -90,3 +90,24 @@ input[type="number"].no-spinner::-webkit-outer-spin-button {
 input[type="number"].no-spinner {
   appearance: textfield;
 }
+
+/* Chrome/Safari paint a light yellow/white fill over saved credentials. */
+input.autofill-dark:-webkit-autofill,
+input.autofill-dark:-webkit-autofill:hover,
+input.autofill-dark:-webkit-autofill:focus,
+input.autofill-dark:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  box-shadow: 0 0 0 1000px #200624 inset;
+  transition: background-color 99999s ease-out;
+}
+
+input.autofill-light:-webkit-autofill,
+input.autofill-light:-webkit-autofill:hover,
+input.autofill-light:-webkit-autofill:focus,
+input.autofill-light:-webkit-autofill:active {
+  -webkit-text-fill-color: #2a102f;
+  caret-color: #2a102f;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 99999s ease-out;
+}

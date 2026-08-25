@@ -34,7 +34,7 @@ export function RouteGuard({
     const storedBrandId = selectedBrand?.id ?? readSelectedBrandId();
 
     if (guestOnly && user) {
-      router.replace(storedBrandId ? "/dashboard" : "/brands");
+      router.replace("/brands");
       return;
     }
 

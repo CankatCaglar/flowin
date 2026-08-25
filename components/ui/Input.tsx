@@ -49,6 +49,7 @@ export function Input({
               : "border-purple-jam/40 bg-midnight/80 text-white placeholder:text-white/35 focus:border-purple-jam/80",
             leftIcon && "pl-10",
             rightIcon && "pr-10",
+            light ? "autofill-light" : "autofill-dark",
             props.type === "date" && "hide-native-date-icon",
             className,
           )}

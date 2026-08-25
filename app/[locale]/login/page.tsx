@@ -8,12 +8,14 @@ import { RouteGuard } from "@/components/auth/RouteGuard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrand } from "@/contexts/BrandContext";
 import { useRouter } from "@/i18n/navigation";
 
 export default function LoginPage() {
   const t = useTranslations("login");
   const authT = useTranslations("auth");
   const { signIn } = useAuth();
+  const { selectBrand } = useBrand();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +33,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
+      selectBrand(null);
       router.replace("/brands");
     } catch {
       setError(authT("invalidCredentials"));

@@ -19,7 +19,7 @@ export function AttentionList({
 
   const items = [
     {
-      href: "/leads?filter=unresponsive",
+      href: "/leads?status=waiting_reply",
       label: t("unresponsive"),
       hint: t("unresponsiveHint", { count: unresponsiveCount }),
       icon: MessageSquareWarning,
@@ -40,7 +40,7 @@ export function AttentionList({
       iconClass: "text-barney",
     },
     {
-      href: "/leads?filter=in_progress",
+      href: "/leads?status=queued",
       label: t("followUp"),
       hint: t("followUpHint", { count: followUpCount }),
       icon: UserRound,

@@ -1,10 +1,23 @@
 export type CampaignStatus = "active" | "expiring" | "draft" | "completed";
-export type LeadStatus = "unresponsive" | "replied" | "in_progress";
+export type LeadStatus =
+  | "queued"
+  | "waiting_reply"
+  | "replied"
+  | "failed"
+  | "flow_completed";
 export type LeadStage =
-  | "first_contact"
-  | "interested"
-  | "proposal"
-  | "awaiting_reply"
+  | "connection_request"
+  | "message_1"
+  | "message_2"
+  | "message_3"
+  | "flow_completed";
+export type LeadEventKind =
+  | "added"
+  | "connection_sent"
+  | "accepted"
+  | "message_1_sent"
+  | "message_2_sent"
+  | "message_3_sent"
   | "replied"
   | "failed";
 export type DatePreset = "last7" | "thisMonth" | "custom";
@@ -61,6 +74,11 @@ export interface Campaign {
   flow: CampaignFlowStep[];
 }
 
+export interface LeadEvent {
+  kind: LeadEventKind;
+  at: Date;
+}
+
 export interface Lead {
   id: string;
   brandId: string;
@@ -75,6 +93,7 @@ export interface Lead {
   stage: LeadStage;
   email: string;
   phone: string;
+  history: LeadEvent[];
 }
 
 export interface DailyStat {

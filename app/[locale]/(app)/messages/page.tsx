@@ -41,7 +41,7 @@ export default function MessagesPage() {
                 <td className="px-5 py-3 text-muted">{message.campaignName}</td>
                 <td className="px-5 py-3">
                   <StatusBadge
-                    status={message.direction === "inbound" ? "replied" : "in_progress"}
+                    status={message.direction === "inbound" ? "replied" : "waiting_reply"}
                     label={t(message.direction)}
                   />
                 </td>

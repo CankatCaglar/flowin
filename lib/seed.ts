@@ -1,6 +1,7 @@
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { addDays, APP_TODAY, toDateKey } from "@/lib/dates";
-import type { Brand, Campaign, CampaignStatus, DailyStat, Lead, LeadStage } from "@/types";
+import { lastOutboundAt, synthesizeHistory } from "@/lib/leads";
+import type { Brand, Campaign, CampaignStatus, DailyStat, Lead, LeadStage, LeadStatus } from "@/types";
 
 function atDay(offset: number, hours = 10) {
   const date = addDays(APP_TODAY, offset);
@@ -232,11 +233,26 @@ const positions = [
   "Satın Alma Uzmanı", "Growth Manager", "CRM Yöneticisi",
 ];
 
-function stageForLead(status: Lead["status"], index: number): LeadStage {
-  if (status === "replied") return index % 2 === 0 ? "replied" : "interested";
-  if (status === "in_progress") return index % 2 === 0 ? "first_contact" : "proposal";
-  return index % 5 === 0 ? "failed" : "awaiting_reply";
-}
+type LeadScenario = {
+  stage: LeadStage;
+  status: LeadStatus;
+  dayOffset: number;
+};
+
+const LEAD_SCENARIOS: LeadScenario[] = [
+  { stage: "connection_request", status: "queued", dayOffset: 0 },
+  { stage: "connection_request", status: "waiting_reply", dayOffset: -1 },
+  { stage: "message_1", status: "waiting_reply", dayOffset: -2 },
+  { stage: "message_2", status: "waiting_reply", dayOffset: -8 },
+  { stage: "message_3", status: "waiting_reply", dayOffset: -10 },
+  { stage: "message_1", status: "replied", dayOffset: -1 },
+  { stage: "message_2", status: "replied", dayOffset: -2 },
+  { stage: "connection_request", status: "failed", dayOffset: -3 },
+  { stage: "flow_completed", status: "flow_completed", dayOffset: -4 },
+  { stage: "message_1", status: "queued", dayOffset: 0 },
+  { stage: "message_2", status: "waiting_reply", dayOffset: -1 },
+  { stage: "message_3", status: "replied", dayOffset: -1 },
+];
 
 const firstNames = [
   "Elif", "Mert", "Ayşe", "Can", "Zeynep", "Emre", "Deniz", "Burak",
@@ -258,12 +274,18 @@ function buildLeads(): Lead[] {
       const nameIndex = (hash(campaign.id) + index) % firstNames.length;
       const lastIndex = (hash(campaign.name) + index) % lastNames.length;
       const fullName = `${firstNames[nameIndex]} ${lastNames[lastIndex]}`;
-      const isUnresponsive = campaign.brandId === "bimaks" ? index < 5 : index < 2;
-      const isReplied = !isUnresponsive && index % 3 !== 0;
-      const sentOffset = isUnresponsive ? -(8 + (index % 12)) : -(1 + (index % 6));
-      const lastMessageSentAt = atDay(sentOffset, 9 + (index % 8));
-
-      const status = isUnresponsive ? "unresponsive" : isReplied ? "replied" : "in_progress";
+      const scenario = LEAD_SCENARIOS[index % LEAD_SCENARIOS.length];
+      const lastActionAt = atDay(scenario.dayOffset, 9 + (index % 8));
+      const firstReplyReceivedAt =
+        scenario.status === "replied"
+          ? addDays(lastActionAt, 0.02 + (index % 3) * 0.01)
+          : undefined;
+      const history = synthesizeHistory(
+        scenario.stage,
+        scenario.status,
+        lastActionAt,
+        firstReplyReceivedAt,
+      );
       const company = companies[(hash(campaign.id) + index) % companies.length];
       const slug = fullName.toLowerCase().replace(/\s+/g, ".");
       leads.push({
@@ -272,16 +294,16 @@ function buildLeads(): Lead[] {
         campaignId: campaign.id,
         fullName,
         linkedinUrl: `https://www.linkedin.com/in/${fullName.toLowerCase().replace(/\s+/g, "-")}`,
-        status,
-        lastMessageSentAt,
-        firstReplyReceivedAt: isReplied
-          ? addDays(lastMessageSentAt, 1 + (index % 3) + ((index % 2) ? 0.3 : 0.8))
-          : undefined,
+        status: scenario.status,
+        lastMessageSentAt: lastOutboundAt(history, lastActionAt),
+        firstReplyReceivedAt:
+          firstReplyReceivedAt ?? history.find((event) => event.kind === "replied")?.at,
         company,
         position: positions[(hash(campaign.name) + index) % positions.length],
-        stage: stageForLead(status, index),
+        stage: scenario.stage,
         email: `${slug}@${company.toLowerCase()}.com`,
         phone: `+90 53${(hash(fullName) % 10)}${(100 + (index * 17) % 90).toString().padStart(2, "0")} ${1000 + (hash(campaign.id + index) % 8000)}`,
+        history,
       });
     }
   });

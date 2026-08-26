@@ -135,17 +135,18 @@
     "expiring": "Ending Soon",
     "draft": "Draft",
     "completed": "Completed",
-    "unresponsive": "Unresponsive",
+    "queued": "Queued",
+    "waiting_reply": "Waiting for reply",
     "replied": "Replied",
-    "in_progress": "In progress"
+    "failed": "Delivery failed",
+    "flow_completed": "Flow completed"
   },
   "stage": {
-    "first_contact": "First Contact",
-    "interested": "Showed Interest",
-    "proposal": "Proposal Shared",
-    "awaiting_reply": "Awaiting Reply",
-    "replied": "Replied",
-    "failed": "Delivery Failed"
+    "connection_request": "Connection Request",
+    "message_1": "Message 1",
+    "message_2": "Message 2",
+    "message_3": "Message 3",
+    "flow_completed": "Flow completed"
   },
   "campaigns": {
     "title": "Campaigns",
@@ -206,12 +207,16 @@
       "historySent": "Connection request sent",
       "historyAccepted": "Accepted",
       "historyMessage": "Message 1 sent",
+      "historyMessage2": "Message 2 sent",
+      "historyMessage3": "Message 3 sent",
       "historyReply": "Reply received",
-      "historyReplyQuote": "Hi, you can share the details.",
+      "historyFailed": "Delivery failed",
       "showing": "Showing {from}–{to} / {total} leads",
       "selectLead": "Select a lead from the table.",
       "allStages": "All stages",
       "allStatuses": "All statuses",
+      "allCampaigns": "All campaigns",
+      "campaign": "Campaign",
       "add": "Add lead",
       "addTitle": "Add a new lead",
       "addHint": "Use this for a missing person. The main list still comes from LinkedIn or CSV.",
@@ -279,15 +284,12 @@
   },
   "leads": {
     "title": "Leads",
-    "subtitle": "Leads attached to campaigns.",
+    "subtitle": "Leads from every campaign of the selected brand.",
     "name": "Full name",
     "campaign": "Campaign",
     "linkedin": "LinkedIn",
     "status": "Status",
-    "lastMessage": "Last message",
-    "filterAll": "All",
-    "filterUnresponsive": "Unresponsive",
-    "filterFollowUp": "Follow-up"
+    "lastMessage": "Last message"
   },
   "messages": {
     "title": "Messages",

@@ -135,17 +135,18 @@
     "expiring": "Süresi Yaklaşıyor",
     "draft": "Taslak",
     "completed": "Tamamlandı",
-    "unresponsive": "Yanıtsız",
+    "queued": "Sırada",
+    "waiting_reply": "Yanıt Bekliyor",
     "replied": "Yanıtlandı",
-    "in_progress": "Devam ediyor"
+    "failed": "İletim Başarısız",
+    "flow_completed": "Akış Tamamlandı"
   },
   "stage": {
-    "first_contact": "İlk Temas",
-    "interested": "İlgi Gösterdi",
-    "proposal": "Teklif Paylaşıldı",
-    "awaiting_reply": "Yanıt Bekliyor",
-    "replied": "Yanıtlandı",
-    "failed": "İletim Başarısız"
+    "connection_request": "Connection Request",
+    "message_1": "Message 1",
+    "message_2": "Message 2",
+    "message_3": "Message 3",
+    "flow_completed": "Akış Tamamlandı"
   },
   "campaigns": {
     "title": "Kampanyalar",
@@ -206,12 +207,16 @@
       "historySent": "Connection request gönderildi",
       "historyAccepted": "Kabul edildi",
       "historyMessage": "Message 1 gönderildi",
+      "historyMessage2": "Message 2 gönderildi",
+      "historyMessage3": "Message 3 gönderildi",
       "historyReply": "Yanıt alındı",
-      "historyReplyQuote": "Merhaba, detayları paylaşabilirsiniz.",
+      "historyFailed": "İletim başarısız",
       "showing": "{from}–{to} / {total} lead gösteriliyor",
       "selectLead": "Tablodan bir lead seçin.",
       "allStages": "Tüm aşamalar",
       "allStatuses": "Tüm durumlar",
+      "allCampaigns": "Tüm Kampanyalar",
+      "campaign": "Kampanya",
       "add": "Lead ekle",
       "addTitle": "Yeni lead ekle",
       "addHint": "Eksik bir kişiyi elle eklemek içindir. Asıl liste LinkedIn / CSV üzerinden gelir.",
@@ -279,15 +284,12 @@
   },
   "leads": {
     "title": "Leadler",
-    "subtitle": "Kampanyalara bağlı lead listesi.",
+    "subtitle": "Seçili markanın tüm kampanyalarındaki leadler.",
     "name": "Ad Soyad",
     "campaign": "Kampanya",
     "linkedin": "LinkedIn",
     "status": "Durum",
-    "lastMessage": "Son mesaj",
-    "filterAll": "Tümü",
-    "filterUnresponsive": "Yanıtsız",
-    "filterFollowUp": "Takip bekleyen"
+    "lastMessage": "Son mesaj"
   },
   "messages": {
     "title": "Mesajlar",

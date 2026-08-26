@@ -6,18 +6,19 @@ const statusClass: Record<CampaignStatus | LeadStatus, string> = {
   expiring: "bg-amber-50 text-amber-700",
   draft: "bg-sky-50 text-sky-700",
   completed: "bg-zinc-100 text-zinc-600",
-  unresponsive: "bg-orange-50 text-orange-700",
+  queued: "bg-amber-50 text-amber-800",
+  waiting_reply: "bg-orange-50 text-orange-700",
   replied: "bg-emerald-50 text-emerald-700",
-  in_progress: "bg-sky-50 text-sky-700",
+  failed: "bg-rose-50 text-rose-700",
+  flow_completed: "bg-zinc-100 text-zinc-600",
 };
 
 const stageClass: Record<LeadStage, string> = {
-  first_contact: "bg-violet-50 text-violet-700",
-  interested: "bg-purple-50 text-purple-700",
-  proposal: "bg-amber-50 text-amber-800",
-  awaiting_reply: "bg-orange-50 text-orange-700",
-  replied: "bg-emerald-50 text-emerald-700",
-  failed: "bg-rose-50 text-rose-700",
+  connection_request: "bg-sky-50 text-sky-700",
+  message_1: "bg-sky-50 text-sky-700",
+  message_2: "bg-sky-50 text-sky-700",
+  message_3: "bg-sky-50 text-sky-700",
+  flow_completed: "bg-emerald-50 text-emerald-700",
 };
 
 export function StatusBadge({

@@ -104,7 +104,7 @@ export function kpiMetrics(campaigns: Campaign[], stats: DailyStat[], range: Dat
 }
 
 export function isUnresponsiveLead(lead: Lead, now: Date) {
-  if (lead.status !== "unresponsive") return false;
+  if (lead.status !== "waiting_reply") return false;
   const elapsed = now.getTime() - lead.lastMessageSentAt.getTime();
   return elapsed >= UNRESPONSIVE_DAYS * 86_400_000;
 }

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { daysBetween } from "@/lib/dates";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -43,6 +44,24 @@ export function formatDateTime(value: Date, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(value);
+}
+
+export function formatLastAction(value: Date, now: Date, locale: string) {
+  const tag = locale === "tr" ? "tr-TR" : "en-US";
+  const time = new Intl.DateTimeFormat(tag, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(value);
+  const diff = daysBetween(value, now);
+  if (diff === 0) return locale === "tr" ? `Bugün ${time}` : `Today ${time}`;
+  if (diff === 1) return locale === "tr" ? `Dün ${time}` : `Yesterday ${time}`;
+  const datePart = new Intl.DateTimeFormat(tag, {
+    day: "numeric",
+    month: "short",
+    ...(value.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  }).format(value);
+  return `${datePart} ${time}`;
 }
 
 export function personInitials(name: string) {

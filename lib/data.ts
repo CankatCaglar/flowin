@@ -26,6 +26,13 @@ import {
   writeCampaignOverlay,
   writeLeadOverlay,
 } from "@/lib/storage";
+import {
+  asLeadStage,
+  asLeadStatus,
+  isLeadEventKind,
+  lastOutboundAt,
+  synthesizeHistory,
+} from "@/lib/leads";
 import type {
   Brand,
   Campaign,
@@ -34,7 +41,7 @@ import type {
   DailyStat,
   FlowDelayUnit,
   Lead,
-  LeadStage,
+  LeadEvent,
 } from "@/types";
 
 function asDate(value: unknown) {
@@ -44,10 +51,30 @@ function asDate(value: unknown) {
   return new Date();
 }
 
-function stageFromStatus(status: Lead["status"]): LeadStage {
-  if (status === "replied") return "replied";
-  if (status === "in_progress") return "first_contact";
-  return "awaiting_reply";
+function hydrateHistory(
+  input: unknown,
+  stage: Lead["stage"],
+  status: Lead["status"],
+  lastActionAt: Date,
+  firstReplyReceivedAt?: Date,
+): LeadEvent[] {
+  if (Array.isArray(input)) {
+    const events = input
+      .filter((event): event is { kind: LeadEvent["kind"]; at: unknown } => {
+        return Boolean(
+          event &&
+            typeof event === "object" &&
+            "kind" in event &&
+            isLeadEventKind((event as { kind: unknown }).kind),
+        );
+      })
+      .map((event) => ({
+        kind: event.kind,
+        at: asDate(event.at),
+      }));
+    if (events.length > 0) return events;
+  }
+  return synthesizeHistory(stage, status, lastActionAt, firstReplyReceivedAt);
 }
 
 function hydrateCampaign(input: Partial<Campaign> & Pick<Campaign, "id" | "brandId" | "name">): Campaign {
@@ -78,7 +105,20 @@ function hydrateCampaign(input: Partial<Campaign> & Pick<Campaign, "id" | "brand
 }
 
 function hydrateLead(input: Partial<Lead> & Pick<Lead, "id" | "brandId" | "campaignId" | "fullName">): Lead {
-  const status = input.status ?? "in_progress";
+  const legacyStage = String(input.stage ?? "");
+  const status = legacyStage === "failed" ? "failed" : asLeadStatus(input.status);
+  const stage = asLeadStage(input.stage, status);
+  const firstReplyReceivedAt = input.firstReplyReceivedAt
+    ? asDate(input.firstReplyReceivedAt)
+    : undefined;
+  const fallbackActionAt = asDate(input.lastMessageSentAt);
+  const history = hydrateHistory(
+    input.history,
+    stage,
+    status,
+    fallbackActionAt,
+    firstReplyReceivedAt,
+  );
   const slug = input.fullName.toLowerCase().replace(/\s+/g, ".");
   return {
     id: input.id,
@@ -87,15 +127,16 @@ function hydrateLead(input: Partial<Lead> & Pick<Lead, "id" | "brandId" | "campa
     fullName: input.fullName,
     linkedinUrl: String(input.linkedinUrl ?? ""),
     status,
-    lastMessageSentAt: asDate(input.lastMessageSentAt),
-    firstReplyReceivedAt: input.firstReplyReceivedAt
-      ? asDate(input.firstReplyReceivedAt)
-      : undefined,
+    lastMessageSentAt: lastOutboundAt(history, fallbackActionAt),
+    firstReplyReceivedAt:
+      firstReplyReceivedAt ??
+      history.find((event) => event.kind === "replied")?.at,
     company: String(input.company ?? "—"),
     position: String(input.position ?? "—"),
-    stage: input.stage ?? stageFromStatus(status),
+    stage,
     email: String(input.email ?? `${slug}@example.com`),
     phone: String(input.phone ?? ""),
+    history,
   };
 }
 
@@ -223,6 +264,7 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
             stage: data.stage,
             email: data.email,
             phone: data.phone,
+            history: data.history,
           });
         });
         return mergeLeads(brandId, fromDb);
@@ -321,19 +363,21 @@ export async function createLead(input: {
   email?: string;
   phone?: string;
 }) {
+  const addedAt = new Date();
   const payload: Lead = {
     id: `local-lead-${crypto.randomUUID()}`,
     brandId: input.brandId,
     campaignId: input.campaignId,
     fullName: input.fullName.trim(),
     linkedinUrl: normalizeLinkedInUrl(input.linkedinUrl),
-    status: "in_progress",
-    lastMessageSentAt: new Date(),
+    status: "queued",
+    lastMessageSentAt: addedAt,
     company: input.company?.trim() || "—",
     position: input.position?.trim() || "—",
-    stage: "first_contact",
+    stage: "connection_request",
     email: input.email?.trim() || "",
     phone: input.phone?.trim() || "",
+    history: [{ kind: "added", at: addedAt }],
   };
   const overlay = readLeadOverlay();
   overlay.created.push(payload);

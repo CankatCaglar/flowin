@@ -44,7 +44,7 @@ export default function DashboardPage() {
           unresponsiveCount={unresponsiveLeads(leads, now).length}
           expiringCount={expiringCampaigns(campaigns, now).length}
           lowResponseCount={lowResponseCampaigns(campaigns).length}
-          followUpCount={leads.filter((lead) => lead.status === "in_progress").length}
+          followUpCount={leads.filter((lead) => lead.status === "queued").length}
         />
       </div>
       <div className="grid items-stretch gap-6 xl:grid-cols-3">

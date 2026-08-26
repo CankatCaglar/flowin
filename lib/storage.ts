@@ -1,4 +1,4 @@
-import type { Brand, Campaign } from "@/types";
+import type { Brand, Campaign, Lead } from "@/types";
 
 const AUTH_KEY = "flowin.auth";
 const BRAND_KEY = "flowin.selectedBrandId";
@@ -103,4 +103,18 @@ export function hydrateCampaignDates(campaign: Campaign): Campaign {
     createdAt:
       campaign.createdAt instanceof Date ? campaign.createdAt : new Date(campaign.createdAt),
   };
+}
+
+const LEAD_OVERLAY_KEY = "flowin.seed.leadOverlay";
+
+export interface LeadOverlay {
+  created: Lead[];
+}
+
+export function readLeadOverlay(): LeadOverlay {
+  return readJson<LeadOverlay>(LEAD_OVERLAY_KEY) ?? { created: [] };
+}
+
+export function writeLeadOverlay(overlay: LeadOverlay) {
+  writeJson(LEAD_OVERLAY_KEY, overlay);
 }

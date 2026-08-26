@@ -24,10 +24,10 @@ export default function CampaignFlowPage({
 
   if (!campaign) return null;
   const steps = localFlow ?? campaign.flow ?? defaultCampaignFlow();
-  const activeId = editing?.id ?? selectedId ?? steps[1]?.id ?? steps[0]?.id;
+  const activeId = editing?.id ?? selectedId;
 
   return (
-    <div className="max-w-xl">
+    <div>
       <CampaignFlowEditor
         steps={steps}
         selectedId={activeId}
@@ -35,6 +35,7 @@ export default function CampaignFlowPage({
           setSelectedId(step.id);
           setEditing(step);
         }}
+        onClear={() => setSelectedId(null)}
       />
       {editing ? (
         <EditFlowStepModal

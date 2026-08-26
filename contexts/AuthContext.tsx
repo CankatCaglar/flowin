@@ -12,6 +12,7 @@ import {
   clearAuthSession,
   readAuthSession,
   writeAuthSession,
+  writeSelectedBrandId,
 } from "@/lib/storage";
 import type { AuthUser } from "@/types";
 
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("invalid-credentials");
     }
     const next = (await response.json()) as AuthUser;
+    writeSelectedBrandId(null);
     writeAuthSession(next);
     setUser(next);
   }, []);

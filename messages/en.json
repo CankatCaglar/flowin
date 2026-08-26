@@ -211,7 +211,15 @@
       "showing": "Showing {from}–{to} / {total} leads",
       "selectLead": "Select a lead from the table.",
       "allStages": "All stages",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "add": "Add lead",
+      "addTitle": "Add a new lead",
+      "addHint": "Use this for a missing person. The main list still comes from LinkedIn or CSV.",
+      "addSubmit": "Add",
+      "linkedinUrl": "LinkedIn profile",
+      "linkedinPlaceholder": "linkedin.com/in/name",
+      "email": "Email",
+      "phone": "Phone"
     },
     "flow": {
       "editTitle": "Edit Message",
@@ -225,7 +233,16 @@
       "waitBadgeHours": "Wait {count} hours",
       "afterDays": "{count} days later",
       "startsImmediately": "Starts immediately",
-      "addStep": "Add step"
+      "addStep": "Add step",
+      "premium": "Premium",
+      "premiumHint": "This step is a premium feature. It will be locked on the free plan later.",
+      "heading": "Flow",
+      "branchAccepted": "If they respond",
+      "branchNoResponse": "If there is no response",
+      "branchAcceptedHint": "Connection request accepted",
+      "branchNoResponseHint": "No reaction to the request",
+      "branchInmailAcceptedHint": "InMail was answered",
+      "branchInmailNoResponseHint": "No reply to the InMail"
     },
     "create": {
       "title": "Create New Campaign",

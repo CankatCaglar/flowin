@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, Plus, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { AddLeadModal } from "@/components/campaigns/AddLeadModal";
 import { CampaignLeadPanel, leadAvatarClass } from "@/components/campaigns/CampaignLeadPanel";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +11,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
+import { createLead } from "@/lib/data";
 import { formatDateTime, personInitials } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Lead, LeadStage, LeadStatus } from "@/types";
@@ -57,12 +59,13 @@ export default function CampaignLeadsPage({
   const stageT = useTranslations("stage");
   const locale = useLocale();
   const { selectedBrand } = useBrand();
-  const { leads } = useBrandData(selectedBrand?.id ?? null);
+  const { leads, refresh } = useBrandData(selectedBrand?.id ?? null);
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<LeadStage | "all">("all");
   const [status, setStatus] = useState<LeadStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const campaignLeads = useMemo(
     () => leads.filter((lead) => lead.campaignId === id),
@@ -147,6 +150,14 @@ export default function CampaignLeadsPage({
           <Button variant="brand" className="h-10 shrink-0" onClick={() => exportCsv(filtered)}>
             <Download className="h-4 w-4" />
             {t("export")}
+          </Button>
+          <Button
+            className="h-10 shrink-0"
+            disabled={!selectedBrand}
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            {t("add")}
           </Button>
         </div>
         <div className="min-h-0 flex-1 overflow-x-auto">
@@ -243,6 +254,24 @@ export default function CampaignLeadsPage({
       {selected ? (
         <CampaignLeadPanel lead={selected} onClose={() => setSelectedId(null)} />
       ) : null}
+      <AddLeadModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSubmit={async (input) => {
+          if (!selectedBrand) return;
+          const lead = await createLead({
+            brandId: selectedBrand.id,
+            campaignId: id,
+            ...input,
+          });
+          refresh();
+          setQuery("");
+          setStage("all");
+          setStatus("all");
+          setPage(1);
+          setSelectedId(lead.id);
+        }}
+      />
     </div>
   );
 }

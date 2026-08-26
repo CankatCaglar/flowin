@@ -10,7 +10,21 @@ export type LeadStage =
 export type DatePreset = "last7" | "thisMonth" | "custom";
 export type ChartMetric = "successRate" | "sent" | "replied";
 export type FlowDelayUnit = "days" | "hours";
-export type FlowStepKind = "connection" | "message" | "connection_check";
+export type FlowStepKind =
+  | "connection"
+  | "message"
+  | "connection_check"
+  | "profile_view"
+  | "inmail";
+/**
+ * Steps split by whether the lead reacted — first after the connection
+ * request, then again after the InMail on the silent path.
+ */
+export type FlowBranch =
+  | "accepted"
+  | "no_response"
+  | "inmail_accepted"
+  | "inmail_no_response";
 
 export interface Brand {
   id: string;
@@ -26,6 +40,10 @@ export interface CampaignFlowStep {
   body: string;
   delayDays: number;
   delayUnit: FlowDelayUnit;
+  premium?: boolean;
+  branch?: FlowBranch;
+  /** Set while the step still uses the built-in template; cleared once edited. */
+  templateKey?: string;
 }
 
 export interface Campaign {

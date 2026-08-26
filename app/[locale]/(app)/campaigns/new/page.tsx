@@ -31,11 +31,11 @@ const SELECTED_LEADS = 80;
 
 export default function NewCampaignPage() {
   const t = useTranslations("campaigns.create");
+  const campaignsT = useTranslations("campaigns");
   const { selectedBrand } = useBrand();
   const { campaigns, refresh } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
-  const preferredList =
-    campaigns.find((campaign) => campaign.name === "Kurumsal Soğuk Liste") ?? campaigns[0];
+  const preferredList = campaigns[0];
   const [name, setName] = useState("");
   const [start, setStart] = useState(toInputDate(addDays(APP_TODAY, -9)));
   const [end, setEnd] = useState(toInputDate(addDays(APP_TODAY, 18)));
@@ -82,7 +82,12 @@ export default function NewCampaignPage() {
 
   return (
     <form onSubmit={onSubmit}>
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        subtitle={t("subtitle")}
+        backHref="/campaigns"
+        backLabel={campaignsT("backToList")}
+      />
       <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="surface-card flex h-full flex-col space-y-8 rounded-2xl p-5 sm:p-6">
           <section className="space-y-4">

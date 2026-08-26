@@ -166,7 +166,7 @@
     "rowActions": "Kampanya işlemleri",
     "openCampaign": "Kampanyayı aç",
     "notFound": "Kampanya bulunamadı.",
-    "backToList": "Kampanya listesine dön",
+    "backToList": "Kampanyalara dön",
     "tabs": {
       "overview": "Genel Bakış",
       "leads": "Kampanya Leadleri",
@@ -211,7 +211,15 @@
       "showing": "{from}–{to} / {total} lead gösteriliyor",
       "selectLead": "Tablodan bir lead seçin.",
       "allStages": "Tüm aşamalar",
-      "allStatuses": "Tüm durumlar"
+      "allStatuses": "Tüm durumlar",
+      "add": "Lead ekle",
+      "addTitle": "Yeni lead ekle",
+      "addHint": "Eksik bir kişiyi elle eklemek içindir. Asıl liste LinkedIn / CSV üzerinden gelir.",
+      "addSubmit": "Ekle",
+      "linkedinUrl": "LinkedIn profili",
+      "linkedinPlaceholder": "linkedin.com/in/ad-soyad",
+      "email": "E-posta",
+      "phone": "Telefon"
     },
     "flow": {
       "editTitle": "Mesaj Düzenle",
@@ -225,7 +233,16 @@
       "waitBadgeHours": "{count} saat bekle",
       "afterDays": "{count} gün sonra",
       "startsImmediately": "Hemen başlar",
-      "addStep": "Adım ekle"
+      "addStep": "Adım ekle",
+      "premium": "Premium",
+      "premiumHint": "Bu adım premium özelliktir. Ücretsiz planda daha sonra kilitlenecek.",
+      "heading": "Akış",
+      "branchAccepted": "Yanıt gelirse",
+      "branchNoResponse": "Yanıt gelmezse",
+      "branchAcceptedHint": "Bağlantı isteği kabul edildi",
+      "branchNoResponseHint": "İsteğe tepki verilmedi",
+      "branchInmailAcceptedHint": "InMail yanıtlandı",
+      "branchInmailNoResponseHint": "InMail'e yanıt yok"
     },
     "create": {
       "title": "Yeni Kampanya Oluştur",

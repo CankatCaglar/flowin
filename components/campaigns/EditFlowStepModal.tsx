@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SelectMenu } from "@/components/ui/SelectMenu";
-import { FLOW_VARIABLES } from "@/lib/campaign-flow";
+import { FLOW_VARIABLES, flowStepBody, flowStepTitle } from "@/lib/campaign-flow";
 import type { CampaignFlowStep } from "@/types";
 
 export function EditFlowStepModal({
@@ -20,7 +20,18 @@ export function EditFlowStepModal({
 }) {
   const t = useTranslations("campaigns.flow");
   const common = useTranslations("common");
-  const [draft, setDraft] = useState<CampaignFlowStep | null>(step);
+  const locale = useLocale();
+  // Resolve the built-in template into plain text so edits detach from it.
+  const [draft, setDraft] = useState<CampaignFlowStep | null>(
+    step
+      ? {
+          ...step,
+          title: flowStepTitle(step, locale),
+          body: flowStepBody(step, locale),
+          templateKey: undefined,
+        }
+      : null,
+  );
 
   if (!step) return null;
   const current = draft ?? step;
@@ -34,6 +45,11 @@ export function EditFlowStepModal({
       className="max-w-xl"
     >
       <div className="space-y-4">
+        {current.premium ? (
+          <p className="rounded-xl border border-barney/20 bg-barney/5 px-3 py-2 text-sm text-barney">
+            {t("premiumHint")}
+          </p>
+        ) : null}
         <Input
           id="flow-step-name"
           variant="light"

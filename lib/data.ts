@@ -21,8 +21,10 @@ import {
   hydrateCampaignDates,
   readBrandOverlay,
   readCampaignOverlay,
+  readLeadOverlay,
   writeBrandOverlay,
   writeCampaignOverlay,
+  writeLeadOverlay,
 } from "@/lib/storage";
 import type {
   Brand,
@@ -50,14 +52,14 @@ function stageFromStatus(status: Lead["status"]): LeadStage {
 
 function hydrateCampaign(input: Partial<Campaign> & Pick<Campaign, "id" | "brandId" | "name">): Campaign {
   const startDate = asDate(input.startDate);
-  const flow = (
-    Array.isArray(input.flow) && input.flow.length > 0
-      ? input.flow
-      : defaultCampaignFlow()
-  ).map((step) => ({
+  const stored = Array.isArray(input.flow) ? input.flow : [];
+  // Flows saved before the accept / no-response split have no branch data.
+  const branched = stored.some((step) => Boolean(step.branch));
+  const flow = (branched ? stored : defaultCampaignFlow()).map((step) => ({
     ...step,
     delayDays: Number(step.delayDays ?? 0),
     delayUnit: (step.delayUnit === "hours" ? "hours" : "days") as FlowDelayUnit,
+    premium: Boolean(step.premium),
   }));
   return hydrateCampaignDates({
     id: input.id,
@@ -110,6 +112,22 @@ function mergeCampaigns(brandId: string, base: Campaign[]): Campaign[] {
   return [...updated, ...created].filter(
     (campaign) => !deleted.has(campaign.id) && campaign.brandId === brandId,
   );
+}
+
+function mergeLeads(brandId: string, base: Lead[]): Lead[] {
+  const overlay = readLeadOverlay();
+  const created = overlay.created
+    .filter((lead) => lead.brandId === brandId)
+    .map((lead) =>
+      hydrateLead({
+        ...lead,
+        id: lead.id,
+        brandId: lead.brandId,
+        campaignId: lead.campaignId,
+        fullName: lead.fullName,
+      }),
+    );
+  return [...base.map((lead) => hydrateLead(lead)), ...created];
 }
 
 function mergeSeedBrands() {
@@ -187,7 +205,7 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
     try {
       const snapshot = await getDocs(collection(db, "brands", brandId, "leads"));
       if (!snapshot.empty) {
-        return snapshot.docs.map((item) => {
+        const fromDb = snapshot.docs.map((item) => {
           const data = item.data();
           return hydrateLead({
             id: item.id,
@@ -207,12 +225,16 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
             phone: data.phone,
           });
         });
+        return mergeLeads(brandId, fromDb);
       }
     } catch {
       // Fall through to seed data when Firestore is unavailable.
     }
   }
-  return seedLeads.filter((lead) => lead.brandId === brandId).map(hydrateLead);
+  return mergeLeads(
+    brandId,
+    seedLeads.filter((lead) => lead.brandId === brandId),
+  );
 }
 
 export async function fetchDailyStats(brandId: string): Promise<DailyStat[]> {
@@ -280,6 +302,43 @@ export async function updateCampaign(
     overlay.updates[campaignId] = { ...overlay.updates[campaignId], ...patch };
   }
   writeCampaignOverlay(overlay);
+}
+
+function normalizeLinkedInUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, "")}`;
+}
+
+export async function createLead(input: {
+  brandId: string;
+  campaignId: string;
+  fullName: string;
+  linkedinUrl: string;
+  company?: string;
+  position?: string;
+  email?: string;
+  phone?: string;
+}) {
+  const payload: Lead = {
+    id: `local-lead-${crypto.randomUUID()}`,
+    brandId: input.brandId,
+    campaignId: input.campaignId,
+    fullName: input.fullName.trim(),
+    linkedinUrl: normalizeLinkedInUrl(input.linkedinUrl),
+    status: "in_progress",
+    lastMessageSentAt: new Date(),
+    company: input.company?.trim() || "—",
+    position: input.position?.trim() || "—",
+    stage: "first_contact",
+    email: input.email?.trim() || "",
+    phone: input.phone?.trim() || "",
+  };
+  const overlay = readLeadOverlay();
+  overlay.created.push(payload);
+  writeLeadOverlay(overlay);
+  return payload;
 }
 
 export async function createBrand(input: { name: string; avatarColor: string }) {

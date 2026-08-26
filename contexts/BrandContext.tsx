@@ -57,6 +57,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     if (authLoading) return;
     if (!user) {
       setBrands([]);
+      setSelectedBrandId(null);
       setLoading(false);
       return;
     }

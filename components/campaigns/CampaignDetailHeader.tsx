@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/Badge";
+import { BackLink } from "@/components/ui/BackLink";
 import { Link, usePathname } from "@/i18n/navigation";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import type { Campaign } from "@/types";
 
 export function CampaignDetailHeader({ campaign }: { campaign: Campaign }) {
   const t = useTranslations("campaigns.tabs");
+  const list = useTranslations("campaigns");
   const statusT = useTranslations("status");
   const locale = useLocale();
   const pathname = usePathname();
@@ -21,6 +23,7 @@ export function CampaignDetailHeader({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="mb-6">
+      <BackLink href="/campaigns" label={list("backToList")} className="mb-3" />
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-ink">{campaign.name}</h1>
         <StatusBadge status={campaign.status} label={statusT(campaign.status)} />

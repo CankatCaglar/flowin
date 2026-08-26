@@ -1,5 +1,6 @@
 import { Calendar, Clock3, MessageCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { flowStepTitle } from "@/lib/campaign-flow";
 import { parseDateKey } from "@/lib/dates";
 import { formatDurationShort, formatPercent } from "@/lib/utils";
 import type { CampaignFlowStep } from "@/types";
@@ -34,7 +35,7 @@ export function CampaignHighlights({
     },
     {
       title: t("topStep"),
-      value: topStep?.title ?? "—",
+      value: topStep ? flowStepTitle(topStep, locale) : "—",
       hint: t("topStepHint", { rate: formatPercent(topStepRate, locale) }),
       icon: MessageCircle,
     },

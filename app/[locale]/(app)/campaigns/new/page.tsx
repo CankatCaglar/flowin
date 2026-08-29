@@ -1,17 +1,11 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Calendar,
-  List,
-  Upload,
-} from "lucide-react";
+import { ArrowRight, Calendar, List, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
-import { CreateCampaignFlow } from "@/components/campaigns/CreateCampaignFlow";
 import { CreateCampaignSidebar } from "@/components/campaigns/CreateCampaignSidebar";
-import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
+import { LeadImportPanel } from "@/components/campaigns/LeadImportPanel";
 import { LeadListPicker } from "@/components/campaigns/LeadListPicker";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -20,14 +14,12 @@ import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { useRouter } from "@/i18n/navigation";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
-import { createCampaign } from "@/lib/local-data";
+import type { ImportedLead } from "@/lib/lead-import";
+import { createCampaign, createLead } from "@/lib/local-data";
 import { APP_TODAY, addDays, parseDateKey } from "@/lib/dates";
-import { toInputDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
-import type { CampaignFlowStep } from "@/types";
+import { cn, toInputDate } from "@/lib/utils";
 
-const LIST_SOURCES = ["existing", "csv", "salesNav"] as const;
-const SELECTED_LEADS = 80;
+const LIST_SOURCES = ["existing", "file", "salesNav"] as const;
 
 export default function NewCampaignPage() {
   const t = useTranslations("campaigns.create");
@@ -41,8 +33,11 @@ export default function NewCampaignPage() {
   const [end, setEnd] = useState(toInputDate(addDays(APP_TODAY, 18)));
   const [source, setSource] = useState<(typeof LIST_SOURCES)[number]>("existing");
   const [listId, setListId] = useState("");
-  const [flow, setFlow] = useState<CampaignFlowStep[]>(defaultCampaignFlow);
-  const [editing, setEditing] = useState<CampaignFlowStep | null>(null);
+  const [imported, setImported] = useState<{
+    leads: ImportedLead[];
+    fileName: string;
+    skipped: number;
+  }>({ leads: [], fileName: "", skipped: 0 });
   const [submitting, setSubmitting] = useState(false);
 
   const selectedList = useMemo(
@@ -54,8 +49,18 @@ export default function NewCampaignPage() {
     if (!listId && preferredList) setListId(preferredList.id);
   }, [listId, preferredList]);
 
+  const shownCount =
+    source === "file"
+      ? imported.leads.length
+      : source === "existing"
+        ? selectedList?.leadGoal ?? 0
+        : 0;
+  const canSubmit =
+    Boolean(name.trim()) &&
+    (source === "existing" ? Boolean(selectedList) : source === "file" ? imported.leads.length > 0 : false);
+
   const save = async (asDraft: boolean) => {
-    if (!selectedBrand || !name.trim()) return;
+    if (!selectedBrand || !name.trim() || !canSubmit) return;
     setSubmitting(true);
     try {
       const campaign = await createCampaign({
@@ -63,11 +68,23 @@ export default function NewCampaignPage() {
         name: name.trim(),
         startDate: parseDateKey(start),
         endDate: parseDateKey(end),
-        targetAudience: selectedList?.name ?? name.trim(),
-        leadGoal: SELECTED_LEADS,
-        flow,
+        targetAudience:
+          source === "file"
+            ? imported.fileName
+            : selectedList?.name ?? name.trim(),
+        leadGoal: shownCount,
+        flow: defaultCampaignFlow(),
         status: asDraft ? "draft" : "active",
       });
+      if (source === "file") {
+        for (const lead of imported.leads) {
+          await createLead({
+            brandId: selectedBrand.id,
+            campaignId: campaign.id,
+            ...lead,
+          });
+        }
+      }
       refresh();
       router.push(`/campaigns/${campaign.id}`);
     } finally {
@@ -79,6 +96,17 @@ export default function NewCampaignPage() {
     event.preventDefault();
     void save(false);
   };
+
+  const sourceLabel =
+    source === "file"
+      ? imported.fileName
+        ? t("summaryFromFile", { name: imported.fileName })
+        : t("summaryNeedFile")
+      : source === "salesNav"
+        ? t("salesNavHint")
+        : selectedList
+          ? t("summaryFromList", { name: selectedList.name })
+          : t("summaryNeedList");
 
   return (
     <form onSubmit={onSubmit}>
@@ -145,74 +173,54 @@ export default function NewCampaignPage() {
                   )}
                 >
                   {item === "existing" ? <List className="h-4 w-4" /> : null}
-                  {item === "csv" ? <Upload className="h-4 w-4" /> : null}
+                  {item === "file" ? <Upload className="h-4 w-4" /> : null}
                   {item === "salesNav" ? <LinkedInIcon className="h-4 w-4" /> : null}
-                  {t(
-                    item === "existing"
-                      ? "existingList"
-                      : item === "csv"
-                        ? "csv"
-                        : "salesNav",
-                  )}
+                  {t(item === "existing" ? "existingList" : item === "file" ? "file" : "salesNav")}
                 </button>
               ))}
             </div>
-            {source === "existing" && selectedList ? (
-              <LeadListPicker
-                campaigns={campaigns}
-                selected={selectedList}
-                leadCount={SELECTED_LEADS}
-                onSelect={setListId}
+            {source === "existing" ? (
+              selectedList ? (
+                <LeadListPicker
+                  campaigns={campaigns}
+                  selected={selectedList}
+                  leadCount={shownCount}
+                  onSelect={setListId}
+                />
+              ) : (
+                <p className="text-sm text-muted">{t("noExistingLists")}</p>
+              )
+            ) : null}
+            {source === "file" ? (
+              <LeadImportPanel
+                leads={imported.leads}
+                fileName={imported.fileName}
+                skipped={imported.skipped}
+                onParsed={setImported}
               />
-            ) : (
-              <p className="text-sm text-muted">{t("comingSoon")}</p>
-            )}
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-display text-base font-semibold text-ink">
-              3. {t("messages")}
-            </h2>
-            <CreateCampaignFlow
-              steps={flow}
-              onEdit={setEditing}
-              onChangeDelay={(stepId, delayDays, delayUnit) =>
-                setFlow((current) =>
-                  current.map((step) =>
-                    step.id === stepId ? { ...step, delayDays, delayUnit } : step,
-                  ),
-                )
-              }
-            />
+            ) : null}
+            {source === "salesNav" ? (
+              <p className="text-sm leading-6 text-muted">{t("salesNavHint")}</p>
+            ) : null}
           </section>
 
           <div className="mt-auto flex flex-wrap justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="brand"
-              disabled={submitting || !name.trim()}
+              disabled={submitting || !canSubmit}
               onClick={() => void save(true)}
             >
               {t("saveDraft")}
             </Button>
-            <Button type="submit" disabled={submitting || !name.trim()}>
+            <Button type="submit" disabled={submitting || !canSubmit}>
               {t("submit")}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <CreateCampaignSidebar leadCount={SELECTED_LEADS} steps={flow} />
+        <CreateCampaignSidebar leadCount={shownCount} sourceLabel={sourceLabel} />
       </div>
-      {editing ? (
-        <EditFlowStepModal
-          key={editing.id}
-          step={editing}
-          onClose={() => setEditing(null)}
-          onSave={(next) => {
-            setFlow((current) => current.map((step) => (step.id === next.id ? next : step)));
-          }}
-        />
-      ) : null}
     </form>
   );
 }

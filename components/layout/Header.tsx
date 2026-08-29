@@ -7,7 +7,7 @@ import { UserMenu } from "@/components/layout/UserMenu";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { usePathname } from "@/i18n/navigation";
-import { brandInitial } from "@/lib/utils";
+import { BrandAvatar } from "@/components/brands/BrandAvatar";
 
 const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "reports" | "settings"> = {
   "/dashboard": "overview",
@@ -58,12 +58,7 @@ export function Header({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white"
-          style={{ backgroundColor: selectedBrand.avatarColor }}
-        >
-          {brandInitial(selectedBrand.name)}
-        </span>
+        <BrandAvatar brand={selectedBrand} size="sm" />
         <p className="truncate font-display text-sm font-medium text-ink">
           {selectedBrand.name}
           <span className="text-muted"> / {t(pageKey)}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchCampaigns, fetchDailyStats, fetchLeads } from "@/lib/data";
+import { fetchCampaigns, fetchDailyStats, fetchLeads } from "@/lib/local-data";
 import type { Campaign, DailyStat, Lead } from "@/types";
 
 export function useBrandData(brandId: string | null) {

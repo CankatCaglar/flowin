@@ -20,7 +20,7 @@ import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { useRouter } from "@/i18n/navigation";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
-import { createCampaign } from "@/lib/data";
+import { createCampaign } from "@/lib/local-data";
 import { APP_TODAY, addDays, parseDateKey } from "@/lib/dates";
 import { toInputDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";

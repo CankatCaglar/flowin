@@ -1,53 +1,66 @@
-import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import "server-only";
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
-
-export function isFirebaseConfigured() {
-  return Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+function privateKey() {
+  return process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim() ?? "";
 }
 
-export function isFirestoreEnabled() {
-  return (
-    isFirebaseConfigured() &&
-    process.env.NEXT_PUBLIC_USE_FIRESTORE === "1"
+export function isFirebaseConfigured() {
+  return Boolean(
+    process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_CLIENT_EMAIL &&
+      privateKey(),
   );
 }
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
+let app: App | null = null;
 let db: Firestore | null = null;
 
 export function getFirebaseApp() {
   if (!isFirebaseConfigured()) return null;
   if (!app) {
-    app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    app =
+      getApps()[0] ??
+      initializeApp({
+        credential: cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey(),
+        }),
+      });
   }
   return app;
 }
 
-export function getFirebaseAuth() {
-  if (auth) return auth;
-  const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
-  auth = getAuth(firebaseApp);
-  return auth;
+export function getFirebaseDb() {
+  if (!isFirebaseConfigured()) return null;
+  if (!db) {
+    const firebaseApp = getFirebaseApp();
+    if (!firebaseApp) return null;
+    db = getFirestore(firebaseApp);
+  }
+  return db;
 }
 
-export function getFirebaseDb() {
-  if (!isFirestoreEnabled()) return null;
-  if (db) return db;
-  const firebaseApp = getFirebaseApp();
-  if (!firebaseApp) return null;
-  db = getFirestore(firebaseApp);
-  return db;
+export function requireFirebaseDb() {
+  const next = getFirebaseDb();
+  if (!next) {
+    throw new Error("firebase-unconfigured");
+  }
+  return next;
+}
+
+export function firebaseStatus(error: unknown) {
+  return error instanceof Error && error.message === "firebase-unconfigured" ? 503 : 500;
+}
+
+export function firebasePayload(error: unknown) {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code: unknown }).code)
+      : undefined;
+  const message = error instanceof Error ? error.message : "firebase";
+  console.error("[firebase]", code ?? "", message);
+  return { error: "firebase" as const, code, message };
 }

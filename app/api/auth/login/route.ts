@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAdminLogin } from "@/lib/admin";
+import { setAdminSessionCookie } from "@/lib/admin-session";
 
 export async function POST(request: Request) {
   let email = "";
@@ -17,9 +18,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid" }, { status: 401 });
   }
 
-  return NextResponse.json({
+  const normalized = email.trim().toLowerCase();
+  const response = NextResponse.json({
     uid: "flowin-admin",
-    email: email.trim().toLowerCase(),
+    email: normalized,
     displayName: "Admin",
   });
+  setAdminSessionCookie(response, normalized);
+  return response;
 }

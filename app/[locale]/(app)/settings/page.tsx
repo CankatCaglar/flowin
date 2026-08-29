@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useBrand } from "@/contexts/BrandContext";
-import { brandInitial, formatDate } from "@/lib/utils";
+import { BrandAvatar } from "@/components/brands/BrandAvatar";
+import { formatDate } from "@/lib/utils";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
@@ -20,17 +21,16 @@ export default function SettingsPage() {
         <article className="surface-card rounded-2xl p-6">
           <h2 className="text-base font-semibold text-ink">{t("brand")}</h2>
           <div className="mt-5 flex items-center gap-4">
-            <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold text-white"
-              style={{
-                background: `linear-gradient(145deg, ${selectedBrand.avatarColor}, #AE1BB6)`,
-              }}
-            >
-              {brandInitial(selectedBrand.name)}
-            </span>
+            <BrandAvatar brand={selectedBrand} size="md" />
             <div>
               <p className="text-xs text-muted">{t("brandName")}</p>
               <p className="text-lg font-semibold text-ink">{selectedBrand.name}</p>
+              {selectedBrand.linkedinEmail ? (
+                <>
+                  <p className="mt-2 text-xs text-muted">{t("linkedinEmail")}</p>
+                  <p className="text-sm text-ink">{selectedBrand.linkedinEmail}</p>
+                </>
+              ) : null}
             </div>
           </div>
           <p className="mt-5 text-sm text-muted">

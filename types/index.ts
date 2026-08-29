@@ -44,6 +44,9 @@ export interface Brand {
   name: string;
   avatarColor: string;
   createdAt: Date;
+  linkedinSub?: string;
+  linkedinEmail?: string;
+  avatarUrl?: string;
 }
 
 export interface CampaignFlowStep {

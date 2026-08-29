@@ -33,7 +33,12 @@ export function RouteGuard({
 
     const storedBrandId = selectedBrand?.id ?? readSelectedBrandId();
 
-    if (guestOnly && user) {
+    const reauthLinkedIn =
+      pathname === "/login" &&
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("linkedin") === "1";
+
+    if (guestOnly && user && !reauthLinkedIn) {
       router.replace("/brands");
       return;
     }

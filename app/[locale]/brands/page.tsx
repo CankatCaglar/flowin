@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { BarChart3, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { FlowinLogo } from "@/components/brand/FlowinLogo";
+import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
+import { BrandAvatar } from "@/components/brands/BrandAvatar";
 import { BrandFormModal } from "@/components/brands/BrandFormModal";
 import { RouteGuard } from "@/components/auth/RouteGuard";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
@@ -12,21 +15,44 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useBrand } from "@/contexts/BrandContext";
 import { useRouter } from "@/i18n/navigation";
-import { brandCardStats } from "@/lib/data";
-import { brandInitial, formatPercent } from "@/lib/utils";
+import { brandCardStats } from "@/lib/local-data";
+import { colorFromKey, formatPercent } from "@/lib/utils";
 import type { Brand } from "@/types";
 
+let pendingConsumeStarted = false;
+
 export default function BrandsPage() {
+  return (
+    <Suspense fallback={<BrandsFallback />}>
+      <BrandsPageInner />
+    </Suspense>
+  );
+}
+
+function BrandsFallback() {
+  const t = useTranslations("common");
+  return (
+    <div className="flex h-full items-center justify-center bg-midnight text-sm text-white/50">
+      {t("loading")}
+    </div>
+  );
+}
+
+function BrandsPageInner() {
   const t = useTranslations("brands");
   const common = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { brands, loading, selectBrand, addBrand, editBrand, removeBrand } = useBrand();
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Brand | null>(null);
   const [deleting, setDeleting] = useState<Brand | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(searchParams.get("linkedin"));
 
   const filtered = useMemo(
     () =>
@@ -35,6 +61,70 @@ export default function BrandsPage() {
       ),
     [brands, locale, query],
   );
+
+  useEffect(() => {
+    if (loading || pendingConsumeStarted) return;
+    pendingConsumeStarted = true;
+
+    const consume = async () => {
+      const response = await fetch("/api/linkedin/pending");
+      if (!response.ok) return;
+      const data = (await response.json()) as {
+        profile?: {
+          sub: string;
+          name: string;
+          email: string;
+          picture: string;
+        } | null;
+      };
+      const profile = data.profile;
+      if (!profile) return;
+
+      const already = brands.some((brand) => brand.linkedinSub && brand.linkedinSub === profile.sub);
+      if (already) {
+        setNotice("already");
+        await fetch("/api/linkedin/pending", { method: "DELETE" });
+        return;
+      }
+
+      try {
+        await addBrand({
+          name: profile.name,
+          avatarColor: colorFromKey(profile.sub),
+          linkedinSub: profile.sub,
+          linkedinEmail: profile.email,
+          avatarUrl: profile.picture,
+        });
+        await fetch("/api/linkedin/pending", { method: "DELETE" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        setNotice(
+          message === "already-connected"
+            ? "already"
+            : message === "firebase-unconfigured" || message === "firebase"
+              ? "firebase"
+              : "error",
+        );
+      }
+    };
+
+    void consume();
+  }, [addBrand, brands, loading]);
+
+  const noticeText =
+    notice === "already"
+      ? t("alreadyConnected")
+      : notice === "denied"
+        ? t("connectDenied")
+        : notice === "config"
+          ? t("connectConfig")
+          : notice === "scope"
+            ? t("connectScope")
+            : notice === "firebase"
+              ? t("firebaseUnconfigured")
+            : notice === "error"
+            ? t("connectError")
+            : null;
 
   return (
     <RouteGuard requireAuth tone="dark">
@@ -59,6 +149,9 @@ export default function BrandsPage() {
               className="h-11 w-full rounded-xl border border-purple-jam/40 bg-midnight/90 px-11 text-sm text-white placeholder:text-white/35 outline-none focus:border-purple-jam/80"
             />
           </label>
+          {noticeText ? (
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-amber-200/90">{noticeText}</p>
+          ) : null}
         </div>
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -67,7 +160,7 @@ export default function BrandsPage() {
             return (
               <article
                 key={brand.id}
-                className="admin-card group relative rounded-2xl p-5 pb-12 text-center"
+                className="admin-card rounded-2xl p-5 text-center"
               >
                 <button
                   type="button"
@@ -77,15 +170,15 @@ export default function BrandsPage() {
                     router.push("/dashboard");
                   }}
                 >
-                  <span
-                    className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-bold text-white"
-                    style={{
-                      background: `linear-gradient(145deg, ${brand.avatarColor}, #AE1BB6)`,
-                    }}
-                  >
-                    {brandInitial(brand.name)}
-                  </span>
+                  <BrandAvatar brand={brand} size="lg" className="mx-auto" />
                   <h2 className="mt-4 text-lg font-semibold text-white">{brand.name}</h2>
+                  {brand.linkedinEmail ? (
+                    <p className="mt-1 truncate text-[12px] text-white/45">{brand.linkedinEmail}</p>
+                  ) : null}
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-white/60">
+                    <LinkedInIcon className="h-3.5 w-3.5" />
+                    {t("connected")}
+                  </p>
                   <div className="mx-auto mt-3 flex w-max flex-col items-start gap-1 text-xs text-white/65">
                     <span className="flex items-center gap-2">
                       <BarChart3 className="h-3.5 w-3.5 shrink-0" />
@@ -99,13 +192,12 @@ export default function BrandsPage() {
                     </span>
                   </div>
                 </button>
-                <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-2 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+                <div className="mt-4 flex justify-center gap-2">
                   <button
                     type="button"
                     aria-label={common("edit")}
                     className="rounded-lg p-1.5 text-white/55 hover:bg-white/10 hover:text-white"
-                    onClick={(event) => {
-                      event.stopPropagation();
+                    onClick={() => {
                       setEditing(brand);
                       setModalOpen(true);
                     }}
@@ -115,9 +207,9 @@ export default function BrandsPage() {
                   <button
                     type="button"
                     aria-label={t("delete")}
-                    className="rounded-lg p-1.5 text-white/55 hover:bg-white/10 hover:text-white"
-                    onClick={(event) => {
-                      event.stopPropagation();
+                    className="rounded-lg p-1.5 text-white/55 hover:bg-white/10 hover:text-rose-200"
+                    onClick={() => {
+                      setDeleteError(false);
                       setDeleting(brand);
                     }}
                   >
@@ -129,10 +221,7 @@ export default function BrandsPage() {
           })}
           <button
             type="button"
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
+            onClick={() => setConnectOpen(true)}
             className="admin-card flex flex-col items-center justify-center rounded-2xl p-5 text-center hover:border-purple-jam/60"
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-purple-jam/60 text-barney">
@@ -143,7 +232,11 @@ export default function BrandsPage() {
           </button>
         </div>
 
-        {!loading && filtered.length === 0 ? (
+        {!loading && brands.length === 0 ? (
+          <p className="mt-8 text-center text-sm text-white/50">{t("emptyList")}</p>
+        ) : null}
+
+        {!loading && brands.length > 0 && filtered.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/50">{t("emptySearch")}</p>
         ) : null}
 
@@ -155,29 +248,55 @@ export default function BrandsPage() {
             setEditing(null);
           }}
           onSubmit={async (input) => {
-            if (editing) {
-              await editBrand(editing.id, input);
-              return;
-            }
-            await addBrand(input);
+            if (!editing) return;
+            await editBrand(editing.id, input);
           }}
         />
+
+        <Modal
+          open={connectOpen}
+          title={t("connectTitle")}
+          onClose={() => setConnectOpen(false)}
+        >
+          <p className="text-sm leading-6 text-white/70">{t("connectBody")}</p>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConnectOpen(false)}>
+              {common("cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                window.location.assign(`/api/linkedin/start?locale=${locale}`);
+              }}
+            >
+              {t("connectContinue")}
+            </Button>
+          </div>
+        </Modal>
 
         <Modal
           open={Boolean(deleting)}
           title={t("deleteConfirmTitle")}
           onClose={() => {
-            if (!removing) setDeleting(null);
+            if (!removing) {
+              setDeleting(null);
+              setDeleteError(false);
+            }
           }}
         >
           <p className="text-sm text-white/70">
             {t("deleteConfirm", { name: deleting?.name ?? "" })}
           </p>
+          {deleteError ? (
+            <p className="mt-3 text-sm text-amber-200/90">{t("deleteFailed")}</p>
+          ) : null}
           <div className="mt-6 flex justify-end gap-2">
             <Button
               variant="ghost"
               disabled={removing}
-              onClick={() => setDeleting(null)}
+              onClick={() => {
+                setDeleting(null);
+                setDeleteError(false);
+              }}
             >
               {common("cancel")}
             </Button>
@@ -186,9 +305,12 @@ export default function BrandsPage() {
               onClick={async () => {
                 if (!deleting) return;
                 setRemoving(true);
+                setDeleteError(false);
                 try {
                   await removeBrand(deleting.id);
                   setDeleting(null);
+                } catch {
+                  setDeleteError(true);
                 } finally {
                   setRemoving(false);
                 }

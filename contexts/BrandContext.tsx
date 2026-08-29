@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createBrand, deleteBrand, fetchBrands, updateBrand } from "@/lib/data";
+import { createBrand, deleteBrand, fetchBrands, updateBrand } from "@/lib/brands-api";
 import { readSelectedBrandId, writeSelectedBrandId } from "@/lib/storage";
 import type { Brand } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,13 @@ interface BrandContextValue {
   selectedBrand: Brand | null;
   loading: boolean;
   selectBrand: (brandId: string | null) => void;
-  addBrand: (input: { name: string; avatarColor: string }) => Promise<Brand>;
+  addBrand: (input: {
+    name: string;
+    avatarColor: string;
+    linkedinSub: string;
+    linkedinEmail?: string;
+    avatarUrl?: string;
+  }) => Promise<Brand>;
   editBrand: (
     brandId: string,
     input: { name: string; avatarColor?: string },
@@ -38,7 +44,12 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await fetchBrands();
+      let next: Brand[] = [];
+      try {
+        next = await fetchBrands();
+      } catch {
+        next = [];
+      }
       setBrands(next);
       const stored = readSelectedBrandId();
       setSelectedBrandId((current) => {
@@ -69,26 +80,32 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     writeSelectedBrandId(brandId);
   }, []);
 
-  const addBrand = useCallback(async (input: { name: string; avatarColor: string }) => {
-    const brand = await createBrand(input);
-    setBrands((current) => [...current, brand]);
-    return brand;
-  }, []);
+  const addBrand = useCallback(
+    async (input: {
+      name: string;
+      avatarColor: string;
+      linkedinSub: string;
+      linkedinEmail?: string;
+      avatarUrl?: string;
+    }) => {
+      const brand = await createBrand(input);
+      setBrands((current) => [...current, brand]);
+      return brand;
+    },
+    [],
+  );
 
   const editBrand = useCallback(
     async (brandId: string, input: { name: string; avatarColor?: string }) => {
-      await updateBrand(brandId, input);
+      const next = await updateBrand(brandId, input);
       setBrands((current) =>
-        current.map((brand) =>
-          brand.id === brandId
-            ? {
-                ...brand,
-                name: input.name.trim(),
-                avatarColor: input.avatarColor ?? brand.avatarColor,
-              }
-            : brand,
-        ),
+        current.map((brand) => (brand.id === brandId ? next : brand)),
       );
+      setSelectedBrandId((current) => {
+        if (current !== brandId || next.id === brandId) return current;
+        writeSelectedBrandId(next.id);
+        return next.id;
+      });
     },
     [],
   );

@@ -10,6 +10,13 @@ export function brandInitial(name: string) {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
 
+const AVATAR_COLORS = ["#6D1472", "#AE1BB6", "#2F5F9A", "#C47A1A", "#3D0A45", "#4A0E5C"];
+
+export function colorFromKey(key: string) {
+  const sum = key.split("").reduce((total, char) => total + char.charCodeAt(0), 0);
+  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+}
+
 export function formatNumber(value: number, locale: string) {
   return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(value);
 }

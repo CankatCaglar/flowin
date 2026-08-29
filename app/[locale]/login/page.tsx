@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { FlowinLogo } from "@/components/brand/FlowinLogo";
 import { RouteGuard } from "@/components/auth/RouteGuard";
 import { Button } from "@/components/ui/Button";
@@ -13,8 +13,14 @@ import { useRouter } from "@/i18n/navigation";
 export default function LoginPage() {
   const t = useTranslations("login");
   const authT = useTranslations("auth");
-  const { signIn } = useAuth();
+  const locale = useLocale();
+  const { signIn, signOut } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("linkedin") !== "1") return;
+    void signOut();
+  }, [signOut]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +37,11 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
+      if (new URLSearchParams(window.location.search).get("linkedin") === "1") {
+        // Top-level navigation: OAuth start sets cookies and leaves the app.
+        window.location.replace(`/api/linkedin/start?locale=${locale}`);
+        return;
+      }
       router.replace("/brands");
     } catch {
       setError(authT("invalidCredentials"));

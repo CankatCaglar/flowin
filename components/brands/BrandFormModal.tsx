@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import type { Brand } from "@/types";
 
 const colors = ["#6D1472", "#AE1BB6", "#2F5F9A", "#C47A1A", "#3D0A45", "#4A0E5C"];
@@ -16,7 +15,7 @@ export function BrandFormModal({
   onSubmit,
 }: {
   open: boolean;
-  brand?: Brand | null;
+  brand: Brand | null;
   onClose: () => void;
   onSubmit: (input: { name: string; avatarColor: string }) => Promise<void>;
 }) {
@@ -35,7 +34,7 @@ export function BrandFormModal({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!name.trim()) return;
+    if (!brand || !name.trim()) return;
     setSubmitting(true);
     try {
       await onSubmit({ name: name.trim(), avatarColor });
@@ -46,19 +45,17 @@ export function BrandFormModal({
   };
 
   return (
-    <Modal
-      open={open}
-      title={brand ? t("modalEditTitle") : t("modalCreateTitle")}
-      onClose={onClose}
-    >
+    <Modal open={open} title={t("modalEditTitle")} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Input
-          id="brand-name"
-          label={t("nameLabel")}
-          placeholder={t("namePlaceholder")}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
+        <label className="block">
+          <span className="text-sm font-medium text-white">{t("nameLabel")}</span>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={t("namePlaceholder")}
+            className="mt-2 h-11 w-full rounded-xl border border-purple-jam/40 bg-midnight/80 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-purple-jam/80"
+          />
+        </label>
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-white">
             {t("colorLabel")}
@@ -84,7 +81,7 @@ export function BrandFormModal({
             {common("cancel")}
           </Button>
           <Button type="submit" disabled={submitting || !name.trim()}>
-            {brand ? t("update") : t("create")}
+            {t("update")}
           </Button>
         </div>
       </form>

@@ -1,0 +1,32 @@
+---
+description: Flowin product architecture — mock UI first, then LinkedIn + Unipile cutover
+alwaysApply: true
+---
+
+# Flowin architecture
+
+Nera agency tool: manage client brand LinkedIn outreach from one admin panel (Dripify-like, with Flowin’s own fixed sequence).
+
+## Auth layers (do not mix)
+
+- **Admin login** stays email/password (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). No LinkedIn login on `/login`.
+- **Secrets** live only in `.env.local` (and Vercel env). Never `NEXT_PUBLIC_*`. Firestore is server-only via Firebase **Admin SDK** (`FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY`). Console rules stay `allow read, write: if false` — the browser never talks to Firestore.
+- **Brand LinkedIn** is connected later, per brand on the brands page. Nera already operates those LinkedIn accounts. One connected LinkedIn seat = one brand.
+
+## Current phase
+
+- **Brand LinkedIn connect is live** (OpenID: name, photo, email). Seed brand cards are gone. No outreach yet.
+- Dashboard / campaigns / leads / messages stay mock **for the selected connected brand** (empty until Unipile).
+- Do not wire Unipile until the user asks.
+
+## Later cutover (no mock left)
+
+When asked to go live, professionally:
+
+1. **LinkedIn Developer app (Flowin, verified under Nera Marketing Agency)** — brand identity / “connect this LinkedIn account we already manage”. Not the outreach engine.
+2. **Unipile API** (~49€/mo, up to 10 linked accounts, unlimited calls) — the sequence engine: Sales Navigator / CSV lists, profile views, delays, connection requests, messages, InMail, reply sync. Store `unipile_account_id` on the brand. Tokens stay server-side.
+3. **Pacing** lives in Flowin (daily/weekly caps, random delays, no burst invites) so LinkedIn is less likely to restrict accounts. Unipile does not enforce Flowin’s sequence.
+
+Do not implement unofficial LinkedIn scraping or cookie/session bots. Outreach goes through Unipile.
+
+Seed brands (Bimaks, Siskon, UNIBA, Altinok, Nera) and localStorage overlays are demo-only and come out at cutover.

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Avatars are written and read only by the Firebase Admin SDK.
+// The browser never talks to Storage — images are served via /api/brands/:id/avatar.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

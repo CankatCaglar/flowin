@@ -89,7 +89,14 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       avatarUrl?: string;
     }) => {
       const brand = await createBrand(input);
-      setBrands((current) => [...current, brand]);
+      setBrands((current) => {
+        if (current.some((item) => item.id === brand.id || item.linkedinSub === brand.linkedinSub)) {
+          return current.map((item) =>
+            item.id === brand.id || item.linkedinSub === brand.linkedinSub ? brand : item,
+          );
+        }
+        return [...current, brand];
+      });
       return brand;
     },
     [],

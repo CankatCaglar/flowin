@@ -1,9 +1,22 @@
 import "server-only";
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
+import {
+  brandAvatarUrl,
+  deleteBrandAvatar,
+  ingestBrandAvatar,
+  isRemoteAvatarUrl,
+  isStoredAvatarUrl,
+  moveBrandAvatar,
+} from "@/lib/brand-avatar";
 import { brandSlug, looksLikeAutoId } from "@/lib/brand-id";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { hydrateBrandDates } from "@/lib/storage";
 import type { Brand } from "@/types";
+
+function fallbackRemoteAvatar(url?: string) {
+  const value = url?.trim() ?? "";
+  return isRemoteAvatarUrl(value) ? value : "";
+}
 
 function asDate(value: unknown) {
   if (value instanceof Date) return value;
@@ -62,22 +75,47 @@ async function migrateReadableBrandIds(db: Firestore) {
   }
 }
 
+const remoteAvatarIngested = new Set<string>();
+
+async function ingestStoredRemoteAvatar(
+  db: Firestore,
+  brandId: string,
+  data: { avatarUrl?: unknown; linkedinSub?: unknown },
+) {
+  const remoteUrl = String(data.avatarUrl ?? "").trim();
+  if (!isRemoteAvatarUrl(remoteUrl) || remoteAvatarIngested.has(brandId)) {
+    return remoteUrl;
+  }
+  remoteAvatarIngested.add(brandId);
+  const avatarUrl = await ingestBrandAvatar({
+    brandId,
+    linkedinSub: typeof data.linkedinSub === "string" ? data.linkedinSub : "",
+    remoteUrl,
+  });
+  if (!avatarUrl) return remoteUrl;
+  await db.collection("brands").doc(brandId).update({ avatarUrl });
+  return avatarUrl;
+}
+
 export async function fetchBrands(): Promise<Brand[]> {
   const db = requireFirebaseDb();
   await migrateReadableBrandIds(db);
   const snapshot = await db.collection("brands").get();
-  return snapshot.docs.map((item) => {
-    const data = item.data();
-    return hydrateBrandRecord({
-      id: item.id,
-      name: String(data.name ?? ""),
-      avatarColor: String(data.avatarColor ?? "#6D1472"),
-      createdAt: asDate(data.createdAt),
-      linkedinSub: data.linkedinSub,
-      linkedinEmail: data.linkedinEmail,
-      avatarUrl: data.avatarUrl,
-    });
-  });
+  return Promise.all(
+    snapshot.docs.map(async (item) => {
+      const data = item.data();
+      const avatarUrl = await ingestStoredRemoteAvatar(db, item.id, data);
+      return hydrateBrandRecord({
+        id: item.id,
+        name: String(data.name ?? ""),
+        avatarColor: String(data.avatarColor ?? "#6D1472"),
+        createdAt: asDate(data.createdAt),
+        linkedinSub: data.linkedinSub,
+        linkedinEmail: data.linkedinEmail,
+        avatarUrl,
+      });
+    }),
+  );
 }
 
 export async function createBrand(input: {
@@ -89,18 +127,51 @@ export async function createBrand(input: {
 }) {
   const db = requireFirebaseDb();
   const linkedinSub = input.linkedinSub.trim();
-  if (await findBrandByLinkedInSub(db, linkedinSub)) {
-    throw new Error("already-connected");
+  const existing = await findBrandByLinkedInSub(db, linkedinSub);
+  if (existing) {
+    const current = existing.data() ?? {};
+    const avatarUrl =
+      (await ingestBrandAvatar({
+        brandId: existing.id,
+        linkedinSub,
+        remoteUrl: input.avatarUrl,
+      })) ||
+      fallbackRemoteAvatar(input.avatarUrl) ||
+      String(current.avatarUrl ?? "");
+    const linkedinEmail = input.linkedinEmail?.trim() || String(current.linkedinEmail ?? "");
+    const updates: Record<string, string> = {};
+    if (avatarUrl) updates.avatarUrl = avatarUrl;
+    if (linkedinEmail && linkedinEmail !== current.linkedinEmail) {
+      updates.linkedinEmail = linkedinEmail;
+    }
+    if (Object.keys(updates).length > 0) {
+      await existing.ref.update(updates);
+    }
+    return hydrateBrandRecord({
+      id: existing.id,
+      name: String(current.name ?? input.name),
+      avatarColor: String(current.avatarColor ?? input.avatarColor),
+      createdAt: asDate(current.createdAt),
+      linkedinSub,
+      linkedinEmail,
+      avatarUrl,
+    });
   }
+  const id = await uniqueBrandId(db, input.name.trim());
+  const avatarUrl =
+    (await ingestBrandAvatar({
+      brandId: id,
+      linkedinSub,
+      remoteUrl: input.avatarUrl,
+    })) || fallbackRemoteAvatar(input.avatarUrl);
   const payload = {
     name: input.name.trim(),
     avatarColor: input.avatarColor,
     createdAt: new Date(),
     linkedinSub,
     linkedinEmail: input.linkedinEmail?.trim() ?? "",
-    avatarUrl: input.avatarUrl?.trim() ?? "",
+    avatarUrl,
   };
-  const id = await uniqueBrandId(db, payload.name);
   await db.collection("brands").doc(id).create({
     ...payload,
     createdAt: Timestamp.fromDate(payload.createdAt),
@@ -122,13 +193,18 @@ export async function updateBrand(
   const name = input.name.trim();
   const avatarColor = input.avatarColor ?? String(current.avatarColor ?? "#6D1472");
   const nextId = await uniqueBrandId(db, name, brandId);
-  const next = {
-    ...current,
-    name,
-    avatarColor,
-  };
+  let avatarUrl = String(current.avatarUrl ?? "");
   if (nextId !== brandId) {
-    await db.collection("brands").doc(nextId).set(next);
+    await moveBrandAvatar(brandId, nextId);
+    if (isStoredAvatarUrl(avatarUrl)) {
+      avatarUrl = brandAvatarUrl(nextId);
+    }
+    await db.collection("brands").doc(nextId).set({
+      ...current,
+      name,
+      avatarColor,
+      avatarUrl,
+    });
     await ref.delete();
   } else {
     await ref.update({ name, avatarColor });
@@ -140,10 +216,11 @@ export async function updateBrand(
     createdAt: asDate(current.createdAt),
     linkedinSub: current.linkedinSub,
     linkedinEmail: current.linkedinEmail,
-    avatarUrl: current.avatarUrl,
+    avatarUrl,
   });
 }
 
 export async function deleteBrand(brandId: string) {
+  await deleteBrandAvatar(brandId);
   await requireFirebaseDb().collection("brands").doc(brandId).delete();
 }

@@ -81,11 +81,6 @@ function BrandsPageInner() {
       if (!profile) return;
 
       const already = brands.some((brand) => brand.linkedinSub && brand.linkedinSub === profile.sub);
-      if (already) {
-        setNotice("already");
-        await fetch("/api/linkedin/pending", { method: "DELETE" });
-        return;
-      }
 
       try {
         await addBrand({
@@ -96,6 +91,7 @@ function BrandsPageInner() {
           avatarUrl: profile.picture,
         });
         await fetch("/api/linkedin/pending", { method: "DELETE" });
+        if (already) setNotice("already");
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         setNotice(
@@ -122,6 +118,10 @@ function BrandsPageInner() {
             ? t("connectScope")
             : notice === "firebase"
               ? t("firebaseUnconfigured")
+            : notice === "photo"
+            ? t("photoUpdated")
+            : notice === "nophoto"
+            ? t("photoMissing")
             : notice === "error"
             ? t("connectError")
             : null;
@@ -170,7 +170,12 @@ function BrandsPageInner() {
                     router.push("/dashboard");
                   }}
                 >
-                  <BrandAvatar brand={brand} size="lg" className="mx-auto" />
+                  <BrandAvatar
+                    key={`${brand.id}-${brand.avatarUrl ?? ""}`}
+                    brand={brand}
+                    size="lg"
+                    className="mx-auto"
+                  />
                   <h2 className="mt-4 text-lg font-semibold text-white">{brand.name}</h2>
                   {brand.linkedinEmail ? (
                     <p className="mt-1 truncate text-[12px] text-white/45">{brand.linkedinEmail}</p>
@@ -250,6 +255,9 @@ function BrandsPageInner() {
           onSubmit={async (input) => {
             if (!editing) return;
             await editBrand(editing.id, input);
+          }}
+          onRefreshPhoto={() => {
+            window.location.assign(`/api/linkedin/start?locale=${locale}`);
           }}
         />
 

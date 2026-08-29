@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminSessionEmail } from "@/lib/admin-session";
+import { createBrand } from "@/lib/data";
 import {
   asAppLocale,
   exchangeLinkedInCode,
   fetchLinkedInProfile,
 } from "@/lib/linkedin";
+import { colorFromKey } from "@/lib/utils";
 
 function clearOAuthCookies(response: NextResponse) {
   const expired = {
@@ -18,6 +20,7 @@ function clearOAuthCookies(response: NextResponse) {
   response.cookies.set("flowin_li_state", "", expired);
   response.cookies.set("flowin_li_locale", "", expired);
   response.cookies.set("flowin_li_redirect", "", expired);
+  response.cookies.set("flowin_li_pending", "", expired);
 }
 
 export async function GET(request: Request) {
@@ -62,21 +65,24 @@ export async function GET(request: Request) {
   try {
     const accessToken = await exchangeLinkedInCode(code, redirectUri);
     const profile = await fetchLinkedInProfile(accessToken);
-    const response = NextResponse.redirect(brands());
-    clearOAuthCookies(response);
-    response.cookies.set("flowin_li_pending", JSON.stringify(profile), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 2,
+    const brand = await createBrand({
+      name: profile.name,
+      avatarColor: colorFromKey(profile.sub),
+      linkedinSub: profile.sub,
+      linkedinEmail: profile.email,
+      avatarUrl: profile.picture,
     });
+    const response = NextResponse.redirect(
+      brands(brand.avatarUrl ? "linkedin=photo" : "linkedin=nophoto"),
+    );
+    clearOAuthCookies(response);
     return response;
   } catch (error) {
-    console.error(
-      "[linkedin] callback failed:",
-      error instanceof Error ? error.message : "unknown",
-    );
+    const message = error instanceof Error ? error.message : "unknown";
+    console.error("[linkedin] callback failed:", message);
+    if (message === "firebase-unconfigured") {
+      return fail("linkedin=firebase");
+    }
     return fail("linkedin=error");
   }
 }

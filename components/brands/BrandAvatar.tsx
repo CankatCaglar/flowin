@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { brandInitial, cn } from "@/lib/utils";
 import type { Brand } from "@/types";
 
@@ -10,6 +13,7 @@ export function BrandAvatar({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   const dim =
     size === "sm"
       ? "h-9 w-9 text-sm"
@@ -17,16 +21,23 @@ export function BrandAvatar({
         ? "h-16 w-16 text-2xl"
         : "h-14 w-14 text-xl";
   const rounded = size === "sm" ? "rounded-lg" : "rounded-2xl";
+  const photo = brand.avatarUrl?.trim() && !failed ? brand.avatarUrl : "";
 
-  if (brand.avatarUrl) {
+  if (photo) {
     return (
-      // LinkedIn CDN blocks some referrers; keep a plain img.
+      // Served from /api/brands/:id/avatar (Firebase Storage via Admin SDK).
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={brand.avatarUrl}
+        src={photo}
         alt=""
         referrerPolicy="no-referrer"
-        className={cn("object-cover", dim, rounded, className)}
+        onError={() => setFailed(true)}
+        className={cn(
+          "object-cover ring-1 ring-white/15",
+          dim,
+          rounded,
+          className,
+        )}
       />
     );
   }

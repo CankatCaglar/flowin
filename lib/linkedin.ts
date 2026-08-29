@@ -93,6 +93,7 @@ export async function fetchLinkedInProfile(accessToken: string): Promise<LinkedI
     family_name?: unknown;
     email?: unknown;
     picture?: unknown;
+    picture_url?: unknown;
   };
   const sub = typeof data.sub === "string" ? data.sub.trim() : "";
   if (!sub) throw new Error("userinfo-incomplete");
@@ -102,12 +103,31 @@ export async function fetchLinkedInProfile(accessToken: string): Promise<LinkedI
     (typeof data.name === "string" && data.name.trim()) ||
     [given, family].filter(Boolean).join(" ") ||
     "LinkedIn";
+  const picture = asPicture(data.picture) || asPicture(data.picture_url);
+  console.info("[linkedin] userinfo", {
+    hasName: Boolean(name),
+    hasEmail: typeof data.email === "string" && Boolean(data.email),
+    hasPicture: Boolean(picture),
+  });
   return {
     sub,
     name,
     email: typeof data.email === "string" ? data.email.trim() : "",
-    picture: typeof data.picture === "string" ? data.picture.trim() : "",
+    picture,
   };
+}
+
+function asPicture(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.url === "string") return record.url.trim();
+  if (typeof record.picture === "string") return record.picture.trim();
+  if (record.data && typeof record.data === "object") {
+    const nested = record.data as Record<string, unknown>;
+    if (typeof nested.url === "string") return nested.url.trim();
+  }
+  return "";
 }
 
 export function parsePendingProfile(raw: string | undefined): LinkedInProfile | null {

@@ -2,33 +2,32 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { BrandAvatar } from "@/components/brands/BrandAvatar";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import type { Brand } from "@/types";
-
-const colors = ["#6D1472", "#AE1BB6", "#2F5F9A", "#C47A1A", "#3D0A45", "#4A0E5C"];
 
 export function BrandFormModal({
   open,
   brand,
   onClose,
   onSubmit,
+  onRefreshPhoto,
 }: {
   open: boolean;
   brand: Brand | null;
   onClose: () => void;
-  onSubmit: (input: { name: string; avatarColor: string }) => Promise<void>;
+  onSubmit: (input: { name: string }) => Promise<void>;
+  onRefreshPhoto?: () => void;
 }) {
   const t = useTranslations("brands");
   const common = useTranslations("common");
   const [name, setName] = useState("");
-  const [avatarColor, setAvatarColor] = useState(colors[0]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setName(brand?.name ?? "");
-      setAvatarColor(brand?.avatarColor ?? colors[0]);
     }
   }, [open, brand]);
 
@@ -37,7 +36,7 @@ export function BrandFormModal({
     if (!brand || !name.trim()) return;
     setSubmitting(true);
     try {
-      await onSubmit({ name: name.trim(), avatarColor });
+      await onSubmit({ name: name.trim() });
       onClose();
     } finally {
       setSubmitting(false);
@@ -47,6 +46,24 @@ export function BrandFormModal({
   return (
     <Modal open={open} title={t("modalEditTitle")} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-5">
+        {brand ? (
+          <div className="flex items-center gap-3">
+            <BrandAvatar brand={{ ...brand, name: name || brand.name }} size="md" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-white">{t("photoLabel")}</p>
+              <p className="mt-1 text-xs leading-5 text-white/50">{t("photoHint")}</p>
+              {onRefreshPhoto ? (
+                <button
+                  type="button"
+                  onClick={onRefreshPhoto}
+                  className="mt-2 text-xs font-medium text-barney hover:text-white"
+                >
+                  {t("photoRefresh")}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         <label className="block">
           <span className="text-sm font-medium text-white">{t("nameLabel")}</span>
           <input
@@ -56,26 +73,6 @@ export function BrandFormModal({
             className="mt-2 h-11 w-full rounded-xl border border-purple-jam/40 bg-midnight/80 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-purple-jam/80"
           />
         </label>
-        <fieldset>
-          <legend className="mb-2 text-sm font-medium text-white">
-            {t("colorLabel")}
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {colors.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={color}
-                onClick={() => setAvatarColor(color)}
-                className="h-8 w-8 rounded-full border-2"
-                style={{
-                  backgroundColor: color,
-                  borderColor: avatarColor === color ? "#ffffff" : "transparent",
-                }}
-              />
-            ))}
-          </div>
-        </fieldset>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
             {common("cancel")}

@@ -3,7 +3,6 @@
 import { use } from "react";
 import { CampaignFlowSummary } from "@/components/campaigns/CampaignFlowSummary";
 import { CampaignHighlights } from "@/components/campaigns/CampaignHighlights";
-import { CampaignInfoBar } from "@/components/campaigns/CampaignInfoBar";
 import { CampaignKpiCards } from "@/components/campaigns/CampaignKpiCards";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { useBrand } from "@/contexts/BrandContext";
@@ -49,7 +48,6 @@ export default function CampaignOverviewPage({
         </div>
         <CampaignFlowSummary campaign={campaign} />
       </div>
-      <CampaignInfoBar campaign={campaign} />
       <CampaignHighlights
         bestDayKey={best?.date}
         bestDayRate={best ? successRate(best.sentCount, best.repliedCount) : 0}

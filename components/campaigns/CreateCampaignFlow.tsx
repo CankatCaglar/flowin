@@ -31,7 +31,7 @@ function BranchLabel({ branch }: { branch: FlowBranch }) {
     <div className="flex items-center gap-2 pl-0">
       <span
         className={cn(
-          "relative z-10 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+          "relative z-10 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] leading-5 font-medium",
           accepted
             ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-700"
             : "border-purple-jam/15 bg-canvas text-muted",
@@ -166,7 +166,7 @@ export function CreateFlowPreview({ steps }: { steps: CampaignFlowStep[] }) {
     return (
       <Fragment key={step.id}>
         {showWait ? (
-          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] py-2">
+          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] py-3.5">
             <div className="relative">
               <span
                 aria-hidden
@@ -174,17 +174,17 @@ export function CreateFlowPreview({ steps }: { steps: CampaignFlowStep[] }) {
               />
             </div>
             <div className="flex items-center">
-              <span className="text-xs font-medium text-muted">
+              <span className="pt-px text-xs font-medium leading-5 text-muted">
                 {t(waitBadgeKey(step.delayUnit), { count: step.delayDays })}
               </span>
             </div>
           </div>
         ) : null}
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-barney/10 text-barney">
+        <div className="flex items-center gap-3 py-1.5">
+          <span className="flex shrink-0 text-barney">
             <Icon className="h-5 w-5" />
           </span>
-          <span className="min-w-0 flex-1 truncate font-display text-[13px] font-medium text-ink">
+          <span className="min-w-0 flex-1 py-0.5 font-sans text-[13px] font-medium leading-6 text-ink">
             {flowStepTitle(step, locale)}
           </span>
           {step.premium ? (
@@ -201,11 +201,11 @@ export function CreateFlowPreview({ steps }: { steps: CampaignFlowStep[] }) {
     if (list.length === 0) return null;
     const isAccepted = isAcceptedBranch(branch);
     return (
-      <div key={branch} className="mt-3">
+      <div key={branch} className="mt-5">
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] leading-5 font-medium",
               isAccepted
                 ? "border-emerald-500/25 bg-emerald-500/8 text-emerald-700"
                 : "border-purple-jam/15 bg-canvas text-muted",
@@ -216,7 +216,7 @@ export function CreateFlowPreview({ steps }: { steps: CampaignFlowStep[] }) {
           <span className="text-[11px] text-muted">{t(BRANCH_HINTS[branch])}</span>
           <span aria-hidden className="h-px flex-1 border-t border-dashed border-barney/25" />
         </div>
-        <div className="mt-3">{list.map((step) => renderStep(step, true))}</div>
+        <div className="mt-4">{list.map((step) => renderStep(step, true))}</div>
       </div>
     );
   };

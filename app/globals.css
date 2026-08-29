@@ -23,13 +23,28 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
 }
 
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.5;
+    overflow: visible;
+  }
+
+  .font-display {
+    line-height: 1.5;
+  }
+
+  .truncate {
+    overflow: hidden;
+    line-height: 1.5;
+    padding-block: 0.18em 0.08em;
+  }
 }
 
 a,

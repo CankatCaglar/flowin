@@ -13,8 +13,8 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
 import { addDays, APP_TODAY, startOfDay } from "@/lib/dates";
-import { cn, formatDate, formatNumber, formatPercent, successRate } from "@/lib/utils";
-import type { Campaign, CampaignStatus } from "@/types";
+import { cn, formatDateTime, formatNumber, formatPercent, successRate } from "@/lib/utils";
+import type { Campaign, CampaignStatus, Lead } from "@/types";
 
 const PAGE_SIZE = 6;
 const FILTERS: Array<"all" | CampaignStatus> = [
@@ -25,7 +25,16 @@ const FILTERS: Array<"all" | CampaignStatus> = [
   "completed",
 ];
 
-type SortKey = "name" | "sent" | "replied" | "success" | "status" | "dates";
+type SortKey = "name" | "total" | "sent" | "replied" | "success" | "status" | "created";
+
+const CENTERED_COLUMNS = new Set<SortKey>([
+  "total",
+  "sent",
+  "replied",
+  "success",
+  "status",
+  "created",
+]);
 
 const STATUS_ORDER: Record<CampaignStatus, number> = {
   active: 0,
@@ -43,15 +52,28 @@ function dateWindow(preset: CampaignDatePreset) {
   return { start: startOfDay(new Date(APP_TODAY.getFullYear(), APP_TODAY.getMonth(), 1)), end };
 }
 
-function overlaps(campaign: Campaign, preset: CampaignDatePreset) {
+function createdInWindow(campaign: Campaign, preset: CampaignDatePreset) {
   const window = dateWindow(preset);
   if (!window) return true;
-  return startOfDay(campaign.startDate) <= window.end && startOfDay(campaign.endDate) >= window.start;
+  const created = startOfDay(campaign.createdAt);
+  return created >= window.start && created <= window.end;
 }
 
-function compareCampaigns(a: Campaign, b: Campaign, key: SortKey, dir: 1 | -1) {
+function totalLeads(campaign: Campaign, leads: Lead[]) {
+  const count = leads.filter((lead) => lead.campaignId === campaign.id).length;
+  return count > 0 ? count : campaign.leadGoal;
+}
+
+function compareCampaigns(
+  a: Campaign,
+  b: Campaign,
+  key: SortKey,
+  dir: 1 | -1,
+  leads: Lead[],
+) {
   const factor = dir;
   if (key === "name") return a.name.localeCompare(b.name) * factor;
+  if (key === "total") return (totalLeads(a, leads) - totalLeads(b, leads)) * factor;
   if (key === "sent") return (a.sentCount - b.sentCount) * factor;
   if (key === "replied") return (a.repliedCount - b.repliedCount) * factor;
   if (key === "success") {
@@ -60,7 +82,7 @@ function compareCampaigns(a: Campaign, b: Campaign, key: SortKey, dir: 1 | -1) {
     );
   }
   if (key === "status") return (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * factor;
-  return (a.startDate.getTime() - b.startDate.getTime()) * factor;
+  return (a.createdAt.getTime() - b.createdAt.getTime()) * factor;
 }
 
 export default function CampaignsPage() {
@@ -69,25 +91,25 @@ export default function CampaignsPage() {
   const statusT = useTranslations("status");
   const locale = useLocale();
   const { selectedBrand } = useBrand();
-  const { campaigns, loading } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, loading } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [dateFilter, setDateFilter] = useState<CampaignDatePreset>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     const rows = campaigns.filter((campaign) => {
       if (filter !== "all" && campaign.status !== filter) return false;
-      if (!overlaps(campaign, dateFilter)) return false;
+      if (!createdInWindow(campaign, dateFilter)) return false;
       if (term && !campaign.name.toLowerCase().includes(term)) return false;
       return true;
     });
-    return [...rows].sort((a, b) => compareCampaigns(a, b, sortKey, sortDir));
-  }, [campaigns, dateFilter, filter, query, sortDir, sortKey]);
+    return [...rows].sort((a, b) => compareCampaigns(a, b, sortKey, sortDir, leads));
+  }, [campaigns, dateFilter, filter, leads, query, sortDir, sortKey]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -159,18 +181,25 @@ export default function CampaignsPage() {
               {(
                 [
                   ["name", t("name")],
+                  ["total", t("totalLeads")],
                   ["sent", t("sent")],
                   ["replied", t("replied")],
                   ["success", t("success")],
                   ["status", t("status")],
-                  ["dates", t("dates")],
+                  ["created", t("createdAt")],
                 ] as const
               ).map(([key, label]) => (
-                <th key={key} className="px-5 py-3 font-medium">
+                <th
+                  key={key}
+                  className={cn("px-5 py-3 font-medium", CENTERED_COLUMNS.has(key) && "text-center")}
+                >
                   <button
                     type="button"
                     onClick={() => toggleSort(key)}
-                    className="inline-flex items-center gap-1 hover:text-ink"
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink",
+                      CENTERED_COLUMNS.has(key) && "justify-center",
+                    )}
                   >
                     {label}
                     <ArrowUpDown
@@ -207,23 +236,26 @@ export default function CampaignsPage() {
                       {campaign.name}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-muted">
+                  <td className="px-5 py-3 text-center text-muted">
+                    {formatNumber(totalLeads(campaign, leads), locale)}
+                  </td>
+                  <td className="px-5 py-3 text-center text-muted">
                     {formatNumber(campaign.sentCount, locale)}
                   </td>
-                  <td className="px-5 py-3 text-muted">
+                  <td className="px-5 py-3 text-center text-muted">
                     {formatNumber(campaign.repliedCount, locale)}
                   </td>
-                  <td className="px-5 py-3 text-muted">
+                  <td className="px-5 py-3 text-center text-muted">
                     {formatPercent(
                       successRate(campaign.sentCount, campaign.repliedCount),
                       locale,
                     )}
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 text-center">
                     <StatusBadge status={campaign.status} label={statusT(campaign.status)} />
                   </td>
-                  <td className="px-5 py-3 whitespace-nowrap text-muted">
-                    {formatDate(campaign.startDate, locale)} – {formatDate(campaign.endDate, locale)}
+                  <td className="px-5 py-3 whitespace-nowrap text-center text-muted">
+                    {formatDateTime(campaign.createdAt, locale)}
                   </td>
                   <td className="px-3 py-3 text-right">
                     <CampaignRowMenu campaignId={campaign.id} />

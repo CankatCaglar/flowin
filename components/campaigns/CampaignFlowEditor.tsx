@@ -194,11 +194,13 @@ export function CampaignFlowEditor({
   selectedId,
   onSelect,
   onClear,
+  embedded = false,
 }: {
   steps: CampaignFlowStep[];
   selectedId?: string | null;
   onSelect: (step: CampaignFlowStep) => void;
   onClear?: () => void;
+  embedded?: boolean;
 }) {
   const t = useTranslations("campaigns.flow");
 
@@ -229,10 +231,12 @@ export function CampaignFlowEditor({
   );
 
   return (
-    <div className="surface-card rounded-2xl p-5 sm:p-6">
-      <h2 className="font-display text-base font-semibold text-ink">{t("heading")}</h2>
+    <div className={embedded ? "" : "surface-card rounded-2xl p-5 sm:p-6"}>
+      {embedded ? null : (
+        <h2 className="font-display text-base font-semibold text-ink">{t("heading")}</h2>
+      )}
 
-      <div className="mt-6">
+      <div className={embedded ? "" : "mt-6"}>
         <div className="mx-auto max-w-80">
           <FlowColumn steps={trunk} selectedId={selectedId} onSelect={onSelect} />
         </div>

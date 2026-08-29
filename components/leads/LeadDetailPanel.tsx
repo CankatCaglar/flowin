@@ -92,7 +92,7 @@ export function LeadDetailPanel({
           {personInitials(lead.fullName)}
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-display text-lg font-semibold text-ink">{lead.fullName}</h2>
+          <h2 className="truncate font-display text-lg font-semibold leading-snug text-ink">{lead.fullName}</h2>
           <p className="text-sm text-muted">{lead.position}</p>
           <p className="text-sm text-muted">{lead.company}</p>
           {campaignName ? <p className="text-sm text-muted">{campaignName}</p> : null}

@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Calendar, List, Upload } from "lucide-react";
+import { ArrowRight, List, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { CreateCampaignSidebar } from "@/components/campaigns/CreateCampaignSidebar";
+import { CreateFlowCanvas } from "@/components/campaigns/CreateFlowCanvas";
+import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
 import { LeadImportPanel } from "@/components/campaigns/LeadImportPanel";
 import { LeadListPicker } from "@/components/campaigns/LeadListPicker";
 import { Button } from "@/components/ui/Button";
@@ -16,8 +18,8 @@ import { useRouter } from "@/i18n/navigation";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { ImportedLead } from "@/lib/lead-import";
 import { createCampaign, createLead } from "@/lib/local-data";
-import { APP_TODAY, addDays, parseDateKey } from "@/lib/dates";
-import { cn, toInputDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import type { CampaignFlowStep } from "@/types";
 
 const LIST_SOURCES = ["existing", "file", "salesNav"] as const;
 
@@ -29,8 +31,6 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const preferredList = campaigns[0];
   const [name, setName] = useState("");
-  const [start, setStart] = useState(toInputDate(addDays(APP_TODAY, -9)));
-  const [end, setEnd] = useState(toInputDate(addDays(APP_TODAY, 18)));
   const [source, setSource] = useState<(typeof LIST_SOURCES)[number]>("existing");
   const [listId, setListId] = useState("");
   const [imported, setImported] = useState<{
@@ -38,6 +38,9 @@ export default function NewCampaignPage() {
     fileName: string;
     skipped: number;
   }>({ leads: [], fileName: "", skipped: 0 });
+  const [flow, setFlow] = useState<CampaignFlowStep[]>(() => defaultCampaignFlow());
+  const [editing, setEditing] = useState<CampaignFlowStep | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const selectedList = useMemo(
@@ -63,17 +66,16 @@ export default function NewCampaignPage() {
     if (!selectedBrand || !name.trim() || !canSubmit) return;
     setSubmitting(true);
     try {
+      const createdAt = new Date();
       const campaign = await createCampaign({
         brandId: selectedBrand.id,
         name: name.trim(),
-        startDate: parseDateKey(start),
-        endDate: parseDateKey(end),
+        startDate: createdAt,
+        endDate: createdAt,
         targetAudience:
-          source === "file"
-            ? imported.fileName
-            : selectedList?.name ?? name.trim(),
+          source === "file" ? imported.fileName : selectedList?.name ?? name.trim(),
         leadGoal: shownCount,
-        flow: defaultCampaignFlow(),
+        flow,
         status: asDraft ? "draft" : "active",
       });
       if (source === "file") {
@@ -116,43 +118,21 @@ export default function NewCampaignPage() {
         backHref="/campaigns"
         backLabel={campaignsT("backToList")}
       />
-      <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="surface-card flex h-full flex-col space-y-8 rounded-2xl p-5 sm:p-6">
+      <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[auto_minmax(0,1fr)]">
+        <div className="surface-card flex h-full min-h-0 flex-col gap-8 rounded-2xl p-5 sm:p-6 xl:row-span-2">
           <section className="space-y-4">
             <h2 className="font-display text-base font-semibold text-ink">
               1. {t("info")}
             </h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Input
-                id="campaign-name"
-                variant="light"
-                label={t("name")}
-                placeholder={t("namePlaceholder")}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-              <Input
-                id="campaign-start"
-                variant="light"
-                type="date"
-                label={t("start")}
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
-                leftIcon={<Calendar className="h-4 w-4 text-barney" />}
-                required
-              />
-              <Input
-                id="campaign-end"
-                variant="light"
-                type="date"
-                label={t("end")}
-                value={end}
-                onChange={(event) => setEnd(event.target.value)}
-                leftIcon={<Calendar className="h-4 w-4 text-barney" />}
-                required
-              />
-            </div>
+            <Input
+              id="campaign-name"
+              variant="light"
+              label={t("name")}
+              placeholder={t("namePlaceholder")}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+            />
           </section>
 
           <section className="space-y-4">
@@ -204,7 +184,26 @@ export default function NewCampaignPage() {
             ) : null}
           </section>
 
-          <div className="mt-auto flex flex-wrap justify-end gap-2 pt-2">
+          <section className="flex min-h-0 flex-1 flex-col space-y-2">
+            <div className="shrink-0">
+              <h2 className="font-display text-base font-semibold text-ink">
+                3. {t("flow")}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted">{t("flowHint")}</p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <CreateFlowCanvas
+                steps={flow}
+                selectedId={editing?.id ?? selectedId}
+                onSelect={(step) => {
+                  setSelectedId(step.id);
+                  setEditing(step);
+                }}
+              />
+            </div>
+          </section>
+
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="brand"
@@ -219,8 +218,22 @@ export default function NewCampaignPage() {
             </Button>
           </div>
         </div>
-        <CreateCampaignSidebar leadCount={shownCount} sourceLabel={sourceLabel} />
+        <CreateCampaignSidebar
+          leadCount={shownCount}
+          steps={flow}
+          sourceLabel={sourceLabel}
+        />
       </div>
+      {editing ? (
+        <EditFlowStepModal
+          key={editing.id}
+          step={editing}
+          onClose={() => setEditing(null)}
+          onSave={(next) => {
+            setFlow((current) => current.map((step) => (step.id === next.id ? next : step)));
+          }}
+        />
+      ) : null}
     </form>
   );
 }

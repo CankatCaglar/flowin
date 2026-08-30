@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  labelClassName?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   variant?: "dark" | "light";
@@ -10,6 +11,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({
   className,
   label,
+  labelClassName,
   leftIcon,
   rightIcon,
   id,
@@ -18,12 +20,13 @@ export function Input({
 }: InputProps) {
   const light = variant === "light";
   return (
-    <label className="block space-y-2" htmlFor={id}>
+    <label className="block min-w-0 space-y-2" htmlFor={id}>
       {label ? (
         <span
           className={cn(
             "text-[13px] font-medium",
             light ? "text-muted" : "text-white/70",
+            labelClassName,
           )}
         >
           {label}

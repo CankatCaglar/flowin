@@ -1,4 +1,4 @@
-export type CampaignStatus = "active" | "expiring" | "draft" | "completed";
+export type CampaignStatus = "active" | "expiring" | "paused" | "draft" | "completed";
 export type LeadStatus =
   | "queued"
   | "waiting_reply"
@@ -13,11 +13,13 @@ export type LeadStage =
   | "flow_completed";
 export type LeadEventKind =
   | "added"
+  | "profile_viewed"
   | "connection_sent"
   | "accepted"
   | "message_1_sent"
   | "message_2_sent"
   | "message_3_sent"
+  | "inmail_sent"
   | "replied"
   | "failed";
 export type DatePreset = "last7" | "thisMonth" | "custom";
@@ -39,6 +41,14 @@ export type FlowBranch =
   | "inmail_accepted"
   | "inmail_no_response";
 
+export type UnipileStatus = "none" | "running" | "disconnected" | "error";
+
+export interface BrandPacing {
+  dailyInvites: number;
+  dailyMessages: number;
+  dailyViews: number;
+}
+
 export interface Brand {
   id: string;
   name: string;
@@ -47,6 +57,11 @@ export interface Brand {
   linkedinSub?: string;
   linkedinEmail?: string;
   avatarUrl?: string;
+  unipileAccountId?: string;
+  unipileStatus?: UnipileStatus;
+  pacing?: BrandPacing;
+  activeCampaigns?: number;
+  successRate?: number;
 }
 
 export interface CampaignFlowStep {
@@ -75,6 +90,7 @@ export interface Campaign {
   targetAudience: string;
   leadGoal: number;
   flow: CampaignFlowStep[];
+  stepCounts?: Record<string, number>;
 }
 
 export interface LeadEvent {
@@ -88,6 +104,9 @@ export interface Lead {
   campaignId: string;
   fullName: string;
   linkedinUrl: string;
+  linkedinPublicId?: string;
+  unipileProviderId?: string;
+  unipileChatId?: string;
   status: LeadStatus;
   lastMessageSentAt: Date;
   firstReplyReceivedAt?: Date;
@@ -97,12 +116,20 @@ export interface Lead {
   email: string;
   phone: string;
   history: LeadEvent[];
+  nextStepId?: string;
+  nextStepAt?: Date;
+  currentBranch?: FlowBranch | "";
+  awaiting?: "connection" | "inmail" | "";
+  failReason?: string;
 }
 
 export interface DailyStat {
   date: string;
   sentCount: number;
   repliedCount: number;
+  views?: number;
+  invites?: number;
+  messages?: number;
 }
 
 export interface AuthUser {
@@ -117,12 +144,18 @@ export interface DateRange {
   end: Date;
 }
 
-export interface DerivedMessage {
+export interface OutreachMessage {
   id: string;
-  leadId: string;
-  leadName: string;
+  brandId: string;
   campaignId: string;
   campaignName: string;
+  leadId: string;
+  leadName: string;
   direction: "outbound" | "inbound";
+  body: string;
   sentAt: Date;
+  unipileMessageId?: string;
 }
+
+/** @deprecated Use OutreachMessage */
+export type DerivedMessage = OutreachMessage;

@@ -4,6 +4,7 @@ import type { CampaignStatus, LeadStage, LeadStatus } from "@/types";
 const statusClass: Record<CampaignStatus | LeadStatus, string> = {
   active: "bg-emerald-50 text-emerald-700",
   expiring: "bg-amber-50 text-amber-700",
+  paused: "bg-orange-50 text-orange-700",
   draft: "bg-sky-50 text-sky-700",
   completed: "bg-zinc-100 text-zinc-600",
   queued: "bg-amber-50 text-amber-800",

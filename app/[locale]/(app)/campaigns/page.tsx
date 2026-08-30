@@ -12,7 +12,7 @@ import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
-import { addDays, APP_TODAY, startOfDay } from "@/lib/dates";
+import { addDays, appToday, startOfDay } from "@/lib/dates";
 import { cn, formatDateTime, formatNumber, formatPercent, successRate } from "@/lib/utils";
 import type { Campaign, CampaignStatus, Lead } from "@/types";
 
@@ -20,6 +20,7 @@ const PAGE_SIZE = 6;
 const FILTERS: Array<"all" | CampaignStatus> = [
   "all",
   "active",
+  "paused",
   "expiring",
   "draft",
   "completed",
@@ -39,17 +40,19 @@ const CENTERED_COLUMNS = new Set<SortKey>([
 const STATUS_ORDER: Record<CampaignStatus, number> = {
   active: 0,
   expiring: 1,
-  draft: 2,
-  completed: 3,
+  paused: 2,
+  draft: 3,
+  completed: 4,
 };
 
 function dateWindow(preset: CampaignDatePreset) {
   if (preset === "all") return null;
-  const end = startOfDay(APP_TODAY);
+  const today = appToday();
+  const end = startOfDay(today);
   if (preset === "last7") {
-    return { start: startOfDay(addDays(APP_TODAY, -6)), end };
+    return { start: startOfDay(addDays(today, -6)), end };
   }
-  return { start: startOfDay(new Date(APP_TODAY.getFullYear(), APP_TODAY.getMonth(), 1)), end };
+  return { start: startOfDay(new Date(today.getFullYear(), today.getMonth(), 1)), end };
 }
 
 function createdInWindow(campaign: Campaign, preset: CampaignDatePreset) {
@@ -91,7 +94,7 @@ export default function CampaignsPage() {
   const statusT = useTranslations("status");
   const locale = useLocale();
   const { selectedBrand } = useBrand();
-  const { campaigns, leads, loading } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
@@ -258,7 +261,7 @@ export default function CampaignsPage() {
                     {formatDateTime(campaign.createdAt, locale)}
                   </td>
                   <td className="px-3 py-3 text-right">
-                    <CampaignRowMenu campaignId={campaign.id} />
+                    <CampaignRowMenu campaign={campaign} onChanged={refresh} />
                   </td>
                 </tr>
               );

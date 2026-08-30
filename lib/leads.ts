@@ -10,11 +10,13 @@ export const LEAD_STAGES: LeadStage[] = [
 
 export const LEAD_EVENT_KINDS: LeadEventKind[] = [
   "added",
+  "profile_viewed",
   "connection_sent",
   "accepted",
   "message_1_sent",
   "message_2_sent",
   "message_3_sent",
+  "inmail_sent",
   "replied",
   "failed",
 ];

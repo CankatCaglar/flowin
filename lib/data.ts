@@ -10,8 +10,10 @@ import {
 } from "@/lib/brand-avatar";
 import { brandSlug, looksLikeAutoId } from "@/lib/brand-id";
 import { requireFirebaseDb } from "@/lib/firebase";
+import { deleteOutreachForBrand, fetchBrandSummaries } from "@/lib/outreach-data";
+import { DEFAULT_PACING, normalizePacing } from "@/lib/pacing";
 import { hydrateBrandDates } from "@/lib/storage";
-import type { Brand } from "@/types";
+import type { Brand, BrandPacing, UnipileStatus } from "@/types";
 
 function fallbackRemoteAvatar(url?: string) {
   const value = url?.trim() ?? "";
@@ -25,6 +27,11 @@ function asDate(value: unknown) {
   return new Date();
 }
 
+function asUnipileStatus(value: unknown): UnipileStatus {
+  if (value === "running" || value === "disconnected" || value === "error") return value;
+  return "none";
+}
+
 function hydrateBrandRecord(
   input: Partial<Brand> & Pick<Brand, "id" | "name">,
 ): Brand {
@@ -36,6 +43,11 @@ function hydrateBrandRecord(
     linkedinSub: String(input.linkedinSub ?? ""),
     linkedinEmail: String(input.linkedinEmail ?? ""),
     avatarUrl: String(input.avatarUrl ?? ""),
+    unipileAccountId: String(input.unipileAccountId ?? ""),
+    unipileStatus: asUnipileStatus(input.unipileStatus),
+    pacing: normalizePacing(input.pacing),
+    activeCampaigns: Number(input.activeCampaigns ?? 0),
+    successRate: Number(input.successRate ?? 0),
   });
 }
 
@@ -97,10 +109,23 @@ async function ingestStoredRemoteAvatar(
   return avatarUrl;
 }
 
+export async function requireBrandDocs() {
+  return (await requireFirebaseDb().collection("brands").get()).docs;
+}
+
 export async function fetchBrands(): Promise<Brand[]> {
   const db = requireFirebaseDb();
   await migrateReadableBrandIds(db);
+  try {
+    const { syncUnipileSeats } = await import("@/lib/unipile-sync");
+    await syncUnipileSeats();
+  } catch (error) {
+    console.error("[unipile] seat sync skipped:", error instanceof Error ? error.message : error);
+  }
   const snapshot = await db.collection("brands").get();
+  const summaries = await fetchBrandSummaries().catch(
+    () => ({}) as Record<string, { activeCampaigns: number; successRate: number }>,
+  );
   return Promise.all(
     snapshot.docs.map(async (item) => {
       const data = item.data();
@@ -113,6 +138,11 @@ export async function fetchBrands(): Promise<Brand[]> {
         linkedinSub: data.linkedinSub,
         linkedinEmail: data.linkedinEmail,
         avatarUrl,
+        unipileAccountId: data.unipileAccountId,
+        unipileStatus: data.unipileStatus,
+        pacing: data.pacing,
+        activeCampaigns: summaries[item.id]?.activeCampaigns ?? 0,
+        successRate: summaries[item.id]?.successRate ?? 0,
       });
     }),
   );
@@ -155,6 +185,9 @@ export async function createBrand(input: {
       linkedinSub,
       linkedinEmail,
       avatarUrl,
+      unipileAccountId: current.unipileAccountId,
+      unipileStatus: current.unipileStatus,
+      pacing: current.pacing,
     });
   }
   const id = await uniqueBrandId(db, input.name.trim());
@@ -171,17 +204,20 @@ export async function createBrand(input: {
     linkedinSub,
     linkedinEmail: input.linkedinEmail?.trim() ?? "",
     avatarUrl,
+    unipileAccountId: "",
+    unipileStatus: "none" as UnipileStatus,
+    pacing: DEFAULT_PACING,
   };
   await db.collection("brands").doc(id).create({
     ...payload,
     createdAt: Timestamp.fromDate(payload.createdAt),
   });
-  return { id, ...payload };
+  return hydrateBrandRecord({ id, ...payload });
 }
 
 export async function updateBrand(
   brandId: string,
-  input: { name: string; avatarColor?: string },
+  input: { name?: string; avatarColor?: string; pacing?: BrandPacing },
 ) {
   const db = requireFirebaseDb();
   const ref = db.collection("brands").doc(brandId);
@@ -190,8 +226,10 @@ export async function updateBrand(
     throw new Error("not-found");
   }
   const current = snapshot.data() ?? {};
-  const name = input.name.trim();
+  const name = (input.name ?? String(current.name ?? "")).trim();
+  if (!name) throw new Error("invalid");
   const avatarColor = input.avatarColor ?? String(current.avatarColor ?? "#6D1472");
+  const pacing = input.pacing ? normalizePacing(input.pacing) : normalizePacing(current.pacing);
   const nextId = await uniqueBrandId(db, name, brandId);
   let avatarUrl = String(current.avatarUrl ?? "");
   if (nextId !== brandId) {
@@ -204,10 +242,11 @@ export async function updateBrand(
       name,
       avatarColor,
       avatarUrl,
+      pacing,
     });
     await ref.delete();
   } else {
-    await ref.update({ name, avatarColor });
+    await ref.update({ name, avatarColor, pacing });
   }
   return hydrateBrandRecord({
     id: nextId,
@@ -217,10 +256,78 @@ export async function updateBrand(
     linkedinSub: current.linkedinSub,
     linkedinEmail: current.linkedinEmail,
     avatarUrl,
+    unipileAccountId: current.unipileAccountId,
+    unipileStatus: current.unipileStatus,
+    pacing,
   });
 }
 
+export async function fetchBrand(brandId: string) {
+  const db = requireFirebaseDb();
+  const snapshot = await db.collection("brands").doc(brandId).get();
+  if (!snapshot.exists) return null;
+  const data = snapshot.data() ?? {};
+  return hydrateBrandRecord({
+    id: snapshot.id,
+    name: String(data.name ?? ""),
+    avatarColor: String(data.avatarColor ?? "#6D1472"),
+    createdAt: asDate(data.createdAt),
+    linkedinSub: data.linkedinSub,
+    linkedinEmail: data.linkedinEmail,
+    avatarUrl: data.avatarUrl,
+    unipileAccountId: data.unipileAccountId,
+    unipileStatus: data.unipileStatus,
+    pacing: data.pacing,
+  });
+}
+
+export async function findBrandByUnipileAccount(accountId: string) {
+  const db = requireFirebaseDb();
+  const snapshot = await db
+    .collection("brands")
+    .where("unipileAccountId", "==", accountId)
+    .limit(1)
+    .get();
+  const item = snapshot.docs[0];
+  if (!item) return null;
+  const data = item.data();
+  return hydrateBrandRecord({
+    id: item.id,
+    name: String(data.name ?? ""),
+    avatarColor: String(data.avatarColor ?? "#6D1472"),
+    createdAt: asDate(data.createdAt),
+    linkedinSub: data.linkedinSub,
+    linkedinEmail: data.linkedinEmail,
+    avatarUrl: data.avatarUrl,
+    unipileAccountId: data.unipileAccountId,
+    unipileStatus: data.unipileStatus,
+    pacing: data.pacing,
+  });
+}
+
+export async function attachUnipileAccount(
+  brandId: string,
+  accountId: string,
+  status: UnipileStatus = "running",
+) {
+  const db = requireFirebaseDb();
+  const ref = db.collection("brands").doc(brandId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new Error("not-found");
+  await ref.update({
+    unipileAccountId: accountId,
+    unipileStatus: status,
+  });
+  return fetchBrand(brandId);
+}
+
+export async function setUnipileStatus(brandId: string, status: UnipileStatus) {
+  await requireFirebaseDb().collection("brands").doc(brandId).update({ unipileStatus: status });
+}
+
 export async function deleteBrand(brandId: string) {
+  const db = requireFirebaseDb();
   await deleteBrandAvatar(brandId);
-  await requireFirebaseDb().collection("brands").doc(brandId).delete();
+  await deleteOutreachForBrand(db, brandId);
+  await db.collection("brands").doc(brandId).delete();
 }

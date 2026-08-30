@@ -33,8 +33,7 @@
     "submitting": "Signing in...",
     "footer": "This area is for authorized team members only.",
     "showPassword": "Show password",
-    "hidePassword": "Hide password",
-    "demoHint": "Firebase is not configured, so sign-in creates a local demo session."
+    "hidePassword": "Hide password"
   },
   "brands": {
     "title": "Select a brand",
@@ -71,7 +70,16 @@
     "deleteConfirmTitle": "Delete brand",
     "deleteConfirm": "Delete “{name}”? This cannot be undone.",
     "deleteFailed": "The brand could not be deleted. Make sure the server is running, then try again.",
-    "emptySearch": "No brands match your search."
+    "emptySearch": "No brands match your search.",
+    "outreachConnect": "Connect outreach",
+    "outreachReconnect": "Reconnect outreach",
+    "outreachOn": "Outreach connected",
+    "outreachOff": "Outreach not connected",
+    "outreachConnected": "Unipile outreach is connected for this brand.",
+    "outreachPending": "LinkedIn login finished. Refresh if the outreach status is still updating.",
+    "outreachDenied": "Unipile connection was cancelled.",
+    "outreachConfig": "Add UNIPILE_DSN and UNIPILE_API_KEY to the server environment, then try again.",
+    "outreachError": "Unipile connection failed. Try again."
   },
   "nav": {
     "overview": "Overview",
@@ -150,6 +158,7 @@
   "status": {
     "active": "Active",
     "expiring": "Ending Soon",
+    "paused": "Paused",
     "draft": "Draft",
     "completed": "Completed",
     "queued": "Queued",
@@ -185,6 +194,9 @@
     "nextPage": "Next page",
     "rowActions": "Campaign actions",
     "openCampaign": "Open campaign",
+    "pauseCampaign": "Pause",
+    "resumeCampaign": "Resume",
+    "completeCampaign": "End campaign",
     "notFound": "Campaign not found.",
     "backToList": "Back to campaigns",
     "tabs": {
@@ -223,6 +235,8 @@
       "contact": "Contact details",
       "history": "History",
       "historyAdded": "Lead added",
+      "historyViewed": "Profile viewed",
+      "historyInmail": "InMail sent",
       "historySent": "Connection request sent",
       "historyAccepted": "Accepted",
       "historyMessage": "Message 1 sent",
@@ -281,6 +295,14 @@
       "csv": "Upload CSV",
       "file": "CSV / Excel",
       "salesNav": "Sales Navigator",
+      "profileUrl": "URL",
+      "profileUrlHint": "Paste a LinkedIn profile URL. With outreach connected, name and title come from Unipile; otherwise the URL is stored as-is. Add people one by one.",
+      "profileUrlAdd": "Add",
+      "profileUrlLoading": "Fetching…",
+      "profileUrlRemove": "Remove",
+      "profileUrlInvalid": "Enter a valid LinkedIn profile URL.",
+      "profileUrlDuplicate": "That profile is already added.",
+      "profileUrlFailed": "The profile could not be fetched. Check the URL and outreach connection.",
       "selectedList": "Selected list",
       "selectedLeads": "Total Selected Leads",
       "createdOn": "Created: {date}",
@@ -298,13 +320,21 @@
       "importSkipped": "{count} rows skipped",
       "importEmpty": "No valid rows. The file needs name and LinkedIn URL columns.",
       "importInvalid": "That file could not be read. Try CSV or Excel.",
-      "salesNavHint": "Sales Navigator lists will be pulled here once Unipile is connected. Flowin does not scrape Sales Navigator itself.",
+      "salesNavHint": "Paste a Sales Navigator people-search URL. Flowin pulls the list through the brand’s Unipile seat — it does not scrape LinkedIn itself.",
+      "salesNavUrl": "Sales Navigator URL",
+      "salesNavImport": "Import list",
+      "salesNavLoading": "Importing…",
+      "salesNavEmpty": "No people were returned for that search.",
+      "salesNavFailed": "The list could not be imported. Check the URL and outreach connection.",
+      "salesNavNeedOutreach": "Connect Unipile outreach on the brands page before importing a Sales Navigator list.",
       "summaryFromFile": "Source: {name}",
       "summaryFromList": "Source: {name}",
       "summaryNeedFile": "Upload a CSV or Excel file.",
       "summaryNeedList": "Select an existing list.",
+      "summaryNeedSalesNav": "Import a Sales Navigator list.",
+      "summaryNeedProfileUrl": "Add at least one LinkedIn profile URL.",
       "flow": "Flow",
-      "flowHint": "Fixed outreach sequence. After Unipile is connected, messages and delays are set here.",
+      "flowHint": "Fixed Flowin sequence. Copy and delays here are what the runner sends through Unipile.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "zoomFit": "Fit",
@@ -339,7 +369,8 @@
     "direction": "Direction",
     "time": "Time",
     "outbound": "Sent",
-    "inbound": "Reply"
+    "inbound": "Reply",
+    "body": "Message"
   },
   "reports": {
     "title": "Reports",
@@ -356,7 +387,17 @@
     "brandName": "Brand name",
     "linkedinEmail": "LinkedIn email",
     "createdAt": "Created",
-    "language": "Language preference",
-    "languageHint": "You can change the interface language here."
+    "language": "Language Preference",
+    "languageHint": "You can change the interface language here.",
+    "outreach": "Outreach seat",
+    "outreachOn": "Unipile is connected. The sequence runner can act on this LinkedIn account.",
+    "outreachOff": "Connect Unipile to run profile views, invites, messages and InMail.",
+    "pacing": "Daily Pacing",
+    "pacingHint": "The number you set is the ceiling, not a daily quota to fill. Jitter and weekday hours (09:00–18:00 Europe/Istanbul) mean one day may send 4 and another 8. For a new seat, 8 / 12 / 15 is safe. Unused leftover does not roll over.",
+    "dailyInvites": "Connection requests / day",
+    "dailyMessages": "Messages / day",
+    "dailyViews": "Profile views / day",
+    "savePacing": "Save pacing",
+    "pacingSaved": "Pacing saved."
   }
 }

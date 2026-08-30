@@ -219,11 +219,8 @@ export function waitBadgeKey(unit?: FlowDelayUnit) {
   return unit === "hours" ? "waitBadgeHours" : "waitBadge";
 }
 
-export function flowStepCounts(sentCount: number, stepCount: number) {
-  return Array.from({ length: stepCount }, (_, index) => {
-    const ratio = Math.max(0.18, 1 - index * 0.22);
-    return Math.max(0, Math.round(sentCount * ratio));
-  });
+export function flowStepCounts(campaign: { stepCounts?: Record<string, number> }, stepId: string) {
+  return Math.max(0, Number(campaign.stepCounts?.[stepId] ?? 0));
 }
 
 export function flattenFlowSteps(steps: CampaignFlowStep[]) {

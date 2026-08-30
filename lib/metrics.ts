@@ -1,3 +1,4 @@
+import { isCampaignRunning } from "@/lib/campaign-status";
 import { eachDateKey, previousRange } from "@/lib/dates";
 import { successRate, trendPercent } from "@/lib/utils";
 import type { Campaign, DailyStat, DateRange, Lead } from "@/types";
@@ -89,9 +90,7 @@ export function bucketChartSeries(points: ChartPoint[]): {
 export function kpiMetrics(campaigns: Campaign[], stats: DailyStat[], range: DateRange) {
   const current = sumStats(stats, range);
   const previous = sumStats(stats, previousRange(range));
-  const activeCampaigns = campaigns.filter(
-    (campaign) => campaign.status === "active" || campaign.status === "expiring",
-  ).length;
+  const activeCampaigns = campaigns.filter((campaign) => isCampaignRunning(campaign.status)).length;
 
   return {
     activeCampaigns,
@@ -116,7 +115,9 @@ export function unresponsiveLeads(leads: Lead[], now: Date) {
 export function expiringCampaigns(campaigns: Campaign[], now: Date) {
   const limit = EXPIRING_DAYS * 86_400_000;
   return campaigns.filter((campaign) => {
-    if (campaign.status === "draft" || campaign.status === "completed") return false;
+    if (campaign.status === "draft" || campaign.status === "completed" || campaign.status === "paused") {
+      return false;
+    }
     const remaining = campaign.endDate.getTime() - now.getTime();
     return remaining >= 0 && remaining <= limit;
   });

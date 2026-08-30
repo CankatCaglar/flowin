@@ -20,11 +20,11 @@ export default function CampaignOverviewPage({
   const { id } = use(params);
   const { selectedBrand } = useBrand();
   const { range } = useDateRange();
-  const { campaigns, leads, stats } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, stats } = useBrandData(selectedBrand?.id ?? null, id);
   const campaign = campaigns.find((item) => item.id === id);
   if (!campaign) return null;
 
-  const scaled = scaleStatsToCampaign(stats, campaign, campaigns);
+  const scaled = scaleStatsToCampaign(stats);
   const series = chartSeries(scaled, range);
   const best = bestStatDay(scaled);
   const messageSteps = campaign.flow.filter((step) => step.kind === "message");

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowRight, List, Upload } from "lucide-react";
+import { ArrowRight, Link2, List, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { CreateCampaignSidebar } from "@/components/campaigns/CreateCampaignSidebar";
@@ -9,6 +9,7 @@ import { CreateFlowCanvas } from "@/components/campaigns/CreateFlowCanvas";
 import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
 import { LeadImportPanel } from "@/components/campaigns/LeadImportPanel";
 import { LeadListPicker } from "@/components/campaigns/LeadListPicker";
+import { LeadUrlPanel } from "@/components/campaigns/LeadUrlPanel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -17,11 +18,22 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { useRouter } from "@/i18n/navigation";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { ImportedLead } from "@/lib/lead-import";
-import { createCampaign, createLead } from "@/lib/local-data";
+import { createCampaign, importSalesNavLeads } from "@/lib/outreach-api";
 import { cn } from "@/lib/utils";
 import type { CampaignFlowStep } from "@/types";
 
-const LIST_SOURCES = ["existing", "file", "salesNav"] as const;
+const LIST_SOURCES = ["existing", "file", "salesNav", "urls"] as const;
+
+function usesImported(source: (typeof LIST_SOURCES)[number]) {
+  return source === "file" || source === "salesNav" || source === "urls";
+}
+
+function sourceLabelKey(source: (typeof LIST_SOURCES)[number]) {
+  if (source === "existing") return "existingList";
+  if (source === "file") return "file";
+  if (source === "salesNav") return "salesNav";
+  return "profileUrl";
+}
 
 export default function NewCampaignPage() {
   const t = useTranslations("campaigns.create");
@@ -38,6 +50,9 @@ export default function NewCampaignPage() {
     fileName: string;
     skipped: number;
   }>({ leads: [], fileName: "", skipped: 0 });
+  const [salesUrl, setSalesUrl] = useState("");
+  const [salesError, setSalesError] = useState<string | null>(null);
+  const [salesLoading, setSalesLoading] = useState(false);
   const [flow, setFlow] = useState<CampaignFlowStep[]>(() => defaultCampaignFlow());
   const [editing, setEditing] = useState<CampaignFlowStep | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,15 +67,15 @@ export default function NewCampaignPage() {
     if (!listId && preferredList) setListId(preferredList.id);
   }, [listId, preferredList]);
 
-  const shownCount =
-    source === "file"
-      ? imported.leads.length
-      : source === "existing"
-        ? selectedList?.leadGoal ?? 0
-        : 0;
+  const outreachReady = selectedBrand?.unipileStatus === "running";
+  const shownCount = usesImported(source)
+    ? imported.leads.length
+    : source === "existing"
+      ? selectedList?.leadGoal ?? 0
+      : 0;
   const canSubmit =
     Boolean(name.trim()) &&
-    (source === "existing" ? Boolean(selectedList) : source === "file" ? imported.leads.length > 0 : false);
+    (source === "existing" ? Boolean(selectedList) : usesImported(source) ? imported.leads.length > 0 : false);
 
   const save = async (asDraft: boolean) => {
     if (!selectedBrand || !name.trim() || !canSubmit) return;
@@ -72,21 +87,15 @@ export default function NewCampaignPage() {
         name: name.trim(),
         startDate: createdAt,
         endDate: createdAt,
-        targetAudience:
-          source === "file" ? imported.fileName : selectedList?.name ?? name.trim(),
+        targetAudience: usesImported(source)
+          ? imported.fileName || name.trim()
+          : selectedList?.name ?? name.trim(),
         leadGoal: shownCount,
         flow,
         status: asDraft ? "draft" : "active",
+        copyFromCampaignId: source === "existing" ? selectedList?.id : undefined,
+        leads: usesImported(source) ? imported.leads : undefined,
       });
-      if (source === "file") {
-        for (const lead of imported.leads) {
-          await createLead({
-            brandId: selectedBrand.id,
-            campaignId: campaign.id,
-            ...lead,
-          });
-        }
-      }
       refresh();
       router.push(`/campaigns/${campaign.id}`);
     } finally {
@@ -105,10 +114,16 @@ export default function NewCampaignPage() {
         ? t("summaryFromFile", { name: imported.fileName })
         : t("summaryNeedFile")
       : source === "salesNav"
-        ? t("salesNavHint")
-        : selectedList
-          ? t("summaryFromList", { name: selectedList.name })
-          : t("summaryNeedList");
+        ? imported.fileName
+          ? t("summaryFromFile", { name: imported.fileName })
+          : t("summaryNeedSalesNav")
+        : source === "urls"
+          ? imported.leads.length > 0
+            ? t("summaryFromFile", { name: t("profileUrl") })
+            : t("summaryNeedProfileUrl")
+          : selectedList
+            ? t("summaryFromList", { name: selectedList.name })
+            : t("summaryNeedList");
 
   return (
     <form onSubmit={onSubmit}>
@@ -144,7 +159,13 @@ export default function NewCampaignPage() {
                 <button
                   key={item}
                   type="button"
-                  onClick={() => setSource(item)}
+                  onClick={() => {
+                    if (item !== source) {
+                      setImported({ leads: [], fileName: "", skipped: 0 });
+                      setSalesError(null);
+                    }
+                    setSource(item);
+                  }}
                   className={cn(
                     "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium",
                     source === item
@@ -155,7 +176,8 @@ export default function NewCampaignPage() {
                   {item === "existing" ? <List className="h-4 w-4" /> : null}
                   {item === "file" ? <Upload className="h-4 w-4" /> : null}
                   {item === "salesNav" ? <LinkedInIcon className="h-4 w-4" /> : null}
-                  {t(item === "existing" ? "existingList" : item === "file" ? "file" : "salesNav")}
+                  {item === "urls" ? <Link2 className="h-4 w-4" /> : null}
+                  {t(sourceLabelKey(item))}
                 </button>
               ))}
             </div>
@@ -179,8 +201,72 @@ export default function NewCampaignPage() {
                 onParsed={setImported}
               />
             ) : null}
+            {source === "urls" && selectedBrand ? (
+              <LeadUrlPanel
+                brandId={selectedBrand.id}
+                leads={imported.leads}
+                onChange={(leads) => setImported({ leads, fileName: t("profileUrl"), skipped: 0 })}
+              />
+            ) : null}
             {source === "salesNav" ? (
-              <p className="text-sm leading-6 text-muted">{t("salesNavHint")}</p>
+              <div className="space-y-3">
+                {outreachReady ? (
+                  <>
+                    <p className="text-sm leading-6 text-muted">{t("salesNavHint")}</p>
+                    <Input
+                      id="sales-nav-url"
+                      variant="light"
+                      label={t("salesNavUrl")}
+                      placeholder="https://www.linkedin.com/sales/search/people..."
+                      value={salesUrl}
+                      onChange={(event) => setSalesUrl(event.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="brand"
+                      disabled={salesLoading || !salesUrl.trim()}
+                      onClick={async () => {
+                        if (!selectedBrand) return;
+                        setSalesLoading(true);
+                        setSalesError(null);
+                        try {
+                          const result = await importSalesNavLeads(selectedBrand.id, salesUrl.trim());
+                          setImported({
+                            leads: result.leads.map((lead) => ({
+                              fullName: lead.fullName,
+                              linkedinUrl: lead.linkedinUrl,
+                              company: lead.company,
+                              position: lead.position,
+                              email: "",
+                              phone: "",
+                              unipileProviderId: lead.unipileProviderId,
+                            })),
+                            fileName: t("salesNav"),
+                            skipped: 0,
+                          });
+                          if (result.leads.length === 0) setSalesError("empty");
+                        } catch (error) {
+                          setSalesError(error instanceof Error ? error.message : "import-failed");
+                        } finally {
+                          setSalesLoading(false);
+                        }
+                      }}
+                    >
+                      {salesLoading ? t("salesNavLoading") : t("salesNavImport")}
+                    </Button>
+                    {imported.leads.length > 0 ? (
+                      <p className="text-sm text-ink">{t("importReady", { count: imported.leads.length })}</p>
+                    ) : null}
+                    {salesError ? (
+                      <p className="text-sm text-rose-600">
+                        {salesError === "empty" ? t("salesNavEmpty") : t("salesNavFailed")}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm leading-6 text-muted">{t("salesNavNeedOutreach")}</p>
+                )}
+              </div>
             ) : null}
           </section>
 

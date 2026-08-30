@@ -27,7 +27,11 @@ interface BrandContextValue {
   }) => Promise<Brand>;
   editBrand: (
     brandId: string,
-    input: { name: string; avatarColor?: string },
+    input: {
+      name?: string;
+      avatarColor?: string;
+      pacing?: { dailyInvites: number; dailyMessages: number; dailyViews: number };
+    },
   ) => Promise<void>;
   removeBrand: (brandId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -103,7 +107,14 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   );
 
   const editBrand = useCallback(
-    async (brandId: string, input: { name: string; avatarColor?: string }) => {
+    async (
+      brandId: string,
+      input: {
+        name?: string;
+        avatarColor?: string;
+        pacing?: { dailyInvites: number; dailyMessages: number; dailyViews: number };
+      },
+    ) => {
       const next = await updateBrand(brandId, input);
       setBrands((current) =>
         current.map((brand) => (brand.id === brandId ? next : brand)),

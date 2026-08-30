@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { APP_TODAY, rangeForPreset } from "@/lib/dates";
+import { appToday, rangeForPreset } from "@/lib/dates";
 import type { DatePreset, DateRange } from "@/types";
 
 interface DateRangeContextValue {
@@ -13,8 +13,8 @@ interface DateRangeContextValue {
 const DateRangeContext = createContext<DateRangeContextValue | null>(null);
 
 export function DateRangeProvider({ children }: { children: React.ReactNode }) {
-  const [range, setRange] = useState<DateRange>(() => rangeForPreset("last7"));
-  const now = APP_TODAY;
+  const [now] = useState(() => appToday());
+  const [range, setRange] = useState<DateRange>(() => rangeForPreset("last7", undefined, undefined, now));
 
   const setPreset = (preset: DatePreset, start?: Date, end?: Date) => {
     setRange(rangeForPreset(preset, start, end, now));

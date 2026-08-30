@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangle, Check, Mail, MessageCircle, Phone, Send, UserPlus, Users, X } from "lucide-react";
+import { AlertTriangle, Check, Eye, Mail, MessageCircle, Phone, Send, UserPlus, Users, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
@@ -32,22 +32,26 @@ export function leadAvatarClass(id: string) {
 
 const HISTORY_ICON: Record<LeadEventKind, LucideIcon> = {
   added: UserPlus,
+  profile_viewed: Eye,
   connection_sent: Users,
   accepted: Check,
   message_1_sent: Send,
   message_2_sent: Send,
   message_3_sent: Send,
+  inmail_sent: Mail,
   replied: MessageCircle,
   failed: AlertTriangle,
 };
 
 const HISTORY_TONE: Record<LeadEventKind, "green" | "purple" | "red"> = {
   added: "green",
+  profile_viewed: "purple",
   connection_sent: "purple",
   accepted: "green",
   message_1_sent: "purple",
   message_2_sent: "purple",
   message_3_sent: "purple",
+  inmail_sent: "purple",
   replied: "green",
   failed: "red",
 };
@@ -69,11 +73,13 @@ export function LeadDetailPanel({
 
   const historyLabel: Record<LeadEventKind, string> = {
     added: t("historyAdded"),
+    profile_viewed: t("historyViewed"),
     connection_sent: t("historySent"),
     accepted: t("historyAccepted"),
     message_1_sent: t("historyMessage"),
     message_2_sent: t("historyMessage2"),
     message_3_sent: t("historyMessage3"),
+    inmail_sent: t("historyInmail"),
     replied: t("historyReply"),
     failed: t("historyFailed"),
   };

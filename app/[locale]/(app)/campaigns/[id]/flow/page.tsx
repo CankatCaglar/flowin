@@ -5,7 +5,7 @@ import { CampaignFlowEditor } from "@/components/campaigns/CampaignFlowEditor";
 import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
-import { updateCampaign } from "@/lib/local-data";
+import { updateCampaign } from "@/lib/outreach-api";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { CampaignFlowStep } from "@/types";
 

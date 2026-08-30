@@ -14,7 +14,7 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
   const statusT = useTranslations("status");
   const locale = useLocale();
   const rows = campaigns
-    .filter((campaign) => campaign.status !== "completed")
+    .filter((campaign) => campaign.status === "active" || campaign.status === "expiring")
     .slice(0, VISIBLE_ROWS);
 
   return (

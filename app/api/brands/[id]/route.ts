@@ -11,19 +11,30 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  let body: { name?: unknown; avatarColor?: unknown };
+  let body: {
+    name?: unknown;
+    avatarColor?: unknown;
+    pacing?: { dailyInvites?: unknown; dailyMessages?: unknown; dailyViews?: unknown };
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   }
-  if (typeof body.name !== "string") {
+  if (body.name !== undefined && typeof body.name !== "string") {
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   }
   try {
     const brand = await updateBrand(id, {
-      name: body.name,
+      name: typeof body.name === "string" ? body.name : undefined,
       avatarColor: typeof body.avatarColor === "string" ? body.avatarColor : undefined,
+      pacing: body.pacing
+        ? {
+            dailyInvites: Number(body.pacing.dailyInvites),
+            dailyMessages: Number(body.pacing.dailyMessages),
+            dailyViews: Number(body.pacing.dailyViews),
+          }
+        : undefined,
     });
     return NextResponse.json(brand);
   } catch (error) {

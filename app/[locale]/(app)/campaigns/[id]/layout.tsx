@@ -18,7 +18,7 @@ export default function CampaignDetailLayout({
   const t = useTranslations("campaigns");
   const common = useTranslations("common");
   const { selectedBrand } = useBrand();
-  const { campaigns, loading } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
   const campaign = campaigns.find((item) => item.id === id);
 
   if (loading) {
@@ -38,7 +38,7 @@ export default function CampaignDetailLayout({
 
   return (
     <div>
-      <CampaignDetailHeader campaign={campaign} />
+      <CampaignDetailHeader campaign={campaign} onChanged={refresh} />
       {children}
     </div>
   );

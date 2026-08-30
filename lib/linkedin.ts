@@ -130,18 +130,3 @@ function asPicture(value: unknown): string {
   return "";
 }
 
-export function parsePendingProfile(raw: string | undefined): LinkedInProfile | null {
-  if (!raw) return null;
-  try {
-    const data = JSON.parse(raw) as Partial<LinkedInProfile>;
-    if (typeof data.sub !== "string" || !data.sub) return null;
-    return {
-      sub: data.sub,
-      name: typeof data.name === "string" && data.name ? data.name : "LinkedIn",
-      email: typeof data.email === "string" ? data.email : "",
-      picture: typeof data.picture === "string" ? data.picture : "",
-    };
-  } catch {
-    return null;
-  }
-}

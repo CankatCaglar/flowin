@@ -5,6 +5,7 @@ export type ImportedLead = {
   position: string;
   email: string;
   phone: string;
+  unipileProviderId?: string;
 };
 
 export type LeadImportResult = {

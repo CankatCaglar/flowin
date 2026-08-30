@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchCampaigns, fetchDailyStats, fetchLeads } from "@/lib/local-data";
-import type { Campaign, DailyStat, Lead } from "@/types";
+import {
+  fetchCampaigns,
+  fetchDailyStats,
+  fetchLeads,
+  fetchMessages,
+} from "@/lib/outreach-api";
+import type { Campaign, DailyStat, Lead, OutreachMessage } from "@/types";
 
-export function useBrandData(brandId: string | null) {
+export function useBrandData(brandId: string | null, campaignId?: string) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stats, setStats] = useState<DailyStat[]>([]);
+  const [messages, setMessages] = useState<OutreachMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((value) => value + 1);
@@ -17,6 +23,7 @@ export function useBrandData(brandId: string | null) {
       setCampaigns([]);
       setLeads([]);
       setStats([]);
+      setMessages([]);
       setLoading(false);
       return;
     }
@@ -27,13 +34,22 @@ export function useBrandData(brandId: string | null) {
     Promise.all([
       fetchCampaigns(brandId),
       fetchLeads(brandId),
-      fetchDailyStats(brandId),
+      fetchDailyStats(brandId, campaignId),
+      fetchMessages(brandId),
     ])
-      .then(([nextCampaigns, nextLeads, nextStats]) => {
+      .then(([nextCampaigns, nextLeads, nextStats, nextMessages]) => {
         if (cancelled) return;
         setCampaigns(nextCampaigns);
         setLeads(nextLeads);
         setStats(nextStats);
+        setMessages(nextMessages);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCampaigns([]);
+        setLeads([]);
+        setStats([]);
+        setMessages([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -42,7 +58,7 @@ export function useBrandData(brandId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [brandId, refreshKey]);
+  }, [brandId, campaignId, refreshKey]);
 
-  return { campaigns, leads, stats, loading, refresh };
+  return { campaigns, leads, stats, messages, loading, refresh };
 }

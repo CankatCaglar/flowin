@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -15,11 +15,8 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useBrand } from "@/contexts/BrandContext";
 import { useRouter } from "@/i18n/navigation";
-import { brandCardStats } from "@/lib/local-data";
-import { colorFromKey, formatPercent } from "@/lib/utils";
+import { formatPercent } from "@/lib/utils";
 import type { Brand } from "@/types";
-
-let pendingConsumeStarted = false;
 
 export default function BrandsPage() {
   return (
@@ -44,7 +41,7 @@ function BrandsPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { brands, loading, selectBrand, addBrand, editBrand, removeBrand } = useBrand();
+  const { brands, loading, selectBrand, editBrand, removeBrand, refresh } = useBrand();
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Brand | null>(null);
@@ -52,7 +49,14 @@ function BrandsPageInner() {
   const [removing, setRemoving] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(searchParams.get("linkedin"));
+  const [notice, setNotice] = useState<string | null>(
+    searchParams.get("linkedin") ?? searchParams.get("unipile"),
+  );
+  const noticeKind = searchParams.get("unipile")
+    ? "unipile"
+    : searchParams.get("linkedin")
+      ? "linkedin"
+      : null;
 
   const filtered = useMemo(
     () =>
@@ -62,69 +66,56 @@ function BrandsPageInner() {
     [brands, locale, query],
   );
 
+  const pendingRetry = useRef(false);
+
   useEffect(() => {
-    if (loading || pendingConsumeStarted) return;
-    pendingConsumeStarted = true;
+    setNotice(searchParams.get("linkedin") ?? searchParams.get("unipile"));
+  }, [searchParams]);
 
-    const consume = async () => {
-      const response = await fetch("/api/linkedin/pending");
-      if (!response.ok) return;
-      const data = (await response.json()) as {
-        profile?: {
-          sub: string;
-          name: string;
-          email: string;
-          picture: string;
-        } | null;
-      };
-      const profile = data.profile;
-      if (!profile) return;
+  useEffect(() => {
+    if (loading || pendingRetry.current) return;
+    if (searchParams.get("unipile") !== "pending") return;
+    pendingRetry.current = true;
+    void refresh();
+  }, [loading, refresh, searchParams]);
 
-      const already = brands.some((brand) => brand.linkedinSub && brand.linkedinSub === profile.sub);
-
-      try {
-        await addBrand({
-          name: profile.name,
-          avatarColor: colorFromKey(profile.sub),
-          linkedinSub: profile.sub,
-          linkedinEmail: profile.email,
-          avatarUrl: profile.picture,
-        });
-        await fetch("/api/linkedin/pending", { method: "DELETE" });
-        if (already) setNotice("already");
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "";
-        setNotice(
-          message === "already-connected"
-            ? "already"
-            : message === "firebase-unconfigured" || message === "firebase"
-              ? "firebase"
-              : "error",
-        );
-      }
-    };
-
-    void consume();
-  }, [addBrand, brands, loading]);
+  useEffect(() => {
+    if (searchParams.get("unipile") !== "pending") return;
+    if (brands.some((brand) => brand.unipileStatus === "running")) {
+      setNotice("connected");
+    }
+  }, [brands, searchParams]);
 
   const noticeText =
-    notice === "already"
-      ? t("alreadyConnected")
-      : notice === "denied"
-        ? t("connectDenied")
-        : notice === "config"
-          ? t("connectConfig")
-          : notice === "scope"
-            ? t("connectScope")
-            : notice === "firebase"
-              ? t("firebaseUnconfigured")
-            : notice === "photo"
-            ? t("photoUpdated")
-            : notice === "nophoto"
-            ? t("photoMissing")
-            : notice === "error"
-            ? t("connectError")
-            : null;
+    noticeKind === "unipile"
+      ? notice === "connected"
+        ? t("outreachConnected")
+        : notice === "pending"
+          ? t("outreachPending")
+          : notice === "denied"
+            ? t("outreachDenied")
+            : notice === "config"
+              ? t("outreachConfig")
+              : notice === "error"
+                ? t("outreachError")
+                : null
+      : notice === "already"
+        ? t("alreadyConnected")
+        : notice === "denied"
+          ? t("connectDenied")
+          : notice === "config"
+            ? t("connectConfig")
+            : notice === "scope"
+              ? t("connectScope")
+              : notice === "firebase"
+                ? t("firebaseUnconfigured")
+                : notice === "photo"
+                  ? t("photoUpdated")
+                  : notice === "nophoto"
+                    ? t("photoMissing")
+                    : notice === "error"
+                      ? t("connectError")
+                      : null;
 
   return (
     <RouteGuard requireAuth tone="dark">
@@ -156,7 +147,11 @@ function BrandsPageInner() {
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {filtered.map((brand) => {
-            const stats = brandCardStats(brand.id);
+            const stats = {
+              activeCampaigns: brand.activeCampaigns ?? 0,
+              successRate: brand.successRate ?? 0,
+            };
+            const outreachOn = brand.unipileStatus === "running";
             return (
               <article
                 key={brand.id}
@@ -184,6 +179,9 @@ function BrandsPageInner() {
                     <LinkedInIcon className="h-3.5 w-3.5" />
                     {t("connected")}
                   </p>
+                  <p className="mt-1 text-[11px] font-medium text-white/50">
+                    {outreachOn ? t("outreachOn") : t("outreachOff")}
+                  </p>
                   <div className="mx-auto mt-3 flex w-max flex-col items-start gap-1 text-xs text-white/65">
                     <span className="flex items-center gap-2">
                       <BarChart3 className="h-3.5 w-3.5 shrink-0" />
@@ -197,7 +195,23 @@ function BrandsPageInner() {
                     </span>
                   </div>
                 </button>
-                <div className="mt-4 flex justify-center gap-2">
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg px-2 py-1 text-[11px] font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      window.location.assign(
+                        `/api/unipile/start?locale=${locale}&brand=${encodeURIComponent(brand.id)}`,
+                      );
+                    }}
+                  >
+                    {outreachOn
+                      ? t("outreachReconnect")
+                      : brand.unipileStatus === "disconnected"
+                        ? t("outreachReconnect")
+                        : t("outreachConnect")}
+                  </button>
                   <button
                     type="button"
                     aria-label={common("edit")}

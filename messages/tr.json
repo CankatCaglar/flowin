@@ -33,8 +33,7 @@
     "submitting": "Giriş yapılıyor...",
     "footer": "Bu alan yalnızca yetkili ekip üyeleri içindir.",
     "showPassword": "Şifreyi göster",
-    "hidePassword": "Şifreyi gizle",
-    "demoHint": "Firebase yapılandırılmadığı için giriş, yerel demo oturumu oluşturur."
+    "hidePassword": "Şifreyi gizle"
   },
   "brands": {
     "title": "Bir Marka Seçin",
@@ -71,7 +70,16 @@
     "deleteConfirmTitle": "Markayı sil",
     "deleteConfirm": "“{name}” markasını silmek istiyor musunuz? Bu işlem geri alınamaz.",
     "deleteFailed": "Marka silinemedi. Sunucunun açık olduğundan emin olup tekrar deneyin.",
-    "emptySearch": "Aramanızla eşleşen marka bulunamadı."
+    "emptySearch": "Aramanızla eşleşen marka bulunamadı.",
+    "outreachConnect": "Outreach bağla",
+    "outreachReconnect": "Outreach’i yeniden bağla",
+    "outreachOn": "Outreach bağlı",
+    "outreachOff": "Outreach bağlı değil",
+    "outreachConnected": "Bu marka için Unipile outreach bağlandı.",
+    "outreachPending": "LinkedIn girişi bitti. Outreach durumu gecikirse sayfayı yenileyin.",
+    "outreachDenied": "Unipile bağlantısı iptal edildi.",
+    "outreachConfig": "Sunucu ortamına UNIPILE_DSN ve UNIPILE_API_KEY ekleyip tekrar deneyin.",
+    "outreachError": "Unipile bağlantısı başarısız oldu. Tekrar deneyin."
   },
   "nav": {
     "overview": "Genel Bakış",
@@ -150,6 +158,7 @@
   "status": {
     "active": "Aktif",
     "expiring": "Süresi Yaklaşıyor",
+    "paused": "Duraklatıldı",
     "draft": "Taslak",
     "completed": "Tamamlandı",
     "queued": "Sırada",
@@ -185,6 +194,9 @@
     "nextPage": "Sonraki sayfa",
     "rowActions": "Kampanya işlemleri",
     "openCampaign": "Kampanyayı aç",
+    "pauseCampaign": "Duraklat",
+    "resumeCampaign": "Devam ettir",
+    "completeCampaign": "Kampanyayı bitir",
     "notFound": "Kampanya bulunamadı.",
     "backToList": "Kampanyalara dön",
     "tabs": {
@@ -223,6 +235,8 @@
       "contact": "İletişim Bilgileri",
       "history": "Geçmiş",
       "historyAdded": "Lead eklendi",
+      "historyViewed": "Profil görüntülendi",
+      "historyInmail": "InMail gönderildi",
       "historySent": "Connection request gönderildi",
       "historyAccepted": "Kabul edildi",
       "historyMessage": "Message 1 gönderildi",
@@ -281,6 +295,14 @@
       "csv": "CSV Yükle",
       "file": "CSV / Excel",
       "salesNav": "Sales Navigator",
+      "profileUrl": "URL",
+      "profileUrlHint": "LinkedIn profil linkini yapıştırın. Outreach bağlıysa ad ve unvan Unipile üzerinden çekilir; değilse URL’den eklenir. Tek tek ekleyebilirsiniz.",
+      "profileUrlAdd": "Ekle",
+      "profileUrlLoading": "Çekiliyor…",
+      "profileUrlRemove": "Kaldır",
+      "profileUrlInvalid": "Geçerli bir LinkedIn profil URL’si girin.",
+      "profileUrlDuplicate": "Bu profil zaten eklendi.",
+      "profileUrlFailed": "Profil alınamadı. URL’yi ve outreach bağlantısını kontrol edin.",
       "selectedList": "Seçilen liste",
       "selectedLeads": "Toplam Seçili Lead",
       "createdOn": "Oluşturulma: {date}",
@@ -298,13 +320,21 @@
       "importSkipped": "{count} satır atlandı",
       "importEmpty": "Geçerli satır bulunamadı. Sütunlarda ad ve LinkedIn URL olmalı.",
       "importInvalid": "Bu dosya okunamadı. CSV veya Excel deneyin.",
-      "salesNavHint": "Sales Navigator listesi Unipile bağlanınca buradan çekilir. LinkedIn’den resmi olarak SN araması Flowin’de tutulmaz.",
+      "salesNavHint": "Sales Navigator kişi arama URL’sini yapıştırın. Liste, markanın Unipile koltuğu üzerinden çekilir; Flowin LinkedIn’i kendi başına tarmaz.",
+      "salesNavUrl": "Sales Navigator URL",
+      "salesNavImport": "Listeyi içe aktar",
+      "salesNavLoading": "İçe aktarılıyor…",
+      "salesNavEmpty": "Bu arama kimse döndürmedi.",
+      "salesNavFailed": "Liste alınamadı. URL’yi ve outreach bağlantısını kontrol edin.",
+      "salesNavNeedOutreach": "Sales Navigator listesi için önce markalar sayfasından Unipile outreach bağlayın.",
       "summaryFromFile": "Kaynak: {name}",
       "summaryFromList": "Kaynak: {name}",
       "summaryNeedFile": "CSV veya Excel yükleyin.",
       "summaryNeedList": "Bir mevcut liste seçin.",
+      "summaryNeedSalesNav": "Sales Navigator listesi içe aktarın.",
+      "summaryNeedProfileUrl": "En az bir LinkedIn profil URL’si ekleyin.",
       "flow": "Flow",
-      "flowHint": "Sabit outreach sırası. Unipile bağlanınca mesajlar ve gecikmeler buradan ayarlanır.",
+      "flowHint": "Flowin’in sabit sırası. Buradaki metin ve gecikmeler Unipile üzerinden gönderilir.",
       "zoomIn": "Yakınlaştır",
       "zoomOut": "Uzaklaştır",
       "zoomFit": "Sığdır",
@@ -339,7 +369,8 @@
     "direction": "Yön",
     "time": "Zaman",
     "outbound": "Gönderildi",
-    "inbound": "Yanıt"
+    "inbound": "Yanıt",
+    "body": "Mesaj"
   },
   "reports": {
     "title": "Raporlar",
@@ -357,6 +388,16 @@
     "linkedinEmail": "LinkedIn e-posta",
     "createdAt": "Oluşturulma",
     "language": "Dil Tercihi",
-    "languageHint": "Arayüz dilini buradan değiştirebilirsiniz."
+    "languageHint": "Arayüz dilini buradan değiştirebilirsiniz.",
+    "outreach": "Outreach koltuğu",
+    "outreachOn": "Unipile bağlı. Sequence bu LinkedIn hesabı üzerinde çalışabilir.",
+    "outreachOff": "Profil görüntüleme, davet, mesaj ve InMail için Unipile bağlayın.",
+    "pacing": "Günlük Pacing",
+    "pacingHint": "Yazdığın sayı tavan. Her gün aynı kotaya zorlanmaz; gecikmeler ve mesai (09–18 TR, hafta içi) yüzünden bir gün 4, bir gün 8 gidebilir. Yeni hesapta 8 / 12 / 15 güvenli. Artan hak ertesi güne devretmez.",
+    "dailyInvites": "Günlük bağlantı isteği",
+    "dailyMessages": "Günlük mesaj",
+    "dailyViews": "Günlük profil görüntüleme",
+    "savePacing": "Pacing’i kaydet",
+    "pacingSaved": "Pacing kaydedildi."
   }
 }

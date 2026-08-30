@@ -44,7 +44,11 @@ export async function createBrand(input: {
 
 export async function updateBrand(
   brandId: string,
-  input: { name: string; avatarColor?: string },
+  input: {
+    name?: string;
+    avatarColor?: string;
+    pacing?: { dailyInvites: number; dailyMessages: number; dailyViews: number };
+  },
 ) {
   const response = await request(`/api/brands/${encodeURIComponent(brandId)}`, {
     method: "PATCH",

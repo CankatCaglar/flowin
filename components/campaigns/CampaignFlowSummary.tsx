@@ -9,7 +9,7 @@ export function CampaignFlowSummary({ campaign }: { campaign: Campaign }) {
   const locale = useLocale();
   // Profile views don't reach the lead, so the funnel only lists sending steps.
   const steps = campaign.flow.filter((step) => step.kind !== "profile_view");
-  const counts = flowStepCounts(campaign.sentCount, steps.length);
+  const counts = steps.map((step) => flowStepCounts(campaign, step.id));
   const inset = `${100 / (Math.max(steps.length, 1) * 2)}%`;
 
   return (

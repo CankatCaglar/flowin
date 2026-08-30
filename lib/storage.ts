@@ -1,15 +1,7 @@
-import type { Brand, Campaign, Lead } from "@/types";
+import type { Brand, Campaign } from "@/types";
 
 const AUTH_KEY = "flowin.auth";
 const BRAND_KEY = "flowin.selectedBrandId";
-const OVERLAY_KEY = "flowin.seed.brandOverlay";
-const CAMPAIGN_OVERLAY_KEY = "flowin.seed.campaignOverlay";
-
-export interface BrandOverlay {
-  created: Brand[];
-  updates: Record<string, Partial<Pick<Brand, "name" | "avatarColor">>>;
-  deleted?: string[];
-}
 
 function canUseStorage() {
   return typeof window !== "undefined";
@@ -59,39 +51,11 @@ export function writeSelectedBrandId(brandId: string | null) {
   else window.localStorage.removeItem(BRAND_KEY);
 }
 
-export function readBrandOverlay(): BrandOverlay {
-  return readJson<BrandOverlay>(OVERLAY_KEY) ?? { created: [], updates: {}, deleted: [] };
-}
-
-export function writeBrandOverlay(overlay: BrandOverlay) {
-  writeJson(OVERLAY_KEY, overlay);
-}
-
 export function hydrateBrandDates(brand: Brand): Brand {
   return {
     ...brand,
     createdAt: brand.createdAt instanceof Date ? brand.createdAt : new Date(brand.createdAt),
   };
-}
-
-export interface CampaignOverlay {
-  created: Campaign[];
-  updates: Record<string, Partial<Campaign>>;
-  deleted?: string[];
-}
-
-export function readCampaignOverlay(): CampaignOverlay {
-  return (
-    readJson<CampaignOverlay>(CAMPAIGN_OVERLAY_KEY) ?? {
-      created: [],
-      updates: {},
-      deleted: [],
-    }
-  );
-}
-
-export function writeCampaignOverlay(overlay: CampaignOverlay) {
-  writeJson(CAMPAIGN_OVERLAY_KEY, overlay);
 }
 
 export function hydrateCampaignDates(campaign: Campaign): Campaign {
@@ -103,18 +67,4 @@ export function hydrateCampaignDates(campaign: Campaign): Campaign {
     createdAt:
       campaign.createdAt instanceof Date ? campaign.createdAt : new Date(campaign.createdAt),
   };
-}
-
-const LEAD_OVERLAY_KEY = "flowin.seed.leadOverlay";
-
-export interface LeadOverlay {
-  created: Lead[];
-}
-
-export function readLeadOverlay(): LeadOverlay {
-  return readJson<LeadOverlay>(LEAD_OVERLAY_KEY) ?? { created: [] };
-}
-
-export function writeLeadOverlay(overlay: LeadOverlay) {
-  writeJson(LEAD_OVERLAY_KEY, overlay);
 }

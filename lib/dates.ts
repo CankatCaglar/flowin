@@ -1,13 +1,16 @@
 import type { DatePreset, DateRange } from "@/types";
 
-export const APP_TODAY = new Date(2026, 7, 23);
+export function appToday() {
+  return new Date();
+}
+
 export const MAX_RANGE_DAYS = 366;
 
-export function minAllowedDate(today = APP_TODAY) {
+export function minAllowedDate(today = appToday()) {
   return startOfDay(new Date(today.getFullYear() - 2, today.getMonth(), today.getDate()));
 }
 
-export function clampDate(date: Date, today = APP_TODAY) {
+export function clampDate(date: Date, today = appToday()) {
   const min = minAllowedDate(today);
   const max = startOfDay(today);
   const value = startOfDay(date);
@@ -16,7 +19,7 @@ export function clampDate(date: Date, today = APP_TODAY) {
   return value;
 }
 
-export function clampRange(start: Date, end: Date, today = APP_TODAY): DateRange {
+export function clampRange(start: Date, end: Date, today = appToday()): DateRange {
   let from = clampDate(start, today);
   let to = clampDate(end, today);
   if (from > to) {
@@ -73,7 +76,7 @@ export function rangeForPreset(
   preset: DatePreset,
   customStart?: Date,
   customEnd?: Date,
-  today = APP_TODAY,
+  today = appToday(),
 ): DateRange {
   if (preset === "thisMonth") {
     return {

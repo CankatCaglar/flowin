@@ -9,7 +9,7 @@ import { useDateRange } from "@/contexts/DateRangeContext";
 import { useMenu } from "@/contexts/MenuContext";
 import { useDismissable } from "@/hooks/useDismissable";
 import {
-  APP_TODAY,
+  appToday,
   minAllowedDate,
   parseDateKey,
   toDateKey,
@@ -30,7 +30,7 @@ export function DateRangePicker() {
   const [customEnd, setCustomEnd] = useState(toDateKey(range.end));
 
   const min = toDateKey(minAllowedDate());
-  const max = toDateKey(APP_TODAY);
+  const max = toDateKey(appToday());
 
   useEffect(() => {
     if (!open) return;

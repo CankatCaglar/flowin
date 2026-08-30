@@ -4,7 +4,7 @@ import { use } from "react";
 import { LeadsWorkspace } from "@/components/leads/LeadsWorkspace";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
-import { createLead } from "@/lib/local-data";
+import { createLead } from "@/lib/outreach-api";
 
 export default function CampaignLeadsPage({
   params,

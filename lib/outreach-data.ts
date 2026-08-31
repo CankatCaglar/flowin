@@ -1,5 +1,13 @@
 import "server-only";
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
+import {
+  copyLeadAvatar,
+  deleteLeadAvatar,
+  ingestLeadAvatar,
+  isRemoteAvatarUrl,
+  isStoredLeadAvatarUrl,
+  leadAvatarUrl,
+} from "@/lib/brand-avatar";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { asLeadStage, asLeadStatus, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
@@ -101,6 +109,7 @@ export function hydrateLead(
     linkedinPublicId: String(input.linkedinPublicId ?? linkedInPublicId(String(input.linkedinUrl ?? ""))),
     unipileProviderId: String(input.unipileProviderId ?? ""),
     unipileChatId: String(input.unipileChatId ?? ""),
+    avatarUrl: String(input.avatarUrl ?? ""),
     status,
     lastMessageSentAt: lastOutboundAt(history, fallbackActionAt),
     firstReplyReceivedAt,
@@ -161,6 +170,7 @@ function leadPayload(lead: Lead) {
     linkedinPublicId: lead.linkedinPublicId ?? "",
     unipileProviderId: lead.unipileProviderId ?? "",
     unipileChatId: lead.unipileChatId ?? "",
+    avatarUrl: lead.avatarUrl ?? "",
     status: lead.status,
     lastMessageSentAt: Timestamp.fromDate(lead.lastMessageSentAt),
     firstReplyReceivedAt: lead.firstReplyReceivedAt
@@ -463,6 +473,7 @@ export async function createLead(input: {
   email?: string;
   phone?: string;
   unipileProviderId?: string;
+  pictureUrl?: string;
   schedule?: boolean;
 }) {
   const campaign = await fetchCampaign(input.campaignId);
@@ -485,6 +496,7 @@ export async function createLead(input: {
     linkedinUrl,
     linkedinPublicId: linkedInPublicId(linkedinUrl),
     unipileProviderId: input.unipileProviderId ?? "",
+    avatarUrl: input.pictureUrl?.trim() ?? "",
     status: "queued",
     lastMessageSentAt: addedAt,
     company: input.company?.trim() ?? "",
@@ -497,6 +509,13 @@ export async function createLead(input: {
     nextStepAt: schedule.nextStepAt,
   });
   await ref.create(leadPayload(lead));
+  if (isRemoteAvatarUrl(lead.avatarUrl ?? "")) {
+    void ingestLeadAvatar({ leadId: lead.id, remoteUrl: lead.avatarUrl }).then(async (stored) => {
+      if (!stored) return;
+      lead.avatarUrl = stored;
+      await ref.update({ avatarUrl: stored });
+    });
+  }
   return lead;
 }
 
@@ -511,6 +530,7 @@ export async function createLeads(
     email?: string;
     phone?: string;
     unipileProviderId?: string;
+    pictureUrl?: string;
   }>,
 ) {
   const created: Lead[] = [];
@@ -532,10 +552,11 @@ export async function copyCampaignLeads(
   targetCampaignId: string,
 ) {
   const source = await fetchLeadsByCampaign(sourceCampaignId);
-  return createLeads(
-    brandId,
-    targetCampaignId,
-    source.map((lead) => ({
+  const created: Lead[] = [];
+  for (const lead of source) {
+    const next = await createLead({
+      brandId,
+      campaignId: targetCampaignId,
       fullName: lead.fullName,
       linkedinUrl: lead.linkedinUrl,
       company: lead.company,
@@ -543,8 +564,15 @@ export async function copyCampaignLeads(
       email: lead.email,
       phone: lead.phone,
       unipileProviderId: lead.unipileProviderId,
-    })),
-  );
+      pictureUrl: isRemoteAvatarUrl(lead.avatarUrl ?? "") ? lead.avatarUrl : "",
+    });
+    if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "") && (await copyLeadAvatar(lead.id, next.id))) {
+      next.avatarUrl = leadAvatarUrl(next.id);
+      await requireFirebaseDb().collection("leads").doc(next.id).update({ avatarUrl: next.avatarUrl });
+    }
+    created.push(next);
+  }
+  return created;
 }
 
 export async function saveLead(lead: Lead) {
@@ -696,6 +724,9 @@ export async function deleteOutreachForBrand(db: Firestore, brandId: string) {
   const collections = ["campaigns", "leads", "messages", "daily_stats"] as const;
   for (const name of collections) {
     const snapshot = await db.collection(name).where("brandId", "==", brandId).get();
+    if (name === "leads") {
+      await Promise.all(snapshot.docs.map((item) => deleteLeadAvatar(item.id)));
+    }
     const batchSize = 400;
     for (let index = 0; index < snapshot.docs.length; index += batchSize) {
       const batch = db.batch();

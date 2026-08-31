@@ -175,7 +175,63 @@ export type UnipileProfile = {
   public_profile_url?: string;
   current_positions?: Array<{ company?: string; role?: string }>;
   company?: string;
+  profile_picture_url?: string;
+  profile_picture_url_large?: string;
+  public_picture_url?: string;
+  public_picture_url_large?: string;
 };
+
+function asPictureUrl(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function unipilePictureUrl(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const data = input as Record<string, unknown>;
+  const nested = [
+    data,
+    data.user && typeof data.user === "object" ? (data.user as Record<string, unknown>) : null,
+    data.specifics && typeof data.specifics === "object"
+      ? (data.specifics as Record<string, unknown>)
+      : null,
+  ].filter(Boolean) as Record<string, unknown>[];
+  const keys = [
+    "profile_picture_url_large",
+    "public_picture_url_large",
+    "profile_picture_url",
+    "public_picture_url",
+    "picture_url",
+    "profile_picture",
+    "picture",
+  ];
+  for (const source of nested) {
+    for (const key of keys) {
+      const value = asPictureUrl(source[key]) || nestedPicture(source[key]);
+      if (value) return value;
+    }
+  }
+  for (const source of nested) {
+    for (const [key, value] of Object.entries(source)) {
+      if (/background/i.test(key)) continue;
+      const fromNested = nestedPicture(value);
+      if (fromNested) return fromNested;
+      if (typeof value === "string" && /media\.licdn\.com/i.test(value)) return value.trim();
+    }
+  }
+  return "";
+}
+
+function nestedPicture(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  return (
+    asPictureUrl(record.url) ||
+    asPictureUrl(record.profile_picture_url_large) ||
+    asPictureUrl(record.public_picture_url_large) ||
+    asPictureUrl(record.profile_picture_url) ||
+    asPictureUrl(record.public_picture_url)
+  );
+}
 
 export async function getUnipileProfile(accountId: string, identifier: string) {
   return unipileRequest<UnipileProfile>(`/api/v1/users/${encodeURIComponent(identifier)}`, {
@@ -203,6 +259,7 @@ export async function resolveLinkedInProfile(accountId: string, rawUrl: string) 
     company: role?.company || profile.company || "",
     position: role?.role || profile.headline || "",
     unipileProviderId: profile.provider_id || "",
+    pictureUrl: unipilePictureUrl(profile),
   };
 }
 
@@ -261,6 +318,7 @@ export type SalesNavPerson = {
   position: string;
   publicId: string;
   providerId: string;
+  pictureUrl: string;
 };
 
 function asPerson(item: Record<string, unknown>): SalesNavPerson | null {
@@ -300,6 +358,7 @@ function asPerson(item: Record<string, unknown>): SalesNavPerson | null {
     position,
     publicId,
     providerId,
+    pictureUrl: unipilePictureUrl(item),
   };
 }
 

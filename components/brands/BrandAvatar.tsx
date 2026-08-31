@@ -8,11 +8,16 @@ export function BrandAvatar({
   brand,
   size = "md",
   className,
+  fetchPriority,
 }: {
-  brand: Pick<Brand, "name" | "avatarColor" | "avatarUrl">;
+  brand: Pick<Brand, "id" | "name" | "avatarColor" | "avatarUrl">;
   size?: "sm" | "md" | "lg";
   className?: string;
+  fetchPriority?: "high" | "low" | "auto";
 }) {
+  const primary = brand.avatarUrl?.trim() ?? "";
+  const proxy = `/api/brands/${encodeURIComponent(brand.id)}/avatar`;
+  const [useProxy, setUseProxy] = useState(!primary);
   const [failed, setFailed] = useState(false);
   const dim =
     size === "sm"
@@ -21,17 +26,26 @@ export function BrandAvatar({
         ? "h-16 w-16 text-2xl"
         : "h-14 w-14 text-xl";
   const rounded = size === "sm" ? "rounded-lg" : "rounded-2xl";
-  const photo = brand.avatarUrl?.trim() && !failed ? brand.avatarUrl : "";
+  const photo = failed ? "" : useProxy ? proxy : primary;
 
   if (photo) {
     return (
-      // Served from /api/brands/:id/avatar (Firebase Storage via Admin SDK).
+      // Served from /api/brands/:id/avatar or the LinkedIn CDN.
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={photo}
         alt=""
+        decoding="async"
+        fetchPriority={fetchPriority}
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => {
+          const primaryPath = primary.split("?")[0] ?? primary;
+          if (!useProxy && proxy !== primaryPath) {
+            setUseProxy(true);
+            return;
+          }
+          setFailed(true);
+        }}
         className={cn(
           "object-cover ring-1 ring-white/15",
           dim,

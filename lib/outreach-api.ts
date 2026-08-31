@@ -84,6 +84,7 @@ export async function createCampaign(input: {
     email?: string;
     phone?: string;
     unipileProviderId?: string;
+    pictureUrl?: string;
   }>;
 }): Promise<Campaign> {
   const response = await request("/api/campaigns", {
@@ -122,6 +123,7 @@ export async function createLead(input: {
   email?: string;
   phone?: string;
   unipileProviderId?: string;
+  pictureUrl?: string;
 }): Promise<Lead> {
   const response = await request("/api/leads", {
     method: "POST",
@@ -157,6 +159,7 @@ export async function importLeadFromUrl(brandId: string, url: string) {
       company: string;
       position: string;
       unipileProviderId?: string;
+      pictureUrl?: string;
     };
   }>(response);
 }
@@ -174,6 +177,7 @@ export async function importSalesNavLeads(brandId: string, url: string) {
       company: string;
       position: string;
       unipileProviderId?: string;
+      pictureUrl?: string;
     }>;
   }>(response);
 }

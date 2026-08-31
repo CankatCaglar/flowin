@@ -5,6 +5,7 @@ import { ArrowUpDown, ChevronLeft, ChevronRight, Plus, Search } from "lucide-rea
 import { useLocale, useTranslations } from "next-intl";
 import { CampaignDateFilter, type CampaignDatePreset } from "@/components/campaigns/CampaignDateFilter";
 import { CampaignRowMenu } from "@/components/campaigns/CampaignRowMenu";
+import { CampaignStatusFilter } from "@/components/campaigns/CampaignStatusFilter";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -132,8 +133,8 @@ export default function CampaignsPage() {
   return (
     <div>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <div className="mb-4 flex flex-wrap items-center gap-2 lg:flex-nowrap">
-        <label className="relative w-full max-w-70 shrink-0">
+      <div className="mb-4 flex items-center gap-2">
+        <label className="relative w-44 shrink-0 sm:w-52">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={query}
@@ -145,26 +146,13 @@ export default function CampaignsPage() {
             className="h-10 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40"
           />
         </label>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          {FILTERS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                setFilter(item);
-                setPage(1);
-              }}
-              className={cn(
-                "h-10 shrink-0 rounded-xl border px-3.5 text-sm",
-                filter === item
-                  ? "border-barney bg-white font-medium text-barney"
-                  : "border-purple-jam/15 bg-white text-muted hover:text-ink",
-              )}
-            >
-              {item === "all" ? t("filterAll") : statusT(item)}
-            </button>
-          ))}
-        </div>
+        <CampaignStatusFilter
+          value={filter}
+          onChange={(value) => {
+            setFilter(value);
+            setPage(1);
+          }}
+        />
         <CampaignDateFilter
           value={dateFilter}
           onChange={(value) => {

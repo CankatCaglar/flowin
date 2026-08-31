@@ -169,6 +169,7 @@ function BrandsPageInner() {
                     key={`${brand.id}-${brand.avatarUrl ?? ""}`}
                     brand={brand}
                     size="lg"
+                    fetchPriority="high"
                     className="mx-auto"
                   />
                   <h2 className="mt-4 text-lg font-semibold text-white">{brand.name}</h2>

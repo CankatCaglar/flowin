@@ -107,6 +107,7 @@ export interface Lead {
   linkedinPublicId?: string;
   unipileProviderId?: string;
   unipileChatId?: string;
+  avatarUrl?: string;
   status: LeadStatus;
   lastMessageSentAt: Date;
   firstReplyReceivedAt?: Date;

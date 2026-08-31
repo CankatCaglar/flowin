@@ -240,6 +240,7 @@ export default function NewCampaignPage() {
                               email: "",
                               phone: "",
                               unipileProviderId: lead.unipileProviderId,
+                              pictureUrl: lead.pictureUrl,
                             })),
                             fileName: t("salesNav"),
                             skipped: 0,

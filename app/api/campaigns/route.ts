@@ -73,6 +73,7 @@ export async function POST(request: Request) {
             email?: string;
             phone?: string;
             unipileProviderId?: string;
+            pictureUrl?: string;
           } =>
             Boolean(item && typeof item === "object" && "fullName" in item && "linkedinUrl" in item),
         ),

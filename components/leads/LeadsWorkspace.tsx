@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Upload } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AddLeadModal } from "@/components/campaigns/AddLeadModal";
-import { LeadDetailPanel, leadAvatarClass } from "@/components/leads/LeadDetailPanel";
+import { LeadAvatar } from "@/components/leads/LeadAvatar";
+import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
@@ -12,7 +13,7 @@ import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
 import { exportLeadsCsv, leadLastActionAt, LEAD_STAGES, LEAD_STATUSES } from "@/lib/leads";
-import { formatLastAction, personInitials } from "@/lib/utils";
+import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, LeadStage, LeadStatus } from "@/types";
 
@@ -102,8 +103,8 @@ export function LeadsWorkspace({
       )}
     >
       <div className="surface-card flex min-h-0 flex-col overflow-hidden rounded-2xl">
-        <div className="flex shrink-0 flex-col gap-3 border-b border-purple-jam/8 p-4 lg:flex-row lg:items-center">
-          <label className="relative block min-w-0 flex-1">
+        <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-b border-purple-jam/8 p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <label className="relative min-w-40 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input
               value={query}
@@ -185,18 +186,30 @@ export function LeadsWorkspace({
           ) : null}
         </div>
         <div className="min-h-0 flex-1 overflow-x-auto">
-          <table className="w-full min-w-max text-left text-sm">
+          <table className="w-full min-w-220 text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr className="h-11 border-l-[3px] border-l-transparent">
-                <th className="whitespace-nowrap px-4 font-medium">{t("name")}</th>
-                <th className="whitespace-nowrap px-3 font-medium">{t("company")}</th>
-                <th className="whitespace-nowrap px-3 font-medium">{t("position")}</th>
+                <th className="px-5 py-3 text-left font-medium">{t("name")}</th>
+                <th className="px-5 py-3 text-center font-medium">
+                  <span className="inline-flex w-full justify-center">{t("company")}</span>
+                </th>
+                <th className="px-5 py-3 text-center font-medium">
+                  <span className="inline-flex w-full justify-center">{t("position")}</span>
+                </th>
                 {showCampaign ? (
-                  <th className="whitespace-nowrap px-3 font-medium">{t("campaign")}</th>
+                  <th className="px-5 py-3 text-center font-medium">
+                    <span className="inline-flex w-full justify-center">{t("campaign")}</span>
+                  </th>
                 ) : null}
-                <th className="whitespace-nowrap px-3 font-medium">{t("stage")}</th>
-                <th className="whitespace-nowrap px-3 font-medium">{t("status")}</th>
-                <th className="whitespace-nowrap px-3 font-medium">{t("lastAction")}</th>
+                <th className="px-5 py-3 text-center font-medium">
+                  <span className="inline-flex w-full justify-center">{t("stage")}</span>
+                </th>
+                <th className="px-5 py-3 text-center font-medium">
+                  <span className="inline-flex w-full justify-center">{t("status")}</span>
+                </th>
+                <th className="px-5 py-3 text-center font-medium">
+                  <span className="inline-flex w-full justify-center">{t("lastAction")}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -220,23 +233,16 @@ export function LeadsWorkspace({
                         : "border-l-transparent hover:bg-canvas/70",
                     )}
                   >
-                    <td className="whitespace-nowrap px-4">
+                    <td className="whitespace-nowrap px-5 py-3">
                       <span className="flex items-center gap-2.5">
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                            leadAvatarClass(lead.id),
-                          )}
-                        >
-                          {personInitials(lead.fullName)}
-                        </span>
+                        <LeadAvatar lead={lead} />
                         <span className="font-medium text-ink">{lead.fullName}</span>
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-3 text-muted">{lead.company}</td>
-                    <td className="whitespace-nowrap px-3 text-muted">{lead.position}</td>
+                    <td className="px-5 py-3 text-center text-muted">{lead.company}</td>
+                    <td className="px-5 py-3 text-center text-muted">{lead.position}</td>
                     {showCampaign ? (
-                      <td className="whitespace-nowrap px-3">
+                      <td className="px-5 py-3 text-center">
                         <Link
                           href={`/campaigns/${lead.campaignId}`}
                           onClick={(event) => event.stopPropagation()}
@@ -246,13 +252,13 @@ export function LeadsWorkspace({
                         </Link>
                       </td>
                     ) : null}
-                    <td className="px-3">
+                    <td className="px-5 py-3 text-center">
                       <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
                     </td>
-                    <td className="px-3">
+                    <td className="px-5 py-3 text-center">
                       <StatusBadge status={lead.status} label={statusT(lead.status)} />
                     </td>
-                    <td className="whitespace-nowrap px-3 text-muted">
+                    <td className="whitespace-nowrap px-5 py-3 text-center text-muted">
                       {formatLastAction(leadLastActionAt(lead), now, locale)}
                     </td>
                   </tr>

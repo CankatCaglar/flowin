@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     email?: unknown;
     phone?: unknown;
     unipileProviderId?: unknown;
+    pictureUrl?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       email: typeof body.email === "string" ? body.email : "",
       phone: typeof body.phone === "string" ? body.phone : "",
       unipileProviderId: typeof body.unipileProviderId === "string" ? body.unipileProviderId : "",
+      pictureUrl: typeof body.pictureUrl === "string" ? body.pictureUrl : "",
     });
     return NextResponse.json(lead);
   } catch (error) {

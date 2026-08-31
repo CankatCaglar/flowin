@@ -36,6 +36,7 @@ export async function POST(request: Request) {
         company: lead.company,
         position: lead.position,
         unipileProviderId: lead.providerId,
+        pictureUrl: lead.pictureUrl,
       })),
     });
   } catch (error) {

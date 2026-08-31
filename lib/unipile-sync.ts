@@ -39,9 +39,51 @@ function emailsMatch(account: UnipileAccount, email: string) {
   return username === email.trim().toLowerCase();
 }
 
+export async function resolveBrandUnipileAccount(input: {
+  id: string;
+  name: string;
+  linkedinEmail?: string;
+  unipileAccountId?: string;
+  skipIds?: string[];
+}) {
+  if (!isUnipileConfigured()) return "";
+  const skip = new Set((input.skipIds ?? []).filter(Boolean));
+  const accounts = await listedAccounts();
+  const seats = accounts.filter((account) => isLinkedInAccount(account) && isRunning(account));
+  const attached = input.unipileAccountId?.trim() ?? "";
+  if (attached && !skip.has(attached)) {
+    const seat = accounts.find((account) => account.id === attached);
+    if (seat && isLinkedInAccount(seat) && isRunning(seat)) return attached;
+  }
+  const match =
+    seats.find(
+      (account) => !skip.has(account.id) && namesMatch(account, input.id, input.name),
+    ) ??
+    seats.find(
+      (account) => !skip.has(account.id) && emailsMatch(account, input.linkedinEmail ?? ""),
+    ) ??
+    (seats.filter((account) => !skip.has(account.id)).length === 1
+      ? seats.find((account) => !skip.has(account.id))
+      : undefined);
+  if (!match?.id) return "";
+  if (match.id !== attached) {
+    await attachUnipileAccount(input.id, match.id, "running");
+  }
+  return match.id;
+}
+
+let accountsCache: { at: number; items: UnipileAccount[] } | null = null;
+
+async function listedAccounts() {
+  if (accountsCache && Date.now() - accountsCache.at < 20_000) return accountsCache.items;
+  const items = await listUnipileAccounts();
+  accountsCache = { at: Date.now(), items };
+  return items;
+}
+
 export async function syncUnipileSeats() {
   if (!isUnipileConfigured()) return;
-  const [docs, accounts] = await Promise.all([requireBrandDocs(), listUnipileAccounts()]);
+  const [docs, accounts] = await Promise.all([requireBrandDocs(), listedAccounts()]);
   const byId = new Map(accounts.map((account) => [account.id, account]));
   const used = new Set<string>();
   const seats = accounts.filter((account) => isLinkedInAccount(account) && isRunning(account));

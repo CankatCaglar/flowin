@@ -113,39 +113,71 @@ export async function requireBrandDocs() {
   return (await requireFirebaseDb().collection("brands").get()).docs;
 }
 
+let brandIdsMigrated = false;
+
 export async function fetchBrands(): Promise<Brand[]> {
   const db = requireFirebaseDb();
-  await migrateReadableBrandIds(db);
+  const [snapshot, summaries] = await Promise.all([
+    db.collection("brands").get(),
+    fetchBrandSummaries().catch(
+      () => ({}) as Record<string, { activeCampaigns: number; successRate: number }>,
+    ),
+  ]);
+  return snapshot.docs.map((item) => {
+    const data = item.data();
+    return hydrateBrandRecord({
+      id: item.id,
+      name: String(data.name ?? ""),
+      avatarColor: String(data.avatarColor ?? "#6D1472"),
+      createdAt: asDate(data.createdAt),
+      linkedinSub: data.linkedinSub,
+      linkedinEmail: data.linkedinEmail,
+      avatarUrl: String(data.avatarUrl ?? ""),
+      unipileAccountId: data.unipileAccountId,
+      unipileStatus: data.unipileStatus,
+      pacing: data.pacing,
+      activeCampaigns: summaries[item.id]?.activeCampaigns ?? 0,
+      successRate: summaries[item.id]?.successRate ?? 0,
+    });
+  });
+}
+
+export async function runBrandListSideEffects(brands: Brand[]) {
+  if (!brandIdsMigrated) {
+    try {
+      await migrateReadableBrandIds(requireFirebaseDb());
+      brandIdsMigrated = true;
+    } catch (error) {
+      console.error(
+        "[brands] id migrate skipped:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
   try {
     const { syncUnipileSeats } = await import("@/lib/unipile-sync");
     await syncUnipileSeats();
   } catch (error) {
     console.error("[unipile] seat sync skipped:", error instanceof Error ? error.message : error);
   }
-  const snapshot = await db.collection("brands").get();
-  const summaries = await fetchBrandSummaries().catch(
-    () => ({}) as Record<string, { activeCampaigns: number; successRate: number }>,
-  );
-  return Promise.all(
-    snapshot.docs.map(async (item) => {
-      const data = item.data();
-      const avatarUrl = await ingestStoredRemoteAvatar(db, item.id, data);
-      return hydrateBrandRecord({
-        id: item.id,
-        name: String(data.name ?? ""),
-        avatarColor: String(data.avatarColor ?? "#6D1472"),
-        createdAt: asDate(data.createdAt),
-        linkedinSub: data.linkedinSub,
-        linkedinEmail: data.linkedinEmail,
-        avatarUrl,
-        unipileAccountId: data.unipileAccountId,
-        unipileStatus: data.unipileStatus,
-        pacing: data.pacing,
-        activeCampaigns: summaries[item.id]?.activeCampaigns ?? 0,
-        successRate: summaries[item.id]?.successRate ?? 0,
-      });
-    }),
-  );
+  const db = requireFirebaseDb();
+  try {
+    await Promise.all(
+      brands
+        .filter((brand) => isRemoteAvatarUrl(brand.avatarUrl ?? ""))
+        .map((brand) =>
+          ingestStoredRemoteAvatar(db, brand.id, {
+            avatarUrl: brand.avatarUrl,
+            linkedinSub: brand.linkedinSub,
+          }),
+        ),
+    );
+  } catch (error) {
+    console.error(
+      "[brands] avatar ingest skipped:",
+      error instanceof Error ? error.message : error,
+    );
+  }
 }
 
 export async function createBrand(input: {

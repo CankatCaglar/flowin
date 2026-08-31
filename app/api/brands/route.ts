@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
-import { createBrand, fetchBrands } from "@/lib/data";
+import { createBrand, fetchBrands, runBrandListSideEffects } from "@/lib/data";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 
 export async function GET() {
@@ -8,7 +8,9 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    return NextResponse.json(await fetchBrands());
+    const brands = await fetchBrands();
+    after(() => runBrandListSideEffects(brands));
+    return NextResponse.json(brands);
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });
   }

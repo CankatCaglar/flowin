@@ -29,7 +29,9 @@ import {
   sendUnipileInvitation,
   startUnipileChat,
   UnipileError,
+  unipilePictureUrl,
 } from "@/lib/unipile";
+import { ingestLeadAvatar, isStoredLeadAvatarUrl } from "@/lib/brand-avatar";
 import type { Campaign, CampaignFlowStep, Lead } from "@/types";
 
 function templateValues(lead: Lead) {
@@ -46,6 +48,18 @@ function stepCopy(step: CampaignFlowStep, lead: Lead) {
   return interpolateTemplate(flowStepBody(step, "en"), templateValues(lead));
 }
 
+async function applyProfilePhoto(lead: Lead, profile: unknown) {
+  if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) return;
+  const picture = unipilePictureUrl(profile);
+  if (!picture) return;
+  try {
+    const stored = await ingestLeadAvatar({ leadId: lead.id, remoteUrl: picture });
+    lead.avatarUrl = stored || picture;
+  } catch {
+    lead.avatarUrl = picture;
+  }
+}
+
 async function resolveProviderId(accountId: string, lead: Lead) {
   if (lead.unipileProviderId) return lead.unipileProviderId;
   const identifier = lead.linkedinPublicId || lead.linkedinUrl;
@@ -53,6 +67,7 @@ async function resolveProviderId(accountId: string, lead: Lead) {
   const profile = await getUnipileProfile(accountId, identifier);
   lead.unipileProviderId = profile.provider_id ?? "";
   if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
+  await applyProfilePhoto(lead, profile);
   if (!lead.unipileProviderId) throw new UnipileError("profile-provider-missing", 400);
   return lead.unipileProviderId;
 }
@@ -159,6 +174,7 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
     const profile = await getUnipileProfile(accountId, identifier);
     lead.unipileProviderId = profile.provider_id || lead.unipileProviderId;
     if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
+    await applyProfilePhoto(lead, profile);
     if (profile.notify_visit_token) {
       try {
         await reportProfileVisit(accountId, profile.notify_visit_token);

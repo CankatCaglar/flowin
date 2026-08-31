@@ -4,30 +4,14 @@ import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Eye, Mail, MessageCircle, Phone, Send, UserPlus, Users, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
+import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
-import { formatDateTime, personInitials } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Lead, LeadEventKind } from "@/types";
 
-const AVATAR = [
-  "bg-barney text-white",
-  "bg-violet-100 text-barney",
-  "bg-sky-100 text-sky-700",
-  "bg-amber-100 text-amber-800",
-  "bg-emerald-100 text-emerald-800",
-];
-
-function avatarClass(id: string) {
-  const index = id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return AVATAR[index % AVATAR.length];
-}
-
 function linkedinHost(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/i, "");
-}
-
-export function leadAvatarClass(id: string) {
-  return avatarClass(id);
 }
 
 const HISTORY_ICON: Record<LeadEventKind, LucideIcon> = {
@@ -89,14 +73,7 @@ export function LeadDetailPanel({
   return (
     <aside className="surface-card flex h-full min-h-0 flex-col rounded-2xl p-5">
       <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold",
-            avatarClass(lead.id),
-          )}
-        >
-          {personInitials(lead.fullName)}
-        </span>
+        <LeadAvatar lead={lead} size="md" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-display text-lg font-semibold leading-snug text-ink">{lead.fullName}</h2>
           <p className="text-sm text-muted">{lead.position}</p>

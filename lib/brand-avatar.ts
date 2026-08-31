@@ -2,6 +2,10 @@ import "server-only";
 import { getFirebaseStorage } from "@/lib/firebase";
 
 const MAX_BYTES = 2_000_000;
+const STORAGE_CACHE = "private, max-age=86400";
+const memory = new Map<string, AvatarImage>();
+
+export const AVATAR_CACHE_CONTROL = "private, max-age=86400, stale-while-revalidate=604800";
 
 export type AvatarImage = {
   buffer: Buffer;
@@ -12,12 +16,22 @@ export function brandAvatarPath(brandId: string) {
   return `brand-avatars/${safeSegment(brandId)}`;
 }
 
+export function leadAvatarPath(leadId: string) {
+  return `lead-avatars/${safeSegment(leadId)}`;
+}
+
 export function pendingAvatarPath(linkedinSub: string) {
   return `brand-avatars/pending/${safeSegment(linkedinSub)}`;
 }
 
-export function brandAvatarUrl(brandId: string, version = Date.now()) {
-  return `/api/brands/${encodeURIComponent(brandId)}/avatar?v=${version}`;
+export function brandAvatarUrl(brandId: string, version?: number) {
+  const path = `/api/brands/${encodeURIComponent(brandId)}/avatar`;
+  return version ? `${path}?v=${version}` : path;
+}
+
+export function leadAvatarUrl(leadId: string, version?: number) {
+  const path = `/api/leads/${encodeURIComponent(leadId)}/avatar`;
+  return version ? `${path}?v=${version}` : path;
 }
 
 export function isStoredAvatarUrl(url: string) {
@@ -25,8 +39,13 @@ export function isStoredAvatarUrl(url: string) {
   return path.startsWith("/api/brands/") && path.endsWith("/avatar");
 }
 
+export function isStoredLeadAvatarUrl(url: string) {
+  const path = url.split("?")[0] ?? url;
+  return path.startsWith("/api/leads/") && path.endsWith("/avatar");
+}
+
 export function isRemoteAvatarUrl(url: string) {
-  return /^https?:\/\//i.test(url) && !isStoredAvatarUrl(url);
+  return /^https?:\/\//i.test(url) && !isStoredAvatarUrl(url) && !isStoredLeadAvatarUrl(url);
 }
 
 export async function downloadRemoteImage(url: string): Promise<AvatarImage | null> {
@@ -38,16 +57,11 @@ export async function downloadRemoteImage(url: string): Promise<AvatarImage | nu
 }
 
 export async function saveBrandAvatar(brandId: string, image: AvatarImage) {
-  const file = await storageFile(brandAvatarPath(brandId));
-  if (!file) return false;
-  await file.save(image.buffer, {
-    resumable: false,
-    metadata: {
-      contentType: image.contentType,
-      cacheControl: "private, no-cache",
-    },
-  });
-  return true;
+  return writeAvatar(brandAvatarPath(brandId), image);
+}
+
+export async function saveLeadAvatar(leadId: string, image: AvatarImage) {
+  return writeAvatar(leadAvatarPath(leadId), image);
 }
 
 export async function savePendingAvatar(linkedinSub: string, image: AvatarImage) {
@@ -86,6 +100,7 @@ export async function promotePendingAvatar(linkedinSub: string, brandId: string)
     if (!exists) return false;
     await pending.copy(bucket.file(brandAvatarPath(brandId)));
     await pending.delete({ ignoreNotFound: true });
+    forget(brandAvatarPath(brandId));
     return true;
   } catch (error) {
     console.error(
@@ -105,11 +120,11 @@ export async function ingestBrandAvatar(input: {
     if (input.remoteUrl && isRemoteAvatarUrl(input.remoteUrl)) {
       const image = await downloadRemoteImage(input.remoteUrl);
       if (image && (await saveBrandAvatar(input.brandId, image))) {
-        return brandAvatarUrl(input.brandId);
+        return brandAvatarUrl(input.brandId, Date.now());
       }
     }
     if (input.linkedinSub && (await promotePendingAvatar(input.linkedinSub, input.brandId))) {
-      return brandAvatarUrl(input.brandId);
+      return brandAvatarUrl(input.brandId, Date.now());
     }
   } catch (error) {
     console.error(
@@ -130,6 +145,8 @@ export async function moveBrandAvatar(fromId: string, toId: string) {
     if (!exists) return;
     await from.copy(bucket.file(brandAvatarPath(toId)));
     await from.delete({ ignoreNotFound: true });
+    forget(brandAvatarPath(fromId));
+    forget(brandAvatarPath(toId));
   } catch (error) {
     console.error(
       "[brand-avatar] move failed:",
@@ -139,20 +156,94 @@ export async function moveBrandAvatar(fromId: string, toId: string) {
 }
 
 export async function deleteBrandAvatar(brandId: string) {
-  const file = await storageFile(brandAvatarPath(brandId));
-  if (!file) return;
+  await deleteAvatar(brandAvatarPath(brandId), "brand-avatar");
+}
+
+export async function deleteLeadAvatar(leadId: string) {
+  await deleteAvatar(leadAvatarPath(leadId), "lead-avatar");
+}
+
+export async function copyLeadAvatar(fromId: string, toId: string) {
+  if (fromId === toId) return false;
+  const bucket = await getFirebaseStorage();
+  if (!bucket) return false;
+  const from = bucket.file(leadAvatarPath(fromId));
   try {
-    await file.delete({ ignoreNotFound: true });
+    const [exists] = await from.exists();
+    if (!exists) return false;
+    await from.copy(bucket.file(leadAvatarPath(toId)));
+    forget(leadAvatarPath(toId));
+    return true;
   } catch (error) {
     console.error(
-      "[brand-avatar] delete failed:",
+      "[lead-avatar] copy failed:",
       error instanceof Error ? error.message : "unknown",
     );
+    return false;
+  }
+}
+
+export async function ingestLeadAvatar(input: { leadId: string; remoteUrl?: string }) {
+  const image = await downloadLeadAvatarImage(input.leadId, input.remoteUrl);
+  return image ? leadAvatarUrl(input.leadId) : "";
+}
+
+export async function downloadLeadAvatarImage(
+  leadId: string,
+  remoteUrl?: string,
+): Promise<AvatarImage | null> {
+  if (!remoteUrl || !isRemoteAvatarUrl(remoteUrl)) return null;
+  try {
+    const image = await downloadRemoteImage(remoteUrl);
+    if (!image) return null;
+    await saveLeadAvatar(leadId, image);
+    return image;
+  } catch (error) {
+    console.error(
+      "[lead-avatar] ingest failed:",
+      error instanceof Error ? error.message : "unknown",
+    );
+    return null;
   }
 }
 
 export async function readBrandAvatar(brandId: string): Promise<AvatarImage | null> {
-  const file = await storageFile(brandAvatarPath(brandId));
+  return readAvatar(brandAvatarPath(brandId), "brand-avatar");
+}
+
+export async function readLeadAvatar(leadId: string): Promise<AvatarImage | null> {
+  return readAvatar(leadAvatarPath(leadId), "lead-avatar");
+}
+
+export function avatarResponseHeaders(contentType: string) {
+  return {
+    "Content-Type": contentType,
+    "Cache-Control": AVATAR_CACHE_CONTROL,
+  };
+}
+
+function forget(path: string) {
+  memory.delete(path);
+}
+
+async function writeAvatar(path: string, image: AvatarImage) {
+  const file = await storageFile(path);
+  if (!file) return false;
+  await file.save(image.buffer, {
+    resumable: false,
+    metadata: {
+      contentType: image.contentType,
+      cacheControl: STORAGE_CACHE,
+    },
+  });
+  memory.set(path, image);
+  return true;
+}
+
+async function readAvatar(path: string, label: string): Promise<AvatarImage | null> {
+  const cached = memory.get(path);
+  if (cached) return cached;
+  const file = await storageFile(path);
   if (!file) return null;
   try {
     const [exists] = await file.exists();
@@ -163,13 +254,23 @@ export async function readBrandAvatar(brandId: string): Promise<AvatarImage | nu
       sniffImageType(buffer) ??
       normalizeImageType(typeof metadata.contentType === "string" ? metadata.contentType : null) ??
       "image/jpeg";
-    return { buffer, contentType };
+    const image = { buffer, contentType };
+    memory.set(path, image);
+    return image;
   } catch (error) {
-    console.error(
-      "[brand-avatar] read failed:",
-      error instanceof Error ? error.message : "unknown",
-    );
+    console.error(`[${label}] read failed:`, error instanceof Error ? error.message : "unknown");
     return null;
+  }
+}
+
+async function deleteAvatar(path: string, label: string) {
+  forget(path);
+  const file = await storageFile(path);
+  if (!file) return;
+  try {
+    await file.delete({ ignoreNotFound: true });
+  } catch (error) {
+    console.error(`[${label}] delete failed:`, error instanceof Error ? error.message : "unknown");
   }
 }
 

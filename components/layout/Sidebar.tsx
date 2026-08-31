@@ -53,12 +53,28 @@ export function Sidebar({
   const userPanelRef = useRef<HTMLDivElement>(null);
   useDismissable([userMenuRef, userPanelRef], open, close);
   const [collapsed, setCollapsed] = useState(false);
+  const [autoNarrow, setAutoNarrow] = useState(false);
+  const [forceExpand, setForceExpand] = useState(false);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_KEY) === "1");
+    const query = window.matchMedia("(max-width: 1279px)");
+    const apply = () => {
+      setAutoNarrow(query.matches);
+      if (!query.matches) setForceExpand(false);
+    };
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
   }, []);
 
+  const rail = collapsed || (autoNarrow && !forceExpand);
+
   const toggle = () => {
+    if (autoNarrow && !collapsed) {
+      setForceExpand((current) => !current);
+      return;
+    }
     setCollapsed((current) => {
       const next = !current;
       window.localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
@@ -72,19 +88,19 @@ export function Sidebar({
         "flex h-full shrink-0 flex-col bg-midnight text-white",
         "fixed inset-y-0 left-0 z-50 w-[min(16.5rem,86vw)] transition-transform duration-200",
         "lg:static lg:z-auto lg:transition-[width]",
-        collapsed ? "lg:w-[72px]" : "lg:w-64",
+        rail ? "lg:w-[72px]" : "lg:w-64",
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
       <div
         className={cn(
           "flex h-app-header shrink-0 items-center justify-between px-4",
-          collapsed && "lg:justify-center lg:px-2",
+          rail && "lg:justify-center lg:px-2",
         )}
       >
         <Link
           href="/dashboard"
-          className={cn("shrink-0", collapsed && "lg:hidden")}
+          className={cn("shrink-0", rail && "lg:hidden")}
           title={t("overview")}
           onClick={onMobileClose}
         >
@@ -101,10 +117,10 @@ export function Sidebar({
         <button
           type="button"
           onClick={toggle}
-          aria-label={collapsed ? t("expand") : t("collapse")}
+          aria-label={rail ? t("expand") : t("collapse")}
           className="hidden rounded-lg p-2 text-white/60 hover:bg-white/5 hover:text-white lg:inline-flex"
         >
-          {collapsed ? (
+          {rail ? (
             <PanelLeftOpen className="h-5 w-5" />
           ) : (
             <PanelLeftClose className="h-5 w-5" />
@@ -126,14 +142,14 @@ export function Sidebar({
               title={label}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 font-display text-sm font-medium transition-colors",
-                collapsed && "lg:justify-center lg:gap-0 lg:px-0",
+                rail && "lg:justify-center lg:gap-0 lg:px-0",
                 active
                   ? "bg-barney/25 text-white"
                   : "text-white/65 hover:bg-white/5 hover:text-white",
               )}
             >
               <Icon className={cn("h-4 w-4 shrink-0", active && "text-barney")} />
-              <span className={cn(collapsed && "lg:sr-only")}>{label}</span>
+              <span className={cn(rail && "lg:sr-only")}>{label}</span>
             </Link>
           );
         })}
@@ -146,14 +162,14 @@ export function Sidebar({
               onClick={toggleUserMenu}
               className={cn(
                 "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-white/5",
-                collapsed && "lg:justify-center lg:gap-0 lg:px-2",
+                rail && "lg:justify-center lg:gap-0 lg:px-2",
               )}
               title={user.displayName}
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-barney text-sm font-semibold">
                 {user.displayName.charAt(0).toUpperCase()}
               </span>
-              <span className={cn("min-w-0", collapsed && "lg:hidden")}>
+              <span className={cn("min-w-0", rail && "lg:hidden")}>
                 <span className="block truncate text-sm font-semibold">
                   {user.displayName}
                 </span>

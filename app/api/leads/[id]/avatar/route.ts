@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
-import { avatarResponseHeaders, readBrandAvatar } from "@/lib/brand-avatar";
+import { avatarResponseHeaders } from "@/lib/brand-avatar";
+import { ensureLeadPhoto } from "@/lib/lead-avatar";
 
 export async function GET(
   _request: Request,
@@ -10,11 +11,11 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const image = await readBrandAvatar(id);
+  const image = await ensureLeadPhoto(id);
   if (!image) {
     return new NextResponse(null, {
       status: 404,
-      headers: { "Cache-Control": "private, max-age=30" },
+      headers: { "Cache-Control": "private, no-store" },
     });
   }
   return new NextResponse(new Uint8Array(image.buffer), {

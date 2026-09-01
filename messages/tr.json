@@ -157,7 +157,7 @@
   },
   "status": {
     "active": "Aktif",
-    "expiring": "Süresi Yaklaşıyor",
+    "expiring": "Lead'ler Azaldı",
     "paused": "Duraklatıldı",
     "draft": "Taslak",
     "completed": "Tamamlandı",
@@ -179,7 +179,7 @@
     "subtitle": "Seçili markanın tüm kampanyaları.",
     "name": "Kampanya Adı",
     "totalLeads": "Toplam Lead",
-    "sent": "İletilen Lead",
+    "sent": "Temasa Geçilenler",
     "replied": "Yanıt",
     "success": "Başarı",
     "status": "Durum",

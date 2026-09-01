@@ -49,12 +49,16 @@ function stepCopy(step: CampaignFlowStep, lead: Lead) {
 }
 
 async function applyProfilePhoto(lead: Lead, profile: unknown) {
-  if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) return;
+  if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) {
+    lead.avatarChecked = true;
+    return;
+  }
   const picture = unipilePictureUrl(profile);
   if (!picture) return;
   try {
     const stored = await ingestLeadAvatar({ leadId: lead.id, remoteUrl: picture });
     lead.avatarUrl = stored || picture;
+    lead.avatarChecked = Boolean(stored);
   } catch {
     lead.avatarUrl = picture;
   }

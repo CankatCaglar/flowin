@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
+import { hydrateLeadAvatars } from "@/lib/lead-avatar";
 import { createLead, fetchLeads } from "@/lib/outreach-data";
 
 export async function GET(request: Request) {
@@ -10,7 +11,11 @@ export async function GET(request: Request) {
   const brandId = new URL(request.url).searchParams.get("brandId")?.trim() ?? "";
   if (!brandId) return NextResponse.json({ error: "invalid" }, { status: 400 });
   try {
-    return NextResponse.json(await fetchLeads(brandId));
+    const leads = await fetchLeads(brandId);
+    after(() => {
+      void hydrateLeadAvatars(leads);
+    });
+    return NextResponse.json(leads);
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });
   }

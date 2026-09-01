@@ -110,6 +110,7 @@ export function hydrateLead(
     unipileProviderId: String(input.unipileProviderId ?? ""),
     unipileChatId: String(input.unipileChatId ?? ""),
     avatarUrl: String(input.avatarUrl ?? ""),
+    avatarChecked: Boolean(input.avatarChecked),
     status,
     lastMessageSentAt: lastOutboundAt(history, fallbackActionAt),
     firstReplyReceivedAt,
@@ -171,6 +172,7 @@ function leadPayload(lead: Lead) {
     unipileProviderId: lead.unipileProviderId ?? "",
     unipileChatId: lead.unipileChatId ?? "",
     avatarUrl: lead.avatarUrl ?? "",
+    avatarChecked: lead.avatarChecked ?? false,
     status: lead.status,
     lastMessageSentAt: Timestamp.fromDate(lead.lastMessageSentAt),
     firstReplyReceivedAt: lead.firstReplyReceivedAt
@@ -475,6 +477,7 @@ export async function createLead(input: {
   unipileProviderId?: string;
   pictureUrl?: string;
   schedule?: boolean;
+  deferAvatar?: boolean;
 }) {
   const campaign = await fetchCampaign(input.campaignId);
   if (!campaign || campaign.brandId !== input.brandId) {
@@ -509,13 +512,22 @@ export async function createLead(input: {
     nextStepAt: schedule.nextStepAt,
   });
   await ref.create(leadPayload(lead));
-  if (isRemoteAvatarUrl(lead.avatarUrl ?? "")) {
-    void ingestLeadAvatar({ leadId: lead.id, remoteUrl: lead.avatarUrl }).then(async (stored) => {
-      if (!stored) return;
-      lead.avatarUrl = stored;
-      await ref.update({ avatarUrl: stored });
-    });
+  if (!input.deferAvatar) {
+    await persistRemoteLeadAvatar(lead);
   }
+  return lead;
+}
+
+async function persistRemoteLeadAvatar(lead: Lead) {
+  if (!isRemoteAvatarUrl(lead.avatarUrl ?? "")) return lead;
+  const stored = await ingestLeadAvatar({ leadId: lead.id, remoteUrl: lead.avatarUrl });
+  if (!stored) return lead;
+  lead.avatarUrl = stored;
+  lead.avatarChecked = true;
+  await requireFirebaseDb().collection("leads").doc(lead.id).update({
+    avatarUrl: stored,
+    avatarChecked: true,
+  });
   return lead;
 }
 
@@ -540,9 +552,11 @@ export async function createLeads(
         brandId,
         campaignId,
         ...row,
+        deferAvatar: true,
       }),
     );
   }
+  await Promise.all(created.map((lead) => persistRemoteLeadAvatar(lead)));
   return created;
 }
 
@@ -568,7 +582,11 @@ export async function copyCampaignLeads(
     });
     if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "") && (await copyLeadAvatar(lead.id, next.id))) {
       next.avatarUrl = leadAvatarUrl(next.id);
-      await requireFirebaseDb().collection("leads").doc(next.id).update({ avatarUrl: next.avatarUrl });
+      next.avatarChecked = true;
+      await requireFirebaseDb().collection("leads").doc(next.id).update({
+        avatarUrl: next.avatarUrl,
+        avatarChecked: true,
+      });
     }
     created.push(next);
   }

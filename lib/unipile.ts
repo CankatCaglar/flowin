@@ -239,13 +239,19 @@ export async function getUnipileProfile(accountId: string, identifier: string) {
   });
 }
 
+export async function getUnipileProfileLite(accountId: string, identifier: string) {
+  return unipileRequest<UnipileProfile>(`/api/v1/users/${encodeURIComponent(identifier)}`, {
+    query: { account_id: accountId },
+  });
+}
+
 export async function resolveLinkedInProfile(accountId: string, rawUrl: string) {
   const linkedinUrl = normalizeLinkedInUrl(rawUrl);
   const identifier = linkedInPublicId(linkedinUrl) || linkedinUrl;
   if (!linkedinUrl || !identifier) {
     throw new UnipileError("invalid-linkedin-url", 400);
   }
-  const profile = await getUnipileProfile(accountId, identifier);
+  const profile = await getUnipileProfileLite(accountId, identifier);
   const role = profile.current_positions?.[0];
   const fullName =
     (typeof profile.name === "string" && profile.name.trim()) ||

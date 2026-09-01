@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { brandInitial, cn } from "@/lib/utils";
 import type { Brand } from "@/types";
+
+function storedBrandAvatarUrl(url: string) {
+  const path = url.split("?")[0] ?? "";
+  return path.startsWith("/api/brands/") && path.endsWith("/avatar");
+}
 
 export function BrandAvatar({
   brand,
@@ -17,8 +22,7 @@ export function BrandAvatar({
 }) {
   const primary = brand.avatarUrl?.trim() ?? "";
   const proxy = `/api/brands/${encodeURIComponent(brand.id)}/avatar`;
-  const [useProxy, setUseProxy] = useState(!primary);
-  const [failed, setFailed] = useState(false);
+  const [src, setSrc] = useState(primary);
   const dim =
     size === "sm"
       ? "h-9 w-9 text-sm"
@@ -26,32 +30,29 @@ export function BrandAvatar({
         ? "h-16 w-16 text-2xl"
         : "h-14 w-14 text-xl";
   const rounded = size === "sm" ? "rounded-lg" : "rounded-2xl";
-  const photo = failed ? "" : useProxy ? proxy : primary;
 
-  if (photo) {
+  useEffect(() => {
+    setSrc(primary);
+  }, [primary]);
+
+  if (src) {
     return (
-      // Served from /api/brands/:id/avatar or the LinkedIn CDN.
+      // LinkedIn photo via stored URL, CDN, or /api/brands/:id/avatar.
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photo}
+        src={src}
         alt=""
         decoding="async"
         fetchPriority={fetchPriority}
         referrerPolicy="no-referrer"
         onError={() => {
-          const primaryPath = primary.split("?")[0] ?? primary;
-          if (!useProxy && proxy !== primaryPath) {
-            setUseProxy(true);
+          if (src !== proxy && !storedBrandAvatarUrl(src)) {
+            setSrc(proxy);
             return;
           }
-          setFailed(true);
+          setSrc("");
         }}
-        className={cn(
-          "object-cover ring-1 ring-white/15",
-          dim,
-          rounded,
-          className,
-        )}
+        className={cn("object-cover ring-1 ring-white/15", dim, rounded, className)}
       />
     );
   }

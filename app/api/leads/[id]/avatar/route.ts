@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { avatarResponseHeaders } from "@/lib/brand-avatar";
-import { ensureLeadPhoto } from "@/lib/lead-avatar";
+import { serveLeadPhoto } from "@/lib/lead-avatar";
 
 export async function GET(
   _request: Request,
@@ -11,7 +11,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const image = await ensureLeadPhoto(id);
+  const image = await serveLeadPhoto(id);
   if (!image) {
     return new NextResponse(null, {
       status: 404,

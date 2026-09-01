@@ -136,11 +136,11 @@
       "title": "Needs Attention",
       "unresponsive": "Unresponsive Leads",
       "unresponsiveHint": "{count} unresponsive leads need follow-up",
-      "expiring": "Expiring Campaigns",
+      "expiring": "Campaigns running out of leads",
       "expiringHint": "{count} campaigns are ending soon",
       "lowResponse": "Low-response Campaign",
       "lowResponseHint": "{count} campaigns have a low reply rate",
-      "followUp": "Leads Waiting Follow-up",
+      "followUp": "Leads awaiting a reply",
       "followUpHint": "{count} leads are waiting for a follow-up"
     },
     "insights": {
@@ -157,7 +157,7 @@
   },
   "status": {
     "active": "Active",
-    "expiring": "Ending Soon",
+    "expiring": "Leads running low",
     "paused": "Paused",
     "draft": "Draft",
     "completed": "Completed",
@@ -179,7 +179,7 @@
     "subtitle": "All campaigns for the selected brand.",
     "name": "Campaign Name",
     "totalLeads": "Total Leads",
-    "sent": "Leads Sent",
+    "sent": "Contacted",
     "replied": "Replies",
     "success": "Success",
     "status": "Status",

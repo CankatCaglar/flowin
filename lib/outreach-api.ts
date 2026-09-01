@@ -113,6 +113,22 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
   return rows.map(hydrateLeadDates);
 }
 
+export async function hydrateLeadAvatars(brandId: string): Promise<Record<string, string>> {
+  const response = await request("/api/leads/avatars", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ brandId }),
+  });
+  const data = await readJson<{ avatars?: Record<string, string> }>(response);
+  return data.avatars ?? {};
+}
+
+export function leadNeedsAvatarHydration(lead: Lead) {
+  const path = (lead.avatarUrl ?? "").split("?")[0] ?? "";
+  if (path.startsWith("/api/leads/") && path.endsWith("/avatar")) return false;
+  return !lead.avatarChecked;
+}
+
 export async function createLead(input: {
   brandId: string;
   campaignId: string;

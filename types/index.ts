@@ -108,6 +108,7 @@ export interface Lead {
   unipileProviderId?: string;
   unipileChatId?: string;
   avatarUrl?: string;
+  avatarChecked?: boolean;
   status: LeadStatus;
   lastMessageSentAt: Date;
   firstReplyReceivedAt?: Date;

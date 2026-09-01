@@ -82,7 +82,11 @@ async function migrateReadableBrandIds(db: Firestore) {
     if (!name) continue;
     const nextId = await uniqueBrandId(db, name);
     if (nextId === item.id) continue;
-    await db.collection("brands").doc(nextId).set(data);
+    await moveBrandAvatar(item.id, nextId);
+    const avatarUrl = isStoredAvatarUrl(String(data.avatarUrl ?? ""))
+      ? brandAvatarUrl(nextId)
+      : String(data.avatarUrl ?? "");
+    await db.collection("brands").doc(nextId).set({ ...data, avatarUrl });
     await item.ref.delete();
   }
 }

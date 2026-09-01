@@ -6,6 +6,8 @@ import {
   fetchDailyStats,
   fetchLeads,
   fetchMessages,
+  hydrateLeadAvatars,
+  leadNeedsAvatarHydration,
 } from "@/lib/outreach-api";
 import type { Campaign, DailyStat, Lead, OutreachMessage } from "@/types";
 
@@ -43,6 +45,18 @@ export function useBrandData(brandId: string | null, campaignId?: string) {
         setLeads(nextLeads);
         setStats(nextStats);
         setMessages(nextMessages);
+        const pending = nextLeads.filter(leadNeedsAvatarHydration);
+        if (!pending.length) return;
+        void hydrateLeadAvatars(brandId).then((avatars) => {
+          if (cancelled || !Object.keys(avatars).length) return;
+          setLeads((current) =>
+            current.map((lead) =>
+              lead.id in avatars
+                ? { ...lead, avatarUrl: avatars[lead.id] ?? "", avatarChecked: true }
+                : lead,
+            ),
+          );
+        });
       })
       .catch(() => {
         if (cancelled) return;

@@ -26,43 +26,43 @@ const STEP_TEMPLATES: Record<
   connectionRequest: {
     title: { tr: "Bağlantı İsteği", en: "Connection Request" },
     body: {
-      tr: "Merhaba {{firstName}}, {{company}} bünyesindeki operasyonlarınızı yakından takip ediyoruz. Kısa bir bağlantı kurmak isterim.",
-      en: "Hi {{firstName}}, we follow the work your team does at {{company}} closely. I'd love to connect.",
+      tr: "Merhaba {{firstName}} {{lastName}},\n{{company}}’deki çalışmalarınızı gördüm. Benzer ekiplerle büyüme, satış ve verimlilik tarafında çalışıyoruz. Bağlantıda kalmak isterim.",
+      en: "Hi {{firstName}} {{lastName}},\nI came across your work at {{company}}. We work with similar teams on growth, sales and efficiency. I'd like to stay connected.",
     },
   },
   inmail: {
     title: { tr: "InMail", en: "InMail" },
     body: {
-      tr: "Merhaba {{firstName}}, {{company}} tarafındaki operasyonu kısaca konuşmak isterim. Uygun bir 15 dakikalık aralık paylaşabilir misiniz?",
-      en: "Hi {{firstName}}, I'd like to briefly talk through operations at {{company}}. Could you share a 15-minute slot that works for you?",
+      tr: "Merhaba {{firstName}} {{lastName}},\n{{company}} tarafındaki içerik ve büyüme işinizi kısaca konuşmak isterim. Score AI, paylaşımlarınızı 30+ mikro kriterle saniyeler içinde analiz ediyor. Uygun bir 15 dakikalık aralık paylaşabilir misiniz?",
+      en: "Hi {{firstName}} {{lastName}},\nI'd like to briefly talk through content and growth at {{company}}. Score AI scores your posts against 30+ micro-criteria in seconds. Could you share a 15-minute slot?",
     },
   },
   respond: {
     title: { tr: "Yanıt Mesajı", en: "Reply Message" },
     body: {
-      tr: "Dönüşünüz için teşekkürler {{firstName}}. Sorularınızı netleştirmek için bu hafta 15 dakikalık kısa bir görüşme ayarlayalım mı?",
-      en: "Thanks for getting back to me, {{firstName}}. Shall we set up a short 15-minute call this week to go through your questions?",
+      tr: "Dönüşünüz için teşekkürler {{firstName}}. Score AI ile içeriğinizi ücretsiz analiz etmek veya sorularınızı netleştirmek için bu hafta 15 dakikalık kısa bir görüşme ayarlayalım mı?",
+      en: "Thanks for getting back to me, {{firstName}}. Shall we set up a short 15-minute call this week to run a free Score AI analysis or go through your questions?",
     },
   },
   message1: {
     title: { tr: "Mesaj 1", en: "Message 1" },
     body: {
-      tr: "Merhaba {{firstName}}, bağlantımız için teşekkürler. {{position}} rolündeki ekiplerin e-ticaret operasyonunu nasıl ölçeklediğini merak ediyoruz.",
-      en: "Hi {{firstName}}, thanks for connecting. We're curious how teams in a {{position}} role scale their e-commerce operation.",
+      tr: "Merhaba {{firstName}} {{lastName}},\n\nBağlantı için teşekkürler. Kısa bir not bırakmak istedim: Sosyal medya içerikleriniz/paylaşımlarınız neden beklediğiniz performansı göstermiyor, bunu Score AI saniyeler içinde analiz ediyor.\n\nİçeriğinizi 30+ mikro kriterle değerlendiriyor, markanızı anlıyor ve daha iyi sonuçlar için uygulanabilir öneriler sunuyor. Dilerseniz ücretsiz analiz sayfamızdan içeriğinizi yükleyip skorunuzu hemen görebilirsiniz:",
+      en: "Hi {{firstName}} {{lastName}},\n\nThanks for connecting. A quick note: Score AI shows in seconds why your social posts may not be hitting the performance you expected.\n\nIt scores your content against 30+ micro-criteria, understands your brand, and gives practical next steps. If you'd like, upload a post on our free analysis page and see your score right away:",
     },
   },
   message2: {
     title: { tr: "Mesaj 2", en: "Message 2" },
     body: {
-      tr: "Merhaba {{firstName}}, {{company}} tarafında benzer ekiplerle çalışırken sipariş, stok ve müşteri deneyimini tek akışta toplayan bir operasyon modeli paylaşıyoruz. 15 dakikalık kısa bir görüşme uygun olur mu?",
-      en: "Hi {{firstName}}, with teams like yours at {{company}} we share an operating model that brings orders, stock and customer experience into a single flow. Would a short 15-minute call work?",
+      tr: "Merhaba {{firstName}} {{lastName}},\n\nScore AI analizini deneme fırsatınız oldu mu? İçeriğinizi yükleyip 30+ mikro kriterle skorunuzu saniyeler içinde görebilirsiniz. Dilerseniz ücretsiz analiz için bana yazmanız yeterli.",
+      en: "Hi {{firstName}} {{lastName}},\n\nDid you get a chance to try the Score AI analysis? Upload a post and see your score against 30+ micro-criteria in seconds. Just reply if you'd like a free review.",
     },
   },
   message3: {
     title: { tr: "Mesaj 3", en: "Message 3" },
     body: {
-      tr: "{{firstName}}, son olarak ilgili örnekleri iletmek isterim. Uygun olduğunuz bir günü paylaşırsanız takvime yerleştirebilirim.",
-      en: "{{firstName}}, one last note — I'd like to send over a few relevant examples. Share a day that suits you and I'll get it on the calendar.",
+      tr: "Merhaba {{firstName}} {{lastName}},\nSon kez rahatsız ediyorum. Score AI ile ilgili aklınıza takılan bir şey olursa ya da içeriklerinizi ücretsiz analiz etmek isterseniz dilediğiniz zaman bana yazabilirsiniz.\nİyi günler dilerim.",
+      en: "Hi {{firstName}} {{lastName}},\nLast note from me. If anything about Score AI is on your mind, or you'd like a free content analysis, write anytime.\nHave a good day.",
     },
   },
 };

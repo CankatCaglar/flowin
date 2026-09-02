@@ -1,16 +1,16 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, Clock, MessageSquareWarning, UserRound } from "lucide-react";
+import { AlertTriangle, ChevronRight, Clock, TriangleAlert, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 export function AttentionList({
-  unresponsiveCount,
+  failedCount,
   expiringCount,
   lowResponseCount,
   followUpCount,
 }: {
-  unresponsiveCount: number;
+  failedCount: number;
   expiringCount: number;
   lowResponseCount: number;
   followUpCount: number;
@@ -19,10 +19,10 @@ export function AttentionList({
 
   const items = [
     {
-      href: "/leads?status=waiting_reply",
-      label: t("unresponsive"),
-      hint: t("unresponsiveHint", { count: unresponsiveCount }),
-      icon: MessageSquareWarning,
+      href: "/leads?status=failed",
+      label: t("failed"),
+      hint: t("failedHint", { count: failedCount }),
+      icon: TriangleAlert,
       iconClass: "text-orange-600",
     },
     {

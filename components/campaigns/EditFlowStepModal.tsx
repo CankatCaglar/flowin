@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { SelectMenu } from "@/components/ui/SelectMenu";
 import { FLOW_VARIABLES, flowStepBody, flowStepTitle } from "@/lib/campaign-flow";
 import type { CampaignFlowStep } from "@/types";
 
@@ -90,18 +89,11 @@ export function EditFlowStepModal({
         </label>
         <div className="space-y-2">
           <span className="text-[13px] font-medium text-muted">{t("delay")}</span>
-          <SelectMenu
-            id={`flow-delay-${step.id}`}
-            value={String(current.delayDays)}
-            ariaLabel={t("delay")}
-            options={[0, 1, 3, 5, 7, 10, 14].map((days) => ({
-              value: String(days),
-              label: days === 0 ? t("noDelay") : t("waitDays", { count: days }),
-            }))}
-            onChange={(value) =>
-              setDraft({ ...current, delayDays: Number(value) })
-            }
-          />
+          <p className="rounded-xl border border-purple-jam/10 bg-canvas px-3 py-2.5 text-sm text-muted">
+            {current.delayDays <= 0
+              ? t("delayFixedNone")
+              : t("delayFixed", { count: current.delayDays })}
+          </p>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="light" onClick={onClose}>

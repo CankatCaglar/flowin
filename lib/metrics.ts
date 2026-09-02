@@ -1,5 +1,5 @@
 import { isCampaignRunning } from "@/lib/campaign-status";
-import { eachDateKey, previousRange } from "@/lib/dates";
+import { eachDateKey, previousRange, toDateKey } from "@/lib/dates";
 import { successRate, trendPercent } from "@/lib/utils";
 import type { Campaign, DailyStat, DateRange, Lead } from "@/types";
 
@@ -87,19 +87,39 @@ export function bucketChartSeries(points: ChartPoint[]): {
   };
 }
 
-export function kpiMetrics(campaigns: Campaign[], stats: DailyStat[], range: DateRange) {
+function acceptedInRange(leads: Lead[], range: DateRange) {
+  const keys = new Set(eachDateKey(range));
+  return leads.filter((lead) =>
+    lead.history.some((event) => event.kind === "accepted" && keys.has(toDateKey(event.at))),
+  ).length;
+}
+
+export function kpiMetrics(
+  campaigns: Campaign[],
+  stats: DailyStat[],
+  range: DateRange,
+  leads: Lead[] = [],
+) {
   const current = sumStats(stats, range);
   const previous = sumStats(stats, previousRange(range));
   const activeCampaigns = campaigns.filter((campaign) => isCampaignRunning(campaign.status)).length;
+  const connectionCount = acceptedInRange(leads, range);
+  const previousConnections = acceptedInRange(leads, previousRange(range));
 
   return {
     activeCampaigns,
     sentCount: current.sentCount,
     repliedCount: current.repliedCount,
+    connectionCount,
     successRate: successRate(current.sentCount, current.repliedCount),
     sentTrend: trendPercent(current.sentCount, previous.sentCount),
     repliedTrend: trendPercent(current.repliedCount, previous.repliedCount),
+    connectionTrend: trendPercent(connectionCount, previousConnections),
   };
+}
+
+export function failedLeads(leads: Lead[]) {
+  return leads.filter((lead) => lead.status === "failed");
 }
 
 export function isUnresponsiveLead(lead: Lead, now: Date) {

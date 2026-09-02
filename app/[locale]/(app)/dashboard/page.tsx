@@ -17,7 +17,7 @@ import {
   kpiMetrics,
   lowResponseCampaigns,
   mostRepliedCampaign,
-  unresponsiveLeads,
+  failedLeads,
 } from "@/lib/metrics";
 
 export default function DashboardPage() {
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     return <p className="text-sm text-muted">{t("loading")}</p>;
   }
 
-  const kpis = kpiMetrics(campaigns, stats, range);
+  const kpis = kpiMetrics(campaigns, stats, range, leads);
   const series = chartSeries(stats, range);
 
   return (
@@ -41,7 +41,7 @@ export default function DashboardPage() {
           <PerformanceChart data={series} />
         </div>
         <AttentionList
-          unresponsiveCount={unresponsiveLeads(leads, now).length}
+          failedCount={failedLeads(leads).length}
           expiringCount={expiringCampaigns(campaigns, now).length}
           lowResponseCount={lowResponseCampaigns(campaigns).length}
           followUpCount={leads.filter((lead) => lead.status === "queued").length}

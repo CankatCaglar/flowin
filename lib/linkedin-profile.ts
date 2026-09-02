@@ -41,5 +41,16 @@ export function interpolateTemplate(
   template: string,
   values: Record<string, string>,
 ) {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => values[key] ?? "");
+  const aliases: Record<string, string> = {
+    firstName: values.firstName ?? "",
+    lastName: values.lastName ?? "",
+    first_name: values.firstName ?? "",
+    last_name: values.lastName ?? "",
+    company: values.company ?? "",
+    position: values.position ?? "",
+  };
+  const lookup = (key: string) => aliases[key] ?? values[key] ?? "";
+  return template
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => lookup(key))
+    .replace(/\{(\w+)\}/g, (_, key: string) => lookup(key));
 }

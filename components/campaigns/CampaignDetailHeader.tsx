@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/Badge";
 import { BackLink } from "@/components/ui/BackLink";
 import { Button } from "@/components/ui/Button";
 import { Link, usePathname } from "@/i18n/navigation";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { updateCampaign } from "@/lib/outreach-api";
-import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, CampaignStatus } from "@/types";
 
@@ -22,7 +21,6 @@ export function CampaignDetailHeader({
   const t = useTranslations("campaigns.tabs");
   const list = useTranslations("campaigns");
   const statusT = useTranslations("status");
-  const locale = useLocale();
   const pathname = usePathname();
   const [saving, setSaving] = useState(false);
   const base = `/campaigns/${campaign.id}`;
@@ -55,7 +53,7 @@ export function CampaignDetailHeader({
               {list("pauseCampaign")}
             </Button>
           ) : null}
-          {campaign.status === "paused" || campaign.status === "draft" ? (
+          {campaign.status === "paused" || campaign.status === "draft" || campaign.status === "completed" ? (
             <Button disabled={saving} onClick={() => void setStatus("active")}>
               {list("resumeCampaign")}
             </Button>
@@ -67,11 +65,6 @@ export function CampaignDetailHeader({
           ) : null}
         </div>
       </div>
-      <p className="mt-1 text-sm text-muted">
-        {formatDate(campaign.startDate, locale)}
-        {" – "}
-        {formatDate(campaign.endDate, locale)}
-      </p>
       <nav className="mt-5 flex gap-6 border-b border-purple-jam/10">
         {tabs.map((tab) => {
           const active = tab.exact

@@ -7,6 +7,7 @@ export type LeadStatus =
   | "flow_completed";
 export type LeadStage =
   | "connection_request"
+  | "profile_viewed"
   | "message_1"
   | "message_2"
   | "message_3"
@@ -132,6 +133,7 @@ export interface DailyStat {
   views?: number;
   invites?: number;
   messages?: number;
+  accepted?: number;
 }
 
 export interface AuthUser {

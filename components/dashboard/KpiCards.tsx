@@ -1,16 +1,16 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, MessageCircle, Rocket, Send, Target } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Rocket, Send, Target, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatNumber, formatPercent } from "@/lib/utils";
 
 interface KpiCardsProps {
   activeCampaigns: number;
   sentCount: number;
-  repliedCount: number;
+  connectionCount: number;
   successRate: number;
   sentTrend: number;
-  repliedTrend: number;
+  connectionTrend: number;
 }
 
 function TrendHint({ value }: { value: number }) {
@@ -52,10 +52,10 @@ export function KpiCards(props: KpiCardsProps) {
       iconClass: "text-emerald-600",
     },
     {
-      title: t("receivedReplies"),
-      value: formatNumber(props.repliedCount, locale),
-      trend: props.repliedTrend,
-      icon: MessageCircle,
+      title: t("newConnections"),
+      value: formatNumber(props.connectionCount, locale),
+      trend: props.connectionTrend,
+      icon: Users,
       iconClass: "text-sky-600",
     },
     {

@@ -10,7 +10,7 @@ import {
 } from "@/lib/brand-avatar";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
-import { asLeadStage, asLeadStatus, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
+import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
 import { firstOpenStep, scheduleAt } from "@/lib/sequence";
@@ -94,8 +94,12 @@ export function hydrateLead(
   input: Partial<Lead> & Pick<Lead, "id" | "brandId" | "campaignId" | "fullName">,
 ): Lead {
   const status = asLeadStatus(input.status);
-  const stage = asLeadStage(input.stage, status);
   const history = hydrateHistory(input.history);
+  const stage = deriveLeadStage({
+    status,
+    stage: asLeadStage(input.stage, status),
+    history,
+  });
   const fallbackActionAt = asDate(input.lastMessageSentAt);
   const firstReplyReceivedAt =
     asDateOrUndefined(input.firstReplyReceivedAt) ??
@@ -637,7 +641,14 @@ function statDocId(brandId: string, date: string, campaignId?: string) {
 
 export async function incrementDailyStat(
   brandId: string,
-  patch: { sent?: number; replied?: number; views?: number; invites?: number; messages?: number },
+  patch: {
+    sent?: number;
+    replied?: number;
+    views?: number;
+    invites?: number;
+    messages?: number;
+    accepted?: number;
+  },
   campaignId?: string,
 ) {
   const db = requireFirebaseDb();
@@ -656,6 +667,7 @@ export async function incrementDailyStat(
         views: Number(current.views ?? 0) + (patch.views ?? 0),
         invites: Number(current.invites ?? 0) + (patch.invites ?? 0),
         messages: Number(current.messages ?? 0) + (patch.messages ?? 0),
+        accepted: Number(current.accepted ?? 0) + (patch.accepted ?? 0),
       },
       { merge: true },
     );
@@ -686,6 +698,7 @@ export async function fetchDailyStats(brandId: string, campaignId?: string): Pro
         views: Number(data.views ?? 0),
         invites: Number(data.invites ?? 0),
         messages: Number(data.messages ?? 0),
+        accepted: Number(data.accepted ?? 0),
       };
     })
     .filter((stat) => stat.date)

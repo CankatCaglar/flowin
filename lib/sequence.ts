@@ -1,4 +1,12 @@
 import { splitFlowBranches } from "@/lib/campaign-flow";
+import {
+  addIstanbulDateKey,
+  clockInIstanbul,
+  isIstanbulWeekendKey,
+  isQuietHours,
+  istanbulDateKey,
+  istanbulWallDate,
+} from "@/lib/pacing";
 import type { CampaignFlowStep, FlowBranch, Lead, LeadStage } from "@/types";
 
 export function firstOpenStep(flow: CampaignFlowStep[]) {
@@ -47,15 +55,45 @@ export function withJitter(baseMs: number) {
   return baseMs + jitter;
 }
 
+function morningJitter() {
+  return {
+    hour: 9 + Math.floor(Math.random() * 2),
+    minute: Math.floor(Math.random() * 50),
+  };
+}
+
+function skipWeekendKey(key: string) {
+  let next = key;
+  while (isIstanbulWeekendKey(next)) next = addIstanbulDateKey(next, 1);
+  return next;
+}
+
+/** Next Istanbul business morning, `skipDays` calendar days ahead (weekends skipped). */
+export function nextBusinessMorning(from = new Date(), skipDays = 1) {
+  let key = istanbulDateKey(from);
+  for (let i = 0; i < skipDays; i += 1) key = addIstanbulDateKey(key, 1);
+  key = skipWeekendKey(key);
+  const { hour, minute } = morningJitter();
+  return istanbulWallDate(key, hour, minute);
+}
+
 export function scheduleAt(step: CampaignFlowStep, from = new Date()) {
-  return new Date(from.getTime() + withJitter(delayMs(step)));
+  const amount = Math.max(0, Number(step.delayDays) || 0);
+  if (step.delayUnit === "hours") {
+    return new Date(from.getTime() + withJitter(delayMs(step)));
+  }
+  if (amount <= 0) {
+    if (isQuietHours(from)) return nextBusinessMorning(from, clockInIstanbul(from).weekend ? 1 : 0);
+    return new Date(from.getTime() + withJitter(0));
+  }
+  return nextBusinessMorning(from, amount);
 }
 
 export function tomorrowMorning(from = new Date()) {
-  const next = new Date(from);
-  next.setDate(next.getDate() + 1);
-  next.setHours(9 + Math.floor(Math.random() * 3), Math.floor(Math.random() * 50), 0, 0);
-  return next;
+  const clock = clockInIstanbul(from);
+  if (clock.weekend || clock.hour >= 18) return nextBusinessMorning(from, 1);
+  if (clock.hour < 9) return nextBusinessMorning(from, 0);
+  return nextBusinessMorning(from, 1);
 }
 
 export function stageAfterMessageIndex(index: number): LeadStage {

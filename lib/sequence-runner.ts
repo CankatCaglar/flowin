@@ -11,7 +11,7 @@ import {
   todayPacingUsage,
 } from "@/lib/outreach-data";
 import { isCampaignRunning } from "@/lib/campaign-status";
-import { isQuietHours, normalizePacing } from "@/lib/pacing";
+import { isQuietHours, normalizePacing, warmupPacing } from "@/lib/pacing";
 import {
   findStep,
   firstBranchStep,
@@ -45,7 +45,8 @@ function templateValues(lead: Lead) {
 }
 
 function stepCopy(step: CampaignFlowStep, lead: Lead) {
-  return interpolateTemplate(flowStepBody(step, "en"), templateValues(lead));
+  const raw = step.templateKey ? flowStepBody(step, "tr") : step.body || flowStepBody(step, "tr");
+  return interpolateTemplate(raw, templateValues(lead));
 }
 
 async function applyProfilePhoto(lead: Lead, profile: unknown) {
@@ -145,6 +146,7 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
     lead.nextStepId = "";
     lead.nextStepAt = undefined;
   }
+  await incrementDailyStat(lead.brandId, { accepted: 1 }, campaign.id);
   return saveLead(lead);
 }
 
@@ -193,6 +195,9 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
       return markLeadAccepted(lead, campaign);
     }
     appendHistory(lead, "profile_viewed");
+    if (!lead.currentBranch && !lead.awaiting) {
+      lead.stage = "profile_viewed";
+    }
     await applyUsage(lead.brandId, campaign.id, "views", step.id);
     if (lead.awaiting === "connection" && !lead.currentBranch) {
       lead.currentBranch = "no_response";
@@ -309,7 +314,7 @@ export async function runLeadStep(lead: Lead) {
   const step = findStep(campaign.flow, lead.nextStepId);
   if (!step) return { skipped: true as const };
 
-  const caps = normalizePacing(brand.pacing);
+  const caps = warmupPacing(normalizePacing(brand.pacing), campaign.startDate);
   const usage = await todayPacingUsage(brand.id);
   const needsView = step.kind === "profile_view" || step.kind === "connection_check";
   const needsInvite = step.kind === "connection";

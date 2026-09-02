@@ -2,11 +2,19 @@ import type { Lead, LeadEvent, LeadEventKind, LeadStage, LeadStatus } from "@/ty
 
 export const LEAD_STAGES: LeadStage[] = [
   "connection_request",
+  "profile_viewed",
   "message_1",
   "message_2",
   "message_3",
   "flow_completed",
 ];
+
+export type LeadStatusLabelKey =
+  | LeadStatus
+  | "queued_view"
+  | "waiting_connection"
+  | "waiting_accept"
+  | "queued_message";
 
 export const LEAD_EVENT_KINDS: LeadEventKind[] = [
   "added",
@@ -51,6 +59,7 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
   replied: "message_1",
   failed: "connection_request",
   connection_request: "connection_request",
+  profile_viewed: "profile_viewed",
   message_1: "message_1",
   message_2: "message_2",
   message_3: "message_3",
@@ -59,11 +68,43 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
 
 const STAGE_RANK: Record<LeadStage, number> = {
   connection_request: 0,
-  message_1: 1,
-  message_2: 2,
-  message_3: 3,
-  flow_completed: 4,
+  profile_viewed: 1,
+  message_1: 2,
+  message_2: 3,
+  message_3: 4,
+  flow_completed: 5,
 };
+
+export function historyHas(lead: Pick<Lead, "history">, kind: LeadEventKind) {
+  return lead.history.some((event) => event.kind === kind);
+}
+
+export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">): LeadStage {
+  if (lead.status === "flow_completed") return "flow_completed";
+  const viewed = historyHas(lead, "profile_viewed");
+  const invited = historyHas(lead, "connection_sent");
+  const accepted = historyHas(lead, "accepted");
+  if (historyHas(lead, "message_3_sent")) return "message_3";
+  if (historyHas(lead, "message_2_sent")) return "message_2";
+  if (historyHas(lead, "message_1_sent") || accepted) return "message_1";
+  if (invited) return "connection_request";
+  if (viewed) return "profile_viewed";
+  return lead.stage === "profile_viewed" ? "profile_viewed" : "connection_request";
+}
+
+export function leadStatusLabelKey(lead: Lead): LeadStatusLabelKey {
+  if (lead.status === "failed") return "failed";
+  if (lead.status === "replied") return "replied";
+  if (lead.status === "flow_completed") return "flow_completed";
+  if (lead.status === "waiting_reply") {
+    if (lead.awaiting === "connection") return "waiting_accept";
+    return "waiting_reply";
+  }
+  if (!historyHas(lead, "profile_viewed")) return "queued_view";
+  if (!historyHas(lead, "connection_sent")) return "waiting_connection";
+  if (lead.currentBranch === "accepted" || historyHas(lead, "accepted")) return "queued_message";
+  return "queued";
+}
 
 export function asLeadStatus(value: unknown): LeadStatus {
   return LEGACY_STATUS[String(value ?? "")] ?? "queued";
@@ -184,7 +225,7 @@ export function exportLeadsCsv(
   }: {
     campaignNames: Map<string, string>;
     stageLabel: (stage: LeadStage) => string;
-    statusLabel: (status: LeadStatus) => string;
+    statusLabel: (status: LeadStatus, lead: Lead) => string;
     lastAction: (lead: Lead) => string;
     filename?: string;
   },
@@ -210,7 +251,7 @@ export function exportLeadsCsv(
         lead.position,
         campaignNames.get(lead.campaignId) ?? lead.campaignId,
         stageLabel(lead.stage),
-        statusLabel(lead.status),
+        statusLabel(lead.status, lead),
         lastAction(lead),
         lead.email,
         lead.phone,

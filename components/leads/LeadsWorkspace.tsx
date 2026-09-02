@@ -12,7 +12,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
-import { exportLeadsCsv, leadLastActionAt, LEAD_STAGES, LEAD_STATUSES } from "@/lib/leads";
+import { exportLeadsCsv, leadLastActionAt, leadStatusLabelKey, LEAD_STAGES, LEAD_STATUSES } from "@/lib/leads";
 import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, LeadStage, LeadStatus } from "@/types";
@@ -170,7 +170,7 @@ export function LeadsWorkspace({
               exportLeadsCsv(filtered, {
                 campaignNames,
                 stageLabel: (item) => stageT(item),
-                statusLabel: (item) => statusT(item),
+                statusLabel: (_status, lead) => statusT(leadStatusLabelKey(lead)),
                 lastAction: (lead) => formatLastAction(leadLastActionAt(lead), now, locale),
               })
             }
@@ -256,7 +256,17 @@ export function LeadsWorkspace({
                       <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <StatusBadge status={lead.status} label={statusT(lead.status)} />
+                      <div className="flex flex-col items-center gap-1">
+                        <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
+                        {lead.nextStepAt &&
+                        lead.status !== "failed" &&
+                        lead.status !== "replied" &&
+                        lead.status !== "flow_completed" ? (
+                          <span className="text-[11px] text-muted">
+                            {formatLastAction(lead.nextStepAt, now, locale)}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-center text-muted">
                       {formatLastAction(leadLastActionAt(lead), now, locale)}
@@ -283,6 +293,7 @@ export function LeadsWorkspace({
       {selected ? (
         <LeadDetailPanel
           lead={selected}
+          campaign={campaigns.find((item) => item.id === selected.campaignId)}
           campaignName={campaignNames.get(selected.campaignId)}
           onClose={() => setSelectedId(null)}
         />

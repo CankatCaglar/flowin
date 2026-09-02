@@ -6,9 +6,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
+import { flowStepTitle } from "@/lib/campaign-flow";
+import { leadStatusLabelKey } from "@/lib/leads";
+import { findStep } from "@/lib/sequence";
 import { formatDateTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { Lead, LeadEventKind } from "@/types";
+import type { Campaign, Lead, LeadEventKind } from "@/types";
 
 function linkedinHost(url: string) {
   return url.replace(/^https?:\/\/(www\.)?/i, "");
@@ -42,10 +45,12 @@ const HISTORY_TONE: Record<LeadEventKind, "green" | "purple" | "red"> = {
 
 export function LeadDetailPanel({
   lead,
+  campaign,
   campaignName,
   onClose,
 }: {
   lead: Lead;
+  campaign?: Campaign;
   campaignName?: string;
   onClose: () => void;
 }) {
@@ -69,6 +74,8 @@ export function LeadDetailPanel({
   };
 
   const inset = `${100 / (Math.max(lead.history.length, 1) * 2)}%`;
+  const nextStep = campaign ? findStep(campaign.flow, lead.nextStepId) : null;
+  const nextTitle = nextStep ? flowStepTitle(nextStep, locale) : "";
 
   return (
     <aside className="surface-card flex h-full min-h-0 flex-col rounded-2xl p-5">
@@ -81,7 +88,7 @@ export function LeadDetailPanel({
           {campaignName ? <p className="text-sm text-muted">{campaignName}</p> : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
-            <StatusBadge status={lead.status} label={statusT(lead.status)} />
+            <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
           </div>
         </div>
         <button
@@ -93,6 +100,28 @@ export function LeadDetailPanel({
           <X className="h-4 w-4" />
         </button>
       </div>
+
+      {lead.failReason || nextTitle || lead.nextStepAt ? (
+        <section className="mt-5 shrink-0 rounded-xl border border-purple-jam/10 bg-canvas px-3 py-3">
+          {lead.failReason ? (
+            <p className="text-sm text-rose-700">
+              <span className="font-medium">{t("failReason")}: </span>
+              {lead.failReason}
+            </p>
+          ) : null}
+          {nextTitle && lead.status !== "failed" && lead.status !== "replied" ? (
+            <p className="text-sm text-ink">
+              <span className="font-medium text-muted">{t("nextStep")}: </span>
+              {nextTitle}
+            </p>
+          ) : null}
+          {lead.nextStepAt && lead.status !== "failed" && lead.status !== "replied" ? (
+            <p className="mt-1 text-sm text-muted">
+              {t("scheduledFor")}: {formatDateTime(lead.nextStepAt, locale)}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mt-6 shrink-0">
         <h3 className="font-display text-sm font-semibold text-ink">{t("contact")}</h3>

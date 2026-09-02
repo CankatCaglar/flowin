@@ -357,7 +357,7 @@ export async function updateBrand(
       avatarUrl = brandAvatarUrl(nextId);
       fields.avatarUrl = avatarUrl;
     }
-    const nextData = { ...current, ...fields };
+    const nextData: Record<string, unknown> = { ...current, ...fields };
     if (input.disconnectOutreach) delete nextData.unipileSyncedAt;
     await db.collection("brands").doc(nextId).set(nextData);
     await ref.delete();

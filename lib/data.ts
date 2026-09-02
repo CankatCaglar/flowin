@@ -1,5 +1,5 @@
 import "server-only";
-import { Timestamp, type Firestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import {
   brandAvatarUrl,
   deleteBrandAvatar,
@@ -11,9 +11,15 @@ import {
 import { brandSlug, looksLikeAutoId } from "@/lib/brand-id";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { deleteOutreachForBrand, fetchBrandSummaries } from "@/lib/outreach-data";
-import { DEFAULT_PACING, normalizePacing } from "@/lib/pacing";
+import {
+  DEFAULT_PACING,
+  DEFAULT_SCHEDULE,
+  normalizeAlerts,
+  normalizePacing,
+  normalizeSchedule,
+} from "@/lib/pacing";
 import { hydrateBrandDates } from "@/lib/storage";
-import type { Brand, BrandPacing, UnipileStatus } from "@/types";
+import type { Brand, BrandAlerts, BrandPacing, BrandSchedule, UnipileStatus } from "@/types";
 
 function fallbackRemoteAvatar(url?: string) {
   const value = url?.trim() ?? "";
@@ -25,6 +31,12 @@ function asDate(value: unknown) {
   if (value instanceof Timestamp) return value.toDate();
   if (typeof value === "string" || typeof value === "number") return new Date(value);
   return new Date();
+}
+
+function asOptionalDate(value: unknown) {
+  if (value == null || value === "") return undefined;
+  const date = asDate(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function asUnipileStatus(value: unknown): UnipileStatus {
@@ -42,10 +54,17 @@ function hydrateBrandRecord(
     createdAt: asDate(input.createdAt),
     linkedinSub: String(input.linkedinSub ?? ""),
     linkedinEmail: String(input.linkedinEmail ?? ""),
+    linkedinPublicId: String(input.linkedinPublicId ?? "").trim(),
     avatarUrl: String(input.avatarUrl ?? ""),
     unipileAccountId: String(input.unipileAccountId ?? ""),
     unipileStatus: asUnipileStatus(input.unipileStatus),
+    unipileSyncedAt: asOptionalDate(input.unipileSyncedAt),
     pacing: normalizePacing(input.pacing),
+    schedule: normalizeSchedule(input.schedule),
+    outreachPaused: Boolean(input.outreachPaused),
+    testMode: Boolean(input.testMode),
+    archived: Boolean(input.archived),
+    alerts: normalizeAlerts(input.alerts),
     activeCampaigns: Number(input.activeCampaigns ?? 0),
     successRate: Number(input.successRate ?? 0),
   });
@@ -127,7 +146,7 @@ export async function fetchBrands(): Promise<Brand[]> {
       () => ({}) as Record<string, { activeCampaigns: number; successRate: number }>,
     ),
   ]);
-  return snapshot.docs.map((item) => {
+  const brands = snapshot.docs.map((item) => {
     const data = item.data();
     return hydrateBrandRecord({
       id: item.id,
@@ -136,14 +155,38 @@ export async function fetchBrands(): Promise<Brand[]> {
       createdAt: asDate(data.createdAt),
       linkedinSub: data.linkedinSub,
       linkedinEmail: data.linkedinEmail,
+      linkedinPublicId: data.linkedinPublicId,
       avatarUrl: String(data.avatarUrl ?? ""),
       unipileAccountId: data.unipileAccountId,
       unipileStatus: data.unipileStatus,
+      unipileSyncedAt: data.unipileSyncedAt,
       pacing: data.pacing,
+      schedule: data.schedule,
+      outreachPaused: data.outreachPaused,
+      testMode: data.testMode,
+      archived: data.archived,
+      alerts: data.alerts,
       activeCampaigns: summaries[item.id]?.activeCampaigns ?? 0,
       successRate: summaries[item.id]?.successRate ?? 0,
     });
   });
+  return enrichBrandPublicIds(brands);
+}
+
+async function enrichBrandPublicIds(brands: Brand[]) {
+  const missing = brands.filter((brand) => brand.unipileAccountId && !brand.linkedinPublicId);
+  if (missing.length === 0) return brands;
+  try {
+    const { listUnipileAccounts, unipileAccountPublicId } = await import("@/lib/unipile");
+    const accounts = await listUnipileAccounts();
+    const byId = new Map(accounts.map((account) => [account.id, unipileAccountPublicId(account)]));
+    return brands.map((brand) => {
+      const publicId = brand.unipileAccountId ? byId.get(brand.unipileAccountId) : "";
+      return publicId && !brand.linkedinPublicId ? { ...brand, linkedinPublicId: publicId } : brand;
+    });
+  } catch {
+    return brands;
+  }
 }
 
 export async function runBrandListSideEffects(brands: Brand[]) {
@@ -243,6 +286,8 @@ export async function createBrand(input: {
     unipileAccountId: "",
     unipileStatus: "none" as UnipileStatus,
     pacing: DEFAULT_PACING,
+    schedule: DEFAULT_SCHEDULE,
+    outreachPaused: false,
   };
   await db.collection("brands").doc(id).create({
     ...payload,
@@ -253,7 +298,17 @@ export async function createBrand(input: {
 
 export async function updateBrand(
   brandId: string,
-  input: { name?: string; avatarColor?: string; pacing?: BrandPacing },
+  input: {
+    name?: string;
+    avatarColor?: string;
+    pacing?: BrandPacing;
+    schedule?: BrandSchedule;
+    outreachPaused?: boolean;
+    testMode?: boolean;
+    archived?: boolean;
+    alerts?: BrandAlerts;
+    disconnectOutreach?: boolean;
+  },
 ) {
   const db = requireFirebaseDb();
   const ref = db.collection("brands").doc(brandId);
@@ -266,35 +321,60 @@ export async function updateBrand(
   if (!name) throw new Error("invalid");
   const avatarColor = input.avatarColor ?? String(current.avatarColor ?? "#6D1472");
   const pacing = input.pacing ? normalizePacing(input.pacing) : normalizePacing(current.pacing);
+  const schedule = input.schedule
+    ? normalizeSchedule(input.schedule)
+    : normalizeSchedule(current.schedule);
+  const outreachPaused =
+    input.outreachPaused !== undefined ? Boolean(input.outreachPaused) : Boolean(current.outreachPaused);
+  const testMode = input.testMode !== undefined ? Boolean(input.testMode) : Boolean(current.testMode);
+  const archived = input.archived !== undefined ? Boolean(input.archived) : Boolean(current.archived);
+  const alerts = input.alerts ? normalizeAlerts(input.alerts) : normalizeAlerts(current.alerts);
+  const unipileAccountId = input.disconnectOutreach ? "" : String(current.unipileAccountId ?? "");
+  const unipileStatus = input.disconnectOutreach
+    ? ("none" as UnipileStatus)
+    : asUnipileStatus(current.unipileStatus);
   const nextId = await uniqueBrandId(db, name, brandId);
   let avatarUrl = String(current.avatarUrl ?? "");
+  const fields = {
+    name,
+    avatarColor,
+    avatarUrl,
+    pacing,
+    schedule,
+    outreachPaused,
+    testMode,
+    archived,
+    alerts,
+    unipileAccountId,
+    unipileStatus,
+  };
+  const unipileSyncedAt = input.disconnectOutreach
+    ? undefined
+    : asOptionalDate(current.unipileSyncedAt);
   if (nextId !== brandId) {
     await moveBrandAvatar(brandId, nextId);
     if (isStoredAvatarUrl(avatarUrl)) {
       avatarUrl = brandAvatarUrl(nextId);
+      fields.avatarUrl = avatarUrl;
     }
-    await db.collection("brands").doc(nextId).set({
-      ...current,
-      name,
-      avatarColor,
-      avatarUrl,
-      pacing,
-    });
+    const nextData = { ...current, ...fields };
+    if (input.disconnectOutreach) delete nextData.unipileSyncedAt;
+    await db.collection("brands").doc(nextId).set(nextData);
     await ref.delete();
   } else {
-    await ref.update({ name, avatarColor, pacing });
+    await ref.update({
+      ...fields,
+      ...(input.disconnectOutreach ? { unipileSyncedAt: FieldValue.delete() } : {}),
+    });
   }
   return hydrateBrandRecord({
     id: nextId,
-    name,
-    avatarColor,
     createdAt: asDate(current.createdAt),
     linkedinSub: current.linkedinSub,
     linkedinEmail: current.linkedinEmail,
-    avatarUrl,
-    unipileAccountId: current.unipileAccountId,
-    unipileStatus: current.unipileStatus,
-    pacing,
+    linkedinPublicId: current.linkedinPublicId,
+    unipileSyncedAt,
+    ...fields,
   });
 }
 
@@ -310,10 +390,17 @@ export async function fetchBrand(brandId: string) {
     createdAt: asDate(data.createdAt),
     linkedinSub: data.linkedinSub,
     linkedinEmail: data.linkedinEmail,
+    linkedinPublicId: data.linkedinPublicId,
     avatarUrl: data.avatarUrl,
     unipileAccountId: data.unipileAccountId,
     unipileStatus: data.unipileStatus,
+    unipileSyncedAt: data.unipileSyncedAt,
     pacing: data.pacing,
+    schedule: data.schedule,
+    outreachPaused: data.outreachPaused,
+    testMode: data.testMode,
+    archived: data.archived,
+    alerts: data.alerts,
   });
 }
 
@@ -334,9 +421,11 @@ export async function findBrandByUnipileAccount(accountId: string) {
     createdAt: asDate(data.createdAt),
     linkedinSub: data.linkedinSub,
     linkedinEmail: data.linkedinEmail,
+    linkedinPublicId: data.linkedinPublicId,
     avatarUrl: data.avatarUrl,
     unipileAccountId: data.unipileAccountId,
     unipileStatus: data.unipileStatus,
+    unipileSyncedAt: data.unipileSyncedAt,
     pacing: data.pacing,
   });
 }
@@ -345,14 +434,18 @@ export async function attachUnipileAccount(
   brandId: string,
   accountId: string,
   status: UnipileStatus = "running",
+  linkedinPublicId?: string,
 ) {
   const db = requireFirebaseDb();
   const ref = db.collection("brands").doc(brandId);
   const snapshot = await ref.get();
   if (!snapshot.exists) throw new Error("not-found");
+  const publicId = linkedinPublicId?.trim();
   await ref.update({
     unipileAccountId: accountId,
     unipileStatus: status,
+    ...(status === "running" ? { unipileSyncedAt: Timestamp.now() } : {}),
+    ...(publicId ? { linkedinPublicId: publicId } : {}),
   });
   return fetchBrand(brandId);
 }

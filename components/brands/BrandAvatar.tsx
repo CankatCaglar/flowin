@@ -16,7 +16,7 @@ export function BrandAvatar({
   fetchPriority,
 }: {
   brand: Pick<Brand, "id" | "name" | "avatarColor" | "avatarUrl">;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   fetchPriority?: "high" | "low" | "auto";
 }) {
@@ -26,10 +26,12 @@ export function BrandAvatar({
   const dim =
     size === "sm"
       ? "h-9 w-9 text-sm"
-      : size === "lg"
-        ? "h-16 w-16 text-2xl"
-        : "h-14 w-14 text-xl";
-  const rounded = size === "sm" ? "rounded-lg" : "rounded-2xl";
+      : size === "xl"
+        ? "h-20 w-20 text-2xl"
+        : size === "lg"
+          ? "h-16 w-16 text-2xl"
+          : "h-14 w-14 text-xl";
+  const rounded = size === "xl" ? "rounded-full" : size === "sm" ? "rounded-lg" : "rounded-2xl";
 
   useEffect(() => {
     setSrc(primary);

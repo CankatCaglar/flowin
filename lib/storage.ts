@@ -55,6 +55,11 @@ export function hydrateBrandDates(brand: Brand): Brand {
   return {
     ...brand,
     createdAt: brand.createdAt instanceof Date ? brand.createdAt : new Date(brand.createdAt),
+    unipileSyncedAt: brand.unipileSyncedAt
+      ? brand.unipileSyncedAt instanceof Date
+        ? brand.unipileSyncedAt
+        : new Date(brand.unipileSyncedAt)
+      : undefined,
   };
 }
 

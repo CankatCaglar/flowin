@@ -144,8 +144,19 @@ export type UnipileAccount = {
   type?: string;
   status?: string;
   sources?: { status?: string }[];
-  connection_params?: { im?: { publicIdentifier?: string; username?: string } };
+  connection_params?: {
+    im?: {
+      publicIdentifier?: string;
+      public_identifier?: string;
+      username?: string;
+    };
+  };
 };
+
+export function unipileAccountPublicId(account: UnipileAccount) {
+  const im = account.connection_params?.im;
+  return String(im?.publicIdentifier ?? im?.public_identifier ?? "").trim();
+}
 
 export async function listUnipileAccounts() {
   const data = await unipileRequest<{ items?: UnipileAccount[] }>("/api/v1/accounts");

@@ -14,6 +14,16 @@ export function normalizeLinkedInUrl(value: string) {
   }
 }
 
+export function linkedInProfileHref(publicId: string) {
+  const value = publicId.trim().replace(/^\/+|\/+$/g, "");
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return normalizeLinkedInUrl(value);
+  if (value.includes("linkedin.com/")) {
+    return normalizeLinkedInUrl(value.startsWith("http") ? value : `https://${value}`);
+  }
+  return `https://www.linkedin.com/in/${encodeURIComponent(value)}`;
+}
+
 export function linkedInPublicId(url: string) {
   const normalized = normalizeLinkedInUrl(url);
   if (!normalized) return "";

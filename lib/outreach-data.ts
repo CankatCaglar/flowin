@@ -648,6 +648,7 @@ export async function incrementDailyStat(
     invites?: number;
     messages?: number;
     accepted?: number;
+    inmails?: number;
   },
   campaignId?: string,
 ) {
@@ -668,6 +669,7 @@ export async function incrementDailyStat(
         invites: Number(current.invites ?? 0) + (patch.invites ?? 0),
         messages: Number(current.messages ?? 0) + (patch.messages ?? 0),
         accepted: Number(current.accepted ?? 0) + (patch.accepted ?? 0),
+        inmails: Number(current.inmails ?? 0) + (patch.inmails ?? 0),
       },
       { merge: true },
     );
@@ -699,6 +701,7 @@ export async function fetchDailyStats(brandId: string, campaignId?: string): Pro
         invites: Number(data.invites ?? 0),
         messages: Number(data.messages ?? 0),
         accepted: Number(data.accepted ?? 0),
+        inmails: Number(data.inmails ?? 0),
       };
     })
     .filter((stat) => stat.date)
@@ -713,6 +716,7 @@ export async function todayPacingUsage(brandId: string) {
     views: row?.views ?? 0,
     invites: row?.invites ?? 0,
     messages: row?.messages ?? 0,
+    inmails: row?.inmails ?? 0,
   };
 }
 

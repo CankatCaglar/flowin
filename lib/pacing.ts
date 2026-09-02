@@ -1,25 +1,74 @@
-import type { BrandPacing } from "@/types";
+import type { BrandAlerts, BrandPacing, BrandSchedule } from "@/types";
 
 /** Conservative ceilings after the campaign warmup ramp. */
 export const DEFAULT_PACING: BrandPacing = {
   dailyInvites: 8,
   dailyMessages: 12,
   dailyViews: 15,
+  dailyInmails: 5,
 };
+
+export const DEFAULT_SCHEDULE: BrandSchedule = {
+  startHour: 9,
+  endHour: 18,
+  weekdays: [1, 2, 3, 4, 5],
+};
+
+export const DEFAULT_ALERTS: BrandAlerts = {
+  connectionLost: true,
+  sendFailed: true,
+  lowLeads: true,
+  dailyCap: true,
+};
+
+export function normalizeAlerts(input?: Partial<BrandAlerts> | null): BrandAlerts {
+  return {
+    connectionLost: input?.connectionLost !== false,
+    sendFailed: input?.sendFailed !== false,
+    lowLeads: input?.lowLeads !== false,
+    dailyCap: input?.dailyCap !== false,
+  };
+}
 
 /** First calendar days of a campaign — stay under LinkedIn’s radar. */
 const WARMUP: BrandPacing[] = [
-  { dailyViews: 3, dailyInvites: 3, dailyMessages: 3 },
-  { dailyViews: 5, dailyInvites: 5, dailyMessages: 5 },
-  { dailyViews: 8, dailyInvites: 8, dailyMessages: 8 },
-  { dailyViews: 12, dailyInvites: 8, dailyMessages: 10 },
+  { dailyViews: 3, dailyInvites: 3, dailyMessages: 3, dailyInmails: 1 },
+  { dailyViews: 5, dailyInvites: 5, dailyMessages: 5, dailyInmails: 2 },
+  { dailyViews: 8, dailyInvites: 8, dailyMessages: 8, dailyInmails: 3 },
+  { dailyViews: 12, dailyInvites: 8, dailyMessages: 10, dailyInmails: 4 },
 ];
+
+const ISO_WEEKDAY: Record<string, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 7,
+};
 
 export function normalizePacing(input?: Partial<BrandPacing> | null): BrandPacing {
   return {
     dailyInvites: clampCap(input?.dailyInvites, DEFAULT_PACING.dailyInvites, 25),
     dailyMessages: clampCap(input?.dailyMessages, DEFAULT_PACING.dailyMessages, 40),
     dailyViews: clampCap(input?.dailyViews, DEFAULT_PACING.dailyViews, 40),
+    dailyInmails: clampCap(input?.dailyInmails, DEFAULT_PACING.dailyInmails, 15),
+  };
+}
+
+export function normalizeSchedule(input?: Partial<BrandSchedule> | null): BrandSchedule {
+  const startHour = clampHour(input?.startHour, DEFAULT_SCHEDULE.startHour);
+  const endHour = clampHour(input?.endHour, DEFAULT_SCHEDULE.endHour);
+  const weekdays = Array.isArray(input?.weekdays)
+    ? [...new Set(input.weekdays.map(Number).filter((day) => day >= 1 && day <= 7))].sort(
+        (a, b) => a - b,
+      )
+    : DEFAULT_SCHEDULE.weekdays;
+  return {
+    startHour,
+    endHour: endHour > startHour ? endHour : Math.min(23, startHour + 1),
+    weekdays: weekdays.length ? weekdays : DEFAULT_SCHEDULE.weekdays,
   };
 }
 
@@ -27,6 +76,12 @@ function clampCap(value: unknown, fallback: number, max: number) {
   const next = Number(value);
   if (!Number.isFinite(next)) return fallback;
   return Math.min(max, Math.max(1, Math.round(next)));
+}
+
+function clampHour(value: unknown, fallback: number) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.min(23, Math.max(0, Math.round(next)));
 }
 
 export function clockInIstanbul(at = new Date()) {
@@ -42,15 +97,22 @@ export function clockInIstanbul(at = new Date()) {
   return {
     hour: Number(pick("hour")),
     minute: Number(pick("minute")),
+    isoWeekday: ISO_WEEKDAY[weekday] ?? 1,
     weekend: weekday === "Sat" || weekday === "Sun",
   };
 }
 
-export function isQuietHours(at = new Date()) {
+export function isWorkingDay(at = new Date(), schedule?: Partial<BrandSchedule> | null) {
+  const hours = normalizeSchedule(schedule);
+  return hours.weekdays.includes(clockInIstanbul(at).isoWeekday);
+}
+
+export function isQuietHours(at = new Date(), schedule?: Partial<BrandSchedule> | null) {
+  const hours = normalizeSchedule(schedule);
+  if (!isWorkingDay(at, hours)) return true;
   const clock = clockInIstanbul(at);
-  if (clock.weekend) return true;
   const minutes = clock.hour * 60 + clock.minute;
-  return minutes < 9 * 60 || minutes >= 18 * 60;
+  return minutes < hours.startHour * 60 || minutes >= hours.endHour * 60;
 }
 
 export function istanbulDateKey(at = new Date()) {
@@ -71,13 +133,28 @@ export function addIstanbulDateKey(key: string, days: number) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function isIstanbulWeekendKey(key: string) {
+export function istanbulIsoWeekdayKey(key: string) {
   const [year, month, day] = key.split("-").map(Number);
   const weekday = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Istanbul",
     weekday: "short",
   }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)));
-  return weekday === "Sat" || weekday === "Sun";
+  return ISO_WEEKDAY[weekday] ?? 1;
+}
+
+export function isIstanbulWeekendKey(key: string) {
+  const day = istanbulIsoWeekdayKey(key);
+  return day === 6 || day === 7;
+}
+
+export function skipToScheduleDay(key: string, schedule?: Partial<BrandSchedule> | null) {
+  const hours = normalizeSchedule(schedule);
+  let next = key;
+  for (let i = 0; i < 8; i += 1) {
+    if (hours.weekdays.includes(istanbulIsoWeekdayKey(next))) return next;
+    next = addIstanbulDateKey(next, 1);
+  }
+  return next;
 }
 
 /** Turkey is permanently UTC+3. */
@@ -105,5 +182,6 @@ export function warmupPacing(brand: BrandPacing, campaignStart: Date, now = new 
     dailyViews: Math.min(brand.dailyViews, ramp.dailyViews),
     dailyInvites: Math.min(brand.dailyInvites, ramp.dailyInvites),
     dailyMessages: Math.min(brand.dailyMessages, ramp.dailyMessages),
+    dailyInmails: Math.min(brand.dailyInmails, ramp.dailyInmails),
   };
 }

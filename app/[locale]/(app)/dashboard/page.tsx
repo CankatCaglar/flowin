@@ -45,6 +45,9 @@ export default function DashboardPage() {
           expiringCount={expiringCampaigns(campaigns, now).length}
           lowResponseCount={lowResponseCampaigns(campaigns).length}
           followUpCount={leads.filter((lead) => lead.status === "queued").length}
+          showFailed={selectedBrand?.alerts?.sendFailed !== false}
+          showExpiring={selectedBrand?.alerts?.lowLeads !== false}
+          showLowResponse={selectedBrand?.alerts?.lowLeads !== false}
         />
       </div>
       <div className="grid items-stretch gap-6 xl:grid-cols-3">

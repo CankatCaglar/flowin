@@ -11,7 +11,7 @@ import {
   todayPacingUsage,
 } from "@/lib/outreach-data";
 import { isCampaignRunning } from "@/lib/campaign-status";
-import { isQuietHours, normalizePacing, warmupPacing } from "@/lib/pacing";
+import { isQuietHours, normalizePacing, normalizeSchedule, warmupPacing } from "@/lib/pacing";
 import {
   findStep,
   firstBranchStep,
@@ -80,10 +80,10 @@ async function resolveProviderId(accountId: string, lead: Lead) {
 async function applyUsage(
   brandId: string,
   campaignId: string,
-  kind: "views" | "invites" | "messages",
+  kind: "views" | "invites" | "messages" | "inmails",
   stepId?: string,
 ) {
-  const sent = kind === "invites" || kind === "messages" ? 1 : 0;
+  const sent = kind === "invites" || kind === "messages" || kind === "inmails" ? 1 : 0;
   await incrementDailyStat(
     brandId,
     {
@@ -91,6 +91,7 @@ async function applyUsage(
       views: kind === "views" ? 1 : 0,
       invites: kind === "invites" ? 1 : 0,
       messages: kind === "messages" ? 1 : 0,
+      inmails: kind === "inmails" ? 1 : 0,
     },
     campaignId,
   );
@@ -111,6 +112,7 @@ function scheduleNext(
   campaign: Campaign,
   current: CampaignFlowStep,
   branch = lead.currentBranch,
+  schedule = normalizeSchedule(undefined),
 ) {
   const next = nextStepInLane(campaign.flow, current.id, branch);
   if (!next) {
@@ -123,7 +125,7 @@ function scheduleNext(
     return;
   }
   lead.nextStepId = next.id;
-  lead.nextStepAt = scheduleAt(next);
+  lead.nextStepAt = scheduleAt(next, new Date(), schedule);
 }
 
 export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
@@ -138,8 +140,9 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   lead.stage = "message_1";
   const next = firstBranchStep(campaign.flow, "accepted");
   if (next) {
+    const brand = await fetchBrand(lead.brandId);
     lead.nextStepId = next.id;
-    lead.nextStepAt = scheduleAt(next);
+    lead.nextStepAt = scheduleAt(next, new Date(), normalizeSchedule(brand?.schedule));
   } else {
     lead.status = "flow_completed";
     lead.stage = "flow_completed";
@@ -174,7 +177,13 @@ export async function markLeadReplied(lead: Lead, campaign: Campaign, body: stri
   return saveLead(lead);
 }
 
-async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowStep, accountId: string) {
+async function executeStep(
+  lead: Lead,
+  campaign: Campaign,
+  step: CampaignFlowStep,
+  accountId: string,
+  schedule = normalizeSchedule(undefined),
+) {
   if (step.kind === "profile_view" || step.kind === "connection_check") {
     const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
     const profile = await getUnipileProfile(accountId, identifier);
@@ -204,12 +213,12 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
       const next = firstBranchStep(campaign.flow, "no_response");
       if (next && next.id !== step.id) {
         lead.nextStepId = next.id;
-        lead.nextStepAt = scheduleAt(next);
+        lead.nextStepAt = scheduleAt(next, new Date(), schedule);
       } else {
-        scheduleNext(lead, campaign, step, "no_response");
+        scheduleNext(lead, campaign, step, "no_response", schedule);
       }
     } else {
-      scheduleNext(lead, campaign, step);
+      scheduleNext(lead, campaign, step, lead.currentBranch, schedule);
     }
     return saveLead(lead);
   }
@@ -225,7 +234,7 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
     lead.awaiting = "connection";
     const timeout = firstBranchStep(campaign.flow, "no_response");
     lead.nextStepId = timeout?.id ?? "";
-    lead.nextStepAt = timeout ? scheduleAt(timeout) : undefined;
+    lead.nextStepAt = timeout ? scheduleAt(timeout, new Date(), schedule) : undefined;
     await applyUsage(lead.brandId, campaign.id, "invites", step.id);
     await createMessage({
       brandId: lead.brandId,
@@ -254,7 +263,7 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
       lead.status = "waiting_reply";
       const timeout = firstBranchStep(campaign.flow, "inmail_no_response");
       lead.nextStepId = timeout?.id ?? "";
-      lead.nextStepAt = timeout ? scheduleAt(timeout) : undefined;
+      lead.nextStepAt = timeout ? scheduleAt(timeout, new Date(), schedule) : undefined;
     } else {
       const index = messageIndexOnAcceptedPath(campaign.flow, step.id);
       const kind =
@@ -268,10 +277,15 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
         lead.nextStepId = "";
         lead.nextStepAt = undefined;
       } else {
-        scheduleNext(lead, campaign, step);
+        scheduleNext(lead, campaign, step, lead.currentBranch, schedule);
       }
     }
-    await applyUsage(lead.brandId, campaign.id, "messages", step.id);
+    await applyUsage(
+      lead.brandId,
+      campaign.id,
+      step.kind === "inmail" ? "inmails" : "messages",
+      step.id,
+    );
     await createMessage({
       brandId: lead.brandId,
       campaignId: campaign.id,
@@ -285,7 +299,7 @@ async function executeStep(lead: Lead, campaign: Campaign, step: CampaignFlowSte
     return saveLead(lead);
   }
 
-  scheduleNext(lead, campaign, step);
+  scheduleNext(lead, campaign, step, lead.currentBranch, schedule);
   return saveLead(lead);
 }
 
@@ -299,14 +313,20 @@ export async function runLeadStep(lead: Lead) {
   if (!isCampaignRunning(campaign.status)) {
     return { skipped: true as const };
   }
+  const schedule = normalizeSchedule(brand.schedule);
+  if (brand.outreachPaused || brand.archived || brand.testMode) {
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
+    await saveLead(lead);
+    return { deferred: brand.testMode ? "test-mode" : "outreach-paused" as const };
+  }
   if (brand.unipileStatus !== "running" || !brand.unipileAccountId) {
-    lead.nextStepAt = tomorrowMorning();
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
     return { deferred: "unipile-disconnected" as const };
   }
 
-  if (isQuietHours()) {
-    lead.nextStepAt = tomorrowMorning();
+  if (isQuietHours(new Date(), schedule)) {
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
     return { deferred: "quiet-hours" as const };
   }
@@ -318,19 +338,21 @@ export async function runLeadStep(lead: Lead) {
   const usage = await todayPacingUsage(brand.id);
   const needsView = step.kind === "profile_view" || step.kind === "connection_check";
   const needsInvite = step.kind === "connection";
-  const needsMessage = step.kind === "message" || step.kind === "inmail";
+  const needsMessage = step.kind === "message";
+  const needsInmail = step.kind === "inmail";
   if (
     (needsView && usage.views >= caps.dailyViews) ||
     (needsInvite && usage.invites >= caps.dailyInvites) ||
-    (needsMessage && usage.messages >= caps.dailyMessages)
+    (needsMessage && usage.messages >= caps.dailyMessages) ||
+    (needsInmail && usage.inmails >= caps.dailyInmails)
   ) {
-    lead.nextStepAt = tomorrowMorning();
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
     return { deferred: "pacing" as const };
   }
 
   try {
-    await executeStep(lead, campaign, step, brand.unipileAccountId);
+    await executeStep(lead, campaign, step, brand.unipileAccountId, schedule);
     return { ok: true as const, step: step.kind };
   } catch (error) {
     const retryable = error instanceof UnipileError && error.retryable;

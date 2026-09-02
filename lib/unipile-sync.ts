@@ -1,7 +1,12 @@
 import "server-only";
 import { brandSlug } from "@/lib/brand-id";
 import { attachUnipileAccount, requireBrandDocs, setUnipileStatus } from "@/lib/data";
-import { isUnipileConfigured, listUnipileAccounts, type UnipileAccount } from "@/lib/unipile";
+import {
+  isUnipileConfigured,
+  listUnipileAccounts,
+  unipileAccountPublicId,
+  type UnipileAccount,
+} from "@/lib/unipile";
 
 function isLinkedInAccount(account: UnipileAccount) {
   const type = String(account.type ?? "").toUpperCase();
@@ -67,7 +72,7 @@ export async function resolveBrandUnipileAccount(input: {
       : undefined);
   if (!match?.id) return "";
   if (match.id !== attached) {
-    await attachUnipileAccount(input.id, match.id, "running");
+    await attachUnipileAccount(input.id, match.id, "running", unipileAccountPublicId(match) || undefined);
   }
   return match.id;
 }
@@ -95,8 +100,9 @@ export async function syncUnipileSeats() {
     const seat = byId.get(attached);
     if (seat && isLinkedInAccount(seat) && isRunning(seat)) {
       used.add(attached);
-      if (data.unipileStatus !== "running") {
-        await attachUnipileAccount(item.id, attached, "running");
+      const publicId = unipileAccountPublicId(seat);
+      if (data.unipileStatus !== "running" || (publicId && publicId !== String(data.linkedinPublicId ?? ""))) {
+        await attachUnipileAccount(item.id, attached, "running", publicId || undefined);
       }
       continue;
     }
@@ -117,7 +123,7 @@ export async function syncUnipileSeats() {
       seats.find((account) => !used.has(account.id) && namesMatch(account, item.id, brandName)) ??
       seats.find((account) => !used.has(account.id) && emailsMatch(account, email));
     if (!match?.id) continue;
-    await attachUnipileAccount(item.id, match.id, "running");
+    await attachUnipileAccount(item.id, match.id, "running", unipileAccountPublicId(match) || undefined);
     used.add(match.id);
   }
 }

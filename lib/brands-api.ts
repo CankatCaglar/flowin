@@ -47,7 +47,23 @@ export async function updateBrand(
   input: {
     name?: string;
     avatarColor?: string;
-    pacing?: { dailyInvites: number; dailyMessages: number; dailyViews: number };
+    pacing?: {
+      dailyInvites: number;
+      dailyMessages: number;
+      dailyViews: number;
+      dailyInmails: number;
+    };
+    schedule?: { startHour: number; endHour: number; weekdays: number[] };
+    outreachPaused?: boolean;
+    testMode?: boolean;
+    archived?: boolean;
+    alerts?: {
+      connectionLost: boolean;
+      sendFailed: boolean;
+      lowLeads: boolean;
+      dailyCap: boolean;
+    };
+    disconnectOutreach?: boolean;
   },
 ) {
   const response = await request(`/api/brands/${encodeURIComponent(brandId)}`, {

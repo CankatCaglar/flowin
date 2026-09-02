@@ -2,12 +2,14 @@ import { splitFlowBranches } from "@/lib/campaign-flow";
 import {
   addIstanbulDateKey,
   clockInIstanbul,
-  isIstanbulWeekendKey,
+  DEFAULT_SCHEDULE,
   isQuietHours,
   istanbulDateKey,
   istanbulWallDate,
+  normalizeSchedule,
+  skipToScheduleDay,
 } from "@/lib/pacing";
-import type { CampaignFlowStep, FlowBranch, Lead, LeadStage } from "@/types";
+import type { BrandSchedule, CampaignFlowStep, FlowBranch, Lead, LeadStage } from "@/types";
 
 export function firstOpenStep(flow: CampaignFlowStep[]) {
   return splitFlowBranches(flow).trunk[0] ?? null;
@@ -62,38 +64,50 @@ function morningJitter() {
   };
 }
 
-function skipWeekendKey(key: string) {
-  let next = key;
-  while (isIstanbulWeekendKey(next)) next = addIstanbulDateKey(next, 1);
-  return next;
-}
-
-/** Next Istanbul business morning, `skipDays` calendar days ahead (weekends skipped). */
-export function nextBusinessMorning(from = new Date(), skipDays = 1) {
+/** Next Istanbul business morning, `skipDays` calendar days ahead (off-days skipped). */
+export function nextBusinessMorning(
+  from = new Date(),
+  skipDays = 1,
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+) {
+  const hours = normalizeSchedule(schedule);
   let key = istanbulDateKey(from);
   for (let i = 0; i < skipDays; i += 1) key = addIstanbulDateKey(key, 1);
-  key = skipWeekendKey(key);
+  key = skipToScheduleDay(key, hours);
   const { hour, minute } = morningJitter();
   return istanbulWallDate(key, hour, minute);
 }
 
-export function scheduleAt(step: CampaignFlowStep, from = new Date()) {
+export function scheduleAt(
+  step: CampaignFlowStep,
+  from = new Date(),
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+) {
+  const hours = normalizeSchedule(schedule);
   const amount = Math.max(0, Number(step.delayDays) || 0);
   if (step.delayUnit === "hours") {
     return new Date(from.getTime() + withJitter(delayMs(step)));
   }
   if (amount <= 0) {
-    if (isQuietHours(from)) return nextBusinessMorning(from, clockInIstanbul(from).weekend ? 1 : 0);
+    if (isQuietHours(from, hours)) {
+      const clock = clockInIstanbul(from);
+      const laterToday =
+        hours.weekdays.includes(clock.isoWeekday) && clock.hour < hours.startHour;
+      return nextBusinessMorning(from, laterToday ? 0 : 1, hours);
+    }
     return new Date(from.getTime() + withJitter(0));
   }
-  return nextBusinessMorning(from, amount);
+  return nextBusinessMorning(from, amount, hours);
 }
 
-export function tomorrowMorning(from = new Date()) {
+export function tomorrowMorning(from = new Date(), schedule: BrandSchedule = DEFAULT_SCHEDULE) {
+  const hours = normalizeSchedule(schedule);
   const clock = clockInIstanbul(from);
-  if (clock.weekend || clock.hour >= 18) return nextBusinessMorning(from, 1);
-  if (clock.hour < 9) return nextBusinessMorning(from, 0);
-  return nextBusinessMorning(from, 1);
+  if (!hours.weekdays.includes(clock.isoWeekday) || clock.hour >= hours.endHour) {
+    return nextBusinessMorning(from, 1, hours);
+  }
+  if (clock.hour < hours.startHour) return nextBusinessMorning(from, 0, hours);
+  return nextBusinessMorning(from, 1, hours);
 }
 
 export function stageAfterMessageIndex(index: number): LeadStage {

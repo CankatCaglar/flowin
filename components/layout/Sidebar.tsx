@@ -54,7 +54,11 @@ export function Sidebar({
   useDismissable([userMenuRef, userPanelRef], open, close);
   const [collapsed, setCollapsed] = useState(false);
   const [autoNarrow, setAutoNarrow] = useState(false);
+  const [contentTight, setContentTight] = useState(false);
   const [forceExpand, setForceExpand] = useState(false);
+  const tightAtWidth = useRef(0);
+  const lastWidth = useRef(0);
+  const skipOverflowPass = useRef(true);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -68,10 +72,42 @@ export function Sidebar({
     return () => query.removeEventListener("change", apply);
   }, []);
 
-  const rail = collapsed || (autoNarrow && !forceExpand);
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    lastWidth.current = window.innerWidth;
+    const apply = () => {
+      const width = window.innerWidth;
+      const shrinking = width < lastWidth.current - 8;
+      lastWidth.current = width;
+      if (skipOverflowPass.current) {
+        skipOverflowPass.current = false;
+        return;
+      }
+      const overflowing = main.scrollWidth > main.clientWidth + 8;
+      const cramped = main.clientWidth < 1100;
+      if (shrinking && (overflowing || cramped)) {
+        tightAtWidth.current = width;
+        setContentTight(true);
+        return;
+      }
+      if (tightAtWidth.current && width >= tightAtWidth.current + 160) {
+        setContentTight(false);
+      }
+    };
+    const observer = new ResizeObserver(apply);
+    observer.observe(main);
+    window.addEventListener("resize", apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, []);
+
+  const rail = collapsed || ((autoNarrow || contentTight) && !forceExpand);
 
   const toggle = () => {
-    if (autoNarrow && !collapsed) {
+    if ((autoNarrow || contentTight) && !collapsed) {
       setForceExpand((current) => !current);
       return;
     }

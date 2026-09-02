@@ -48,6 +48,21 @@ export interface BrandPacing {
   dailyInvites: number;
   dailyMessages: number;
   dailyViews: number;
+  dailyInmails: number;
+}
+
+/** Istanbul wall-clock window. `weekdays` uses ISO 1=Mon … 7=Sun. */
+export interface BrandSchedule {
+  startHour: number;
+  endHour: number;
+  weekdays: number[];
+}
+
+export interface BrandAlerts {
+  connectionLost: boolean;
+  sendFailed: boolean;
+  lowLeads: boolean;
+  dailyCap: boolean;
 }
 
 export interface Brand {
@@ -57,10 +72,17 @@ export interface Brand {
   createdAt: Date;
   linkedinSub?: string;
   linkedinEmail?: string;
+  linkedinPublicId?: string;
   avatarUrl?: string;
   unipileAccountId?: string;
   unipileStatus?: UnipileStatus;
+  unipileSyncedAt?: Date;
   pacing?: BrandPacing;
+  schedule?: BrandSchedule;
+  outreachPaused?: boolean;
+  testMode?: boolean;
+  archived?: boolean;
+  alerts?: BrandAlerts;
   activeCampaigns?: number;
   successRate?: number;
 }
@@ -134,6 +156,7 @@ export interface DailyStat {
   invites?: number;
   messages?: number;
   accepted?: number;
+  inmails?: number;
 }
 
 export interface AuthUser {

@@ -14,7 +14,23 @@ export async function PATCH(
   let body: {
     name?: unknown;
     avatarColor?: unknown;
-    pacing?: { dailyInvites?: unknown; dailyMessages?: unknown; dailyViews?: unknown };
+    pacing?: {
+      dailyInvites?: unknown;
+      dailyMessages?: unknown;
+      dailyViews?: unknown;
+      dailyInmails?: unknown;
+    };
+    schedule?: { startHour?: unknown; endHour?: unknown; weekdays?: unknown };
+    outreachPaused?: unknown;
+    testMode?: unknown;
+    archived?: unknown;
+    alerts?: {
+      connectionLost?: unknown;
+      sendFailed?: unknown;
+      lowLeads?: unknown;
+      dailyCap?: unknown;
+    };
+    disconnectOutreach?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -33,8 +49,30 @@ export async function PATCH(
             dailyInvites: Number(body.pacing.dailyInvites),
             dailyMessages: Number(body.pacing.dailyMessages),
             dailyViews: Number(body.pacing.dailyViews),
+            dailyInmails: Number(body.pacing.dailyInmails),
           }
         : undefined,
+      schedule: body.schedule
+        ? {
+            startHour: Number(body.schedule.startHour),
+            endHour: Number(body.schedule.endHour),
+            weekdays: Array.isArray(body.schedule.weekdays)
+              ? body.schedule.weekdays.map(Number)
+              : [],
+          }
+        : undefined,
+      outreachPaused: typeof body.outreachPaused === "boolean" ? body.outreachPaused : undefined,
+      testMode: typeof body.testMode === "boolean" ? body.testMode : undefined,
+      archived: typeof body.archived === "boolean" ? body.archived : undefined,
+      alerts: body.alerts
+        ? {
+            connectionLost: body.alerts.connectionLost !== false,
+            sendFailed: body.alerts.sendFailed !== false,
+            lowLeads: body.alerts.lowLeads !== false,
+            dailyCap: body.alerts.dailyCap !== false,
+          }
+        : undefined,
+      disconnectOutreach: body.disconnectOutreach === true,
     });
     return NextResponse.json(brand);
   } catch (error) {

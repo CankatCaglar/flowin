@@ -14,7 +14,7 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
 import { addDays, appToday, startOfDay } from "@/lib/dates";
-import { cn, formatDateTime, formatNumber, formatPercent, successRate } from "@/lib/utils";
+import { cn, formatDateTime, formatNumber, formatSuccessRate, successRate } from "@/lib/utils";
 import type { Campaign, CampaignStatus, Lead } from "@/types";
 
 const PAGE_SIZE = 6;
@@ -237,10 +237,7 @@ export default function CampaignsPage() {
                     {formatNumber(campaign.repliedCount, locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
-                    {formatPercent(
-                      successRate(campaign.sentCount, campaign.repliedCount),
-                      locale,
-                    )}
+                    {formatSuccessRate(campaign.sentCount, campaign.repliedCount, locale)}
                   </td>
                   <td className="px-5 py-3 text-center">
                     <StatusBadge status={campaign.status} label={statusT(campaign.status)} />

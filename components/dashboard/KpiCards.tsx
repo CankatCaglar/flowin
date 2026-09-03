@@ -2,7 +2,7 @@
 
 import { ArrowDownRight, ArrowUpRight, Rocket, Send, Target, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatNumber, formatPercent } from "@/lib/utils";
+import { formatNumber, formatPercent, EMPTY_METRIC } from "@/lib/utils";
 
 interface KpiCardsProps {
   activeCampaigns: number;
@@ -60,7 +60,7 @@ export function KpiCards(props: KpiCardsProps) {
     },
     {
       title: t("successRate"),
-      value: formatPercent(props.successRate, locale),
+      value: props.sentCount > 0 ? formatPercent(props.successRate, locale) : EMPTY_METRIC,
       hint: t("successRateHint"),
       icon: Target,
       iconClass: "text-barney",

@@ -2,7 +2,7 @@ import { Calendar, Clock3, MessageCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { flowStepTitle } from "@/lib/campaign-flow";
 import { parseDateKey } from "@/lib/dates";
-import { formatDurationShort, formatPercent } from "@/lib/utils";
+import { EMPTY_METRIC, formatDurationShort, formatPercent } from "@/lib/utils";
 import type { CampaignFlowStep } from "@/types";
 
 export function CampaignHighlights({
@@ -13,10 +13,10 @@ export function CampaignHighlights({
   averageReplyDays,
 }: {
   bestDayKey?: string;
-  bestDayRate: number;
+  bestDayRate?: number;
   topStep?: CampaignFlowStep;
-  topStepRate: number;
-  averageReplyDays: number;
+  topStepRate?: number;
+  averageReplyDays: number | null;
 }) {
   const t = useTranslations("campaigns.overview");
   const locale = useLocale();
@@ -24,24 +24,31 @@ export function CampaignHighlights({
     ? new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
         weekday: "long",
       }).format(parseDateKey(bestDayKey))
-    : "—";
+    : EMPTY_METRIC;
 
   const items = [
     {
       title: t("bestDay"),
       value: weekday,
-      hint: t("bestDayHint", { rate: formatPercent(bestDayRate, locale) }),
+      hint:
+        bestDayKey && bestDayRate != null
+          ? t("bestDayHint", { rate: formatPercent(bestDayRate, locale) })
+          : undefined,
       icon: Calendar,
     },
     {
       title: t("topStep"),
-      value: topStep ? flowStepTitle(topStep, locale) : "—",
-      hint: t("topStepHint", { rate: formatPercent(topStepRate, locale) }),
+      value: topStep ? flowStepTitle(topStep, locale) : EMPTY_METRIC,
+      hint:
+        topStep && topStepRate != null
+          ? t("topStepHint", { rate: formatPercent(topStepRate, locale) })
+          : undefined,
       icon: MessageCircle,
     },
     {
       title: t("avgReply"),
-      value: formatDurationShort(averageReplyDays, locale),
+      value:
+        averageReplyDays == null ? EMPTY_METRIC : formatDurationShort(averageReplyDays, locale),
       hint: t("avgReplyHint"),
       icon: Clock3,
     },
@@ -60,7 +67,7 @@ export function CampaignHighlights({
                 {item.title}
               </p>
               <p className="mt-2 font-display text-lg font-semibold text-ink">{item.value}</p>
-              <p className="mt-1 text-xs text-muted">{item.hint}</p>
+              {item.hint ? <p className="mt-1 text-xs text-muted">{item.hint}</p> : null}
             </article>
           );
         })}

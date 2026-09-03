@@ -55,6 +55,7 @@ function hydrateBrandRecord(
     linkedinSub: String(input.linkedinSub ?? ""),
     linkedinEmail: String(input.linkedinEmail ?? ""),
     linkedinPublicId: String(input.linkedinPublicId ?? "").trim(),
+    linkedinCompany: String(input.linkedinCompany ?? "").trim(),
     avatarUrl: String(input.avatarUrl ?? ""),
     unipileAccountId: String(input.unipileAccountId ?? ""),
     unipileStatus: asUnipileStatus(input.unipileStatus),
@@ -156,6 +157,7 @@ export async function fetchBrands(): Promise<Brand[]> {
       linkedinSub: data.linkedinSub,
       linkedinEmail: data.linkedinEmail,
       linkedinPublicId: data.linkedinPublicId,
+      linkedinCompany: data.linkedinCompany,
       avatarUrl: String(data.avatarUrl ?? ""),
       unipileAccountId: data.unipileAccountId,
       unipileStatus: data.unipileStatus,
@@ -170,23 +172,68 @@ export async function fetchBrands(): Promise<Brand[]> {
       successRate: summaries[item.id]?.successRate ?? 0,
     });
   });
-  return enrichBrandPublicIds(brands);
+  return brands;
 }
 
-async function enrichBrandPublicIds(brands: Brand[]) {
+// Unipile lookups are slow, so they run after the response instead of blocking
+// the brands list; the results are persisted for the next load.
+async function backfillBrandPublicIds(brands: Brand[]) {
   const missing = brands.filter((brand) => brand.unipileAccountId && !brand.linkedinPublicId);
   if (missing.length === 0) return brands;
   try {
     const { listUnipileAccounts, unipileAccountPublicId } = await import("@/lib/unipile");
     const accounts = await listUnipileAccounts();
     const byId = new Map(accounts.map((account) => [account.id, unipileAccountPublicId(account)]));
-    return brands.map((brand) => {
-      const publicId = brand.unipileAccountId ? byId.get(brand.unipileAccountId) : "";
-      return publicId && !brand.linkedinPublicId ? { ...brand, linkedinPublicId: publicId } : brand;
-    });
-  } catch {
+    const db = requireFirebaseDb();
+    return await Promise.all(
+      brands.map(async (brand) => {
+        const publicId = brand.unipileAccountId ? byId.get(brand.unipileAccountId) : "";
+        if (!publicId || brand.linkedinPublicId) return brand;
+        await db.collection("brands").doc(brand.id).update({ linkedinPublicId: publicId });
+        return { ...brand, linkedinPublicId: publicId };
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[unipile] public id backfill skipped:",
+      error instanceof Error ? error.message : error,
+    );
     return brands;
   }
+}
+
+async function fillBrandLinkedInCompany(brand: Brand) {
+  if (brand.linkedinCompany || !brand.unipileAccountId) return brand;
+  try {
+    const { fetchAccountCompany } = await import("@/lib/unipile");
+    const company = await fetchAccountCompany(brand.unipileAccountId, brand.linkedinPublicId);
+    console.info("[unipile] company", {
+      brandId: brand.id,
+      hasPublicId: Boolean(brand.linkedinPublicId),
+      company: company || null,
+    });
+    if (!company) return brand;
+    await requireFirebaseDb().collection("brands").doc(brand.id).update({ linkedinCompany: company });
+    return { ...brand, linkedinCompany: company };
+  } catch (error) {
+    console.error(
+      "[unipile] company lookup failed:",
+      brand.id,
+      error instanceof Error ? error.message : error,
+    );
+    return brand;
+  }
+}
+
+async function enrichBrandCompanies(brands: Brand[]) {
+  const missing = brands.filter((brand) => brand.unipileAccountId && !brand.linkedinCompany);
+  if (missing.length === 0) return brands;
+  const filled = await Promise.all(missing.map((brand) => fillBrandLinkedInCompany(brand)));
+  const byId = new Map(filled.map((brand) => [brand.id, brand.linkedinCompany]));
+  return brands.map((brand) => {
+    const company = byId.get(brand.id);
+    return company ? { ...brand, linkedinCompany: company } : brand;
+  });
 }
 
 export async function runBrandListSideEffects(brands: Brand[]) {
@@ -206,6 +253,14 @@ export async function runBrandListSideEffects(brands: Brand[]) {
     await syncUnipileSeats();
   } catch (error) {
     console.error("[unipile] seat sync skipped:", error instanceof Error ? error.message : error);
+  }
+  try {
+    await enrichBrandCompanies(await backfillBrandPublicIds(brands));
+  } catch (error) {
+    console.error(
+      "[unipile] company backfill skipped:",
+      error instanceof Error ? error.message : error,
+    );
   }
   const db = requireFirebaseDb();
   try {
@@ -263,6 +318,8 @@ export async function createBrand(input: {
       createdAt: asDate(current.createdAt),
       linkedinSub,
       linkedinEmail,
+      linkedinPublicId: current.linkedinPublicId,
+      linkedinCompany: current.linkedinCompany,
       avatarUrl,
       unipileAccountId: current.unipileAccountId,
       unipileStatus: current.unipileStatus,
@@ -373,6 +430,7 @@ export async function updateBrand(
     linkedinSub: current.linkedinSub,
     linkedinEmail: current.linkedinEmail,
     linkedinPublicId: current.linkedinPublicId,
+    linkedinCompany: current.linkedinCompany,
     unipileSyncedAt,
     ...fields,
   });
@@ -391,6 +449,7 @@ export async function fetchBrand(brandId: string) {
     linkedinSub: data.linkedinSub,
     linkedinEmail: data.linkedinEmail,
     linkedinPublicId: data.linkedinPublicId,
+    linkedinCompany: data.linkedinCompany,
     avatarUrl: data.avatarUrl,
     unipileAccountId: data.unipileAccountId,
     unipileStatus: data.unipileStatus,
@@ -422,6 +481,7 @@ export async function findBrandByUnipileAccount(accountId: string) {
     linkedinSub: data.linkedinSub,
     linkedinEmail: data.linkedinEmail,
     linkedinPublicId: data.linkedinPublicId,
+    linkedinCompany: data.linkedinCompany,
     avatarUrl: data.avatarUrl,
     unipileAccountId: data.unipileAccountId,
     unipileStatus: data.unipileStatus,
@@ -447,7 +507,9 @@ export async function attachUnipileAccount(
     ...(status === "running" ? { unipileSyncedAt: Timestamp.now() } : {}),
     ...(publicId ? { linkedinPublicId: publicId } : {}),
   });
-  return fetchBrand(brandId);
+  const brand = await fetchBrand(brandId);
+  if (!brand || status !== "running") return brand;
+  return fillBrandLinkedInCompany(brand);
 }
 
 export async function setUnipileStatus(brandId: string, status: UnipileStatus) {

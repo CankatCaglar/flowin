@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Link } from "@/i18n/navigation";
-import { formatNumber, formatPercent, successRate } from "@/lib/utils";
+import { formatNumber, formatSuccessRate } from "@/lib/utils";
 import type { Campaign, CampaignStatus } from "@/types";
 
 const VISIBLE_ROWS = 2;
@@ -25,9 +25,9 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
           <thead className="bg-canvas/80 text-xs uppercase tracking-wide text-muted">
             <tr>
               <th className="rounded-l-lg px-3 py-2.5 font-medium">{t("name")}</th>
-              <th className="px-3 py-2.5 font-medium">{t("sent")}</th>
-              <th className="px-3 py-2.5 font-medium">{t("replied")}</th>
-              <th className="px-3 py-2.5 font-medium">{t("success")}</th>
+              <th className="px-3 py-2.5 text-center font-medium">{t("sent")}</th>
+              <th className="px-3 py-2.5 text-center font-medium">{t("replied")}</th>
+              <th className="px-3 py-2.5 text-center font-medium">{t("success")}</th>
               <th className="rounded-r-lg px-3 py-2.5 font-medium">{t("status")}</th>
             </tr>
           </thead>
@@ -39,17 +39,14 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
                     {campaign.name}
                   </Link>
                 </td>
-                <td className="px-3 py-3 text-muted">
+                <td className="px-3 py-3 text-center text-muted">
                   {formatNumber(campaign.sentCount, locale)}
                 </td>
-                <td className="px-3 py-3 text-muted">
+                <td className="px-3 py-3 text-center text-muted">
                   {formatNumber(campaign.repliedCount, locale)}
                 </td>
-                <td className="px-3 py-3 text-muted">
-                  {formatPercent(
-                    successRate(campaign.sentCount, campaign.repliedCount),
-                    locale,
-                  )}
+                <td className="px-3 py-3 text-center text-muted">
+                  {formatSuccessRate(campaign.sentCount, campaign.repliedCount, locale)}
                 </td>
                 <td className="px-3 py-3">
                   <StatusBadge

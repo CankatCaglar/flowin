@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeftRight,
-  BarChart3,
+  ChevronUp,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { FlowinLogo } from "@/components/brand/FlowinLogo";
-import { AnchoredMenu, selectOptionClass } from "@/components/ui/SelectMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBrand } from "@/contexts/BrandContext";
 import { useMenu } from "@/contexts/MenuContext";
@@ -31,7 +30,6 @@ const items = [
   { href: "/campaigns", key: "campaigns", icon: Rocket },
   { href: "/leads", key: "leads", icon: Users },
   { href: "/messages", key: "messages", icon: MessageSquare },
-  { href: "/reports", key: "reports", icon: BarChart3 },
   { href: "/settings", key: "settings", icon: Settings },
 ] as const;
 
@@ -50,8 +48,7 @@ export function Sidebar({
   const router = useRouter();
   const { open, toggle: toggleUserMenu, close } = useMenu("sidebar-user");
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const userPanelRef = useRef<HTMLDivElement>(null);
-  useDismissable([userMenuRef, userPanelRef], open, close);
+  useDismissable(userMenuRef, open, close);
   const [collapsed, setCollapsed] = useState(false);
   const [autoNarrow, setAutoNarrow] = useState(false);
   const [contentTight, setContentTight] = useState(false);
@@ -193,11 +190,50 @@ export function Sidebar({
       <div className="px-2 pb-4">
         {user ? (
           <div className="relative" ref={userMenuRef}>
+            {open ? (
+              <div className="mb-1 space-y-1">
+                <button
+                  type="button"
+                  title={t("viewProfiles")}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-display text-sm font-medium text-white/65 hover:bg-white/5 hover:text-white",
+                    rail && "lg:justify-center lg:gap-0 lg:px-0",
+                  )}
+                  onClick={() => {
+                    close();
+                    selectBrand(null);
+                    onMobileClose?.();
+                    router.push("/brands");
+                  }}
+                >
+                  <ArrowLeftRight className="h-4 w-4 shrink-0" />
+                  <span className={cn(rail && "lg:sr-only")}>{t("viewProfiles")}</span>
+                </button>
+                <button
+                  type="button"
+                  title={role("signOut")}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-display text-sm font-medium text-white/65 hover:bg-white/5 hover:text-white",
+                    rail && "lg:justify-center lg:gap-0 lg:px-0",
+                  )}
+                  onClick={async () => {
+                    close();
+                    await signOut();
+                    router.replace("/login");
+                  }}
+                >
+                  <LogOut className="h-4 w-4 shrink-0" />
+                  <span className={cn(rail && "lg:sr-only")}>{role("signOut")}</span>
+                </button>
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={toggleUserMenu}
+              aria-expanded={open}
               className={cn(
                 "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-white/5",
+                open && "bg-white/5",
                 rail && "lg:justify-center lg:gap-0 lg:px-2",
               )}
               title={user.displayName}
@@ -205,47 +241,20 @@ export function Sidebar({
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-barney text-sm font-semibold">
                 {user.displayName.charAt(0).toUpperCase()}
               </span>
-              <span className={cn("min-w-0", rail && "lg:hidden")}>
+              <span className={cn("min-w-0 flex-1", rail && "lg:hidden")}>
                 <span className="block truncate text-sm font-semibold">
                   {user.displayName}
                 </span>
                 <span className="block text-xs text-white/50">{role("role")}</span>
               </span>
+              <ChevronUp
+                className={cn(
+                  "h-4 w-4 shrink-0 text-white/50 transition-transform",
+                  !open && "rotate-180",
+                  rail && "lg:hidden",
+                )}
+              />
             </button>
-            <AnchoredMenu
-              open={open}
-              anchorRef={userMenuRef}
-              placement="end"
-              compact
-              panelRef={userPanelRef}
-              className="w-48 border-purple-jam/40 bg-midnight"
-            >
-              <button
-                type="button"
-                className={cn(selectOptionClass(false), "text-white/80 hover:bg-barney hover:text-white")}
-                onClick={() => {
-                  close();
-                  selectBrand(null);
-                  onMobileClose?.();
-                  router.push("/brands");
-                }}
-              >
-                <ArrowLeftRight className="h-4 w-4 shrink-0" />
-                {t("viewProfiles")}
-              </button>
-              <button
-                type="button"
-                className={cn(selectOptionClass(false), "text-white/80 hover:bg-barney hover:text-white")}
-                onClick={async () => {
-                  close();
-                  await signOut();
-                  router.replace("/login");
-                }}
-              >
-                <LogOut className="h-4 w-4 shrink-0" />
-                {role("signOut")}
-              </button>
-            </AnchoredMenu>
           </div>
         ) : null}
       </div>

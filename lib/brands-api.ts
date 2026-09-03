@@ -12,6 +12,7 @@ async function request(input: string, init?: RequestInit) {
 async function readJson<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => null)) as T | { error?: string } | null;
   if (!response.ok) {
+    if (response.status === 401) throw new Error("unauthorized");
     const error =
       data && typeof data === "object" && "error" in data && typeof data.error === "string"
         ? data.error

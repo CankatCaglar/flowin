@@ -8,7 +8,7 @@ import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { useBrand } from "@/contexts/BrandContext";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useBrandData } from "@/hooks/useBrandData";
-import { bestStatDay, campaignReplyDays, scaleStatsToCampaign } from "@/lib/campaign-metrics";
+import { bestStatDay, campaignReplyDays, topRepliedStep } from "@/lib/campaign-metrics";
 import { chartSeries } from "@/lib/metrics";
 import { successRate } from "@/lib/utils";
 
@@ -24,15 +24,9 @@ export default function CampaignOverviewPage({
   const campaign = campaigns.find((item) => item.id === id);
   if (!campaign) return null;
 
-  const scaled = scaleStatsToCampaign(stats);
-  const series = chartSeries(scaled, range);
-  const best = bestStatDay(scaled);
-  const messageSteps = campaign.flow.filter((step) => step.kind === "message");
-  const topStep = messageSteps[1] ?? messageSteps[0] ?? campaign.flow[0];
-  const topStepRate =
-    campaign.sentCount > 0
-      ? Math.min(100, successRate(campaign.sentCount, campaign.repliedCount) * 1.4)
-      : 0;
+  const series = chartSeries(stats, range);
+  const best = bestStatDay(stats);
+  const top = topRepliedStep(campaign, leads);
 
   return (
     <div className="space-y-6">
@@ -41,6 +35,7 @@ export default function CampaignOverviewPage({
         delivered={campaign.sentCount}
         replied={campaign.repliedCount}
         success={successRate(campaign.sentCount, campaign.repliedCount)}
+        hasSends={campaign.sentCount > 0}
       />
       <div className="grid items-stretch gap-6 xl:grid-cols-3">
         <div className="min-h-0 xl:col-span-2">
@@ -50,9 +45,9 @@ export default function CampaignOverviewPage({
       </div>
       <CampaignHighlights
         bestDayKey={best?.date}
-        bestDayRate={best ? successRate(best.sentCount, best.repliedCount) : 0}
-        topStep={topStep}
-        topStepRate={topStepRate}
+        bestDayRate={best ? successRate(best.sentCount, best.repliedCount) : undefined}
+        topStep={top?.step}
+        topStepRate={top?.rate}
         averageReplyDays={campaignReplyDays(leads, campaign.id)}
       />
     </div>

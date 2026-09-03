@@ -1,5 +1,5 @@
 import "server-only";
-import { Timestamp, type Firestore } from "firebase-admin/firestore";
+import { Timestamp, type Firestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import {
   copyLeadAvatar,
   deleteLeadAvatar,
@@ -11,6 +11,7 @@ import {
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
+import { companyFromHeadline } from "@/lib/linkedin-company";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
 import { firstOpenStep, scheduleAt } from "@/lib/sequence";
@@ -118,7 +119,9 @@ export function hydrateLead(
     status,
     lastMessageSentAt: lastOutboundAt(history, fallbackActionAt),
     firstReplyReceivedAt,
-    company: String(input.company ?? ""),
+    company:
+      String(input.company ?? "").trim() ||
+      companyFromHeadline(String(input.position ?? "")),
     position: String(input.position ?? ""),
     stage,
     email: String(input.email ?? ""),
@@ -130,6 +133,32 @@ export function hydrateLead(
     awaiting: (input.awaiting as Lead["awaiting"]) ?? "",
     failReason: String(input.failReason ?? ""),
   };
+}
+
+function leadFromDoc(item: QueryDocumentSnapshot): { lead: Lead; companyBackfill: boolean } {
+  const data = item.data();
+  const storedCompany = String(data.company ?? "").trim();
+  const lead = hydrateLead({
+    id: item.id,
+    ...(data as Partial<Lead>),
+    brandId: String(data.brandId ?? ""),
+    campaignId: String(data.campaignId ?? ""),
+    fullName: String(data.fullName ?? ""),
+  });
+  return { lead, companyBackfill: !storedCompany && Boolean(lead.company) };
+}
+
+export async function persistLeadCompanyBackfill(leads: Lead[]) {
+  if (!leads.length) return;
+  const db = requireFirebaseDb();
+  for (let index = 0; index < leads.length; index += 400) {
+    const chunk = leads.slice(index, index + 400);
+    const batch = db.batch();
+    for (const lead of chunk) {
+      batch.update(db.collection("leads").doc(lead.id), { company: lead.company });
+    }
+    await batch.commit();
+  }
 }
 
 export function hydrateMessage(
@@ -346,16 +375,21 @@ export async function fetchLeads(brandId: string): Promise<Lead[]> {
     .collection("leads")
     .where("brandId", "==", brandId)
     .get();
-  return snapshot.docs
-    .map((item) =>
-      hydrateLead({
-        id: item.id,
-        ...(item.data() as Partial<Lead>),
-        brandId,
-        campaignId: String(item.data().campaignId ?? ""),
-        fullName: String(item.data().fullName ?? ""),
-      }),
-    )
+  const mapped = snapshot.docs.map((item) => {
+    const row = leadFromDoc(item);
+    row.lead.brandId = brandId;
+    return row;
+  });
+  void persistLeadCompanyBackfill(mapped.filter((row) => row.companyBackfill).map((row) => row.lead)).catch(
+    (error) => {
+      console.error(
+        "[leads] company backfill failed:",
+        error instanceof Error ? error.message : error,
+      );
+    },
+  );
+  return mapped
+    .map((row) => row.lead)
     .sort((a, b) => b.lastMessageSentAt.getTime() - a.lastMessageSentAt.getTime());
 }
 
@@ -364,15 +398,20 @@ export async function fetchLeadsByCampaign(campaignId: string) {
     .collection("leads")
     .where("campaignId", "==", campaignId)
     .get();
-  return snapshot.docs.map((item) =>
-    hydrateLead({
-      id: item.id,
-      ...(item.data() as Partial<Lead>),
-      brandId: String(item.data().brandId ?? ""),
-      campaignId,
-      fullName: String(item.data().fullName ?? ""),
-    }),
+  const mapped = snapshot.docs.map((item) => {
+    const row = leadFromDoc(item);
+    row.lead.campaignId = campaignId;
+    return row;
+  });
+  void persistLeadCompanyBackfill(mapped.filter((row) => row.companyBackfill).map((row) => row.lead)).catch(
+    (error) => {
+      console.error(
+        "[leads] company backfill failed:",
+        error instanceof Error ? error.message : error,
+      );
+    },
   );
+  return mapped.map((row) => row.lead);
 }
 
 export async function fetchDueLeads(now = new Date()) {
@@ -506,7 +545,7 @@ export async function createLead(input: {
     avatarUrl: input.pictureUrl?.trim() ?? "",
     status: "queued",
     lastMessageSentAt: addedAt,
-    company: input.company?.trim() ?? "",
+    company: input.company?.trim() || companyFromHeadline(input.position ?? ""),
     position: input.position?.trim() ?? "",
     stage: "connection_request",
     email: input.email?.trim() ?? "",

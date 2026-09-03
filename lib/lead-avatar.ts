@@ -1,13 +1,16 @@
 import "server-only";
 import {
   downloadLeadAvatarImage,
+  isMissingLeadAvatar,
   isRemoteAvatarUrl,
   isStoredLeadAvatarUrl,
   leadAvatarUrl,
+  MISSING_LEAD_AVATAR,
   readLeadAvatar,
   type AvatarImage,
 } from "@/lib/brand-avatar";
 import { fetchBrand } from "@/lib/data";
+import { companyFromHeadline, companyFromProfileRecord } from "@/lib/linkedin-company";
 import { fetchLead, saveLead } from "@/lib/outreach-data";
 import { getUnipileProfileLite, UnipileError, unipilePictureUrl } from "@/lib/unipile";
 import { resolveBrandUnipileAccount } from "@/lib/unipile-sync";
@@ -26,6 +29,7 @@ export async function serveLeadPhoto(leadId: string): Promise<AvatarImage | null
 
   const lead = await fetchLead(leadId);
   if (!lead) return null;
+  if (isMissingLeadAvatar(lead.avatarUrl ?? "")) return null;
 
   if (isRemoteAvatarUrl(lead.avatarUrl ?? "")) {
     const image = await downloadLeadAvatarImage(leadId, lead.avatarUrl);
@@ -33,19 +37,21 @@ export async function serveLeadPhoto(leadId: string): Promise<AvatarImage | null
       lead.avatarUrl = leadAvatarUrl(leadId);
       lead.avatarChecked = true;
       await saveLead(lead);
+      return image;
     }
-    return image;
   }
 
-  if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) {
-    return readLeadAvatar(leadId);
-  }
-
-  return null;
+  const url = await hydrateLeadAvatar(lead);
+  if (!url) return null;
+  return readLeadAvatar(leadId);
 }
 
-export async function hydrateLeadAvatars(leads: Lead[]): Promise<Record<string, string>> {
+export async function hydrateLeadAvatars(leads: Lead[]): Promise<{
+  avatars: Record<string, string>;
+  companies: Record<string, string>;
+}> {
   const avatars: Record<string, string> = {};
+  const companies: Record<string, string> = {};
   for (const lead of leads) {
     if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) {
       avatars[lead.id] = leadAvatarUrl(lead.id);
@@ -53,7 +59,7 @@ export async function hydrateLeadAvatars(leads: Lead[]): Promise<Record<string, 
   }
 
   const pending = leads.filter(needsAvatarHydration);
-  if (!pending.length) return avatars;
+  if (!pending.length) return { avatars, companies };
 
   const brandIds = [...new Set(pending.map((lead) => lead.brandId))];
   await Promise.all(
@@ -65,14 +71,17 @@ export async function hydrateLeadAvatars(leads: Lead[]): Promise<Record<string, 
 
   await mapPool(pending, HYDRATE_CONCURRENCY, async (lead) => {
     const url = await hydrateLeadAvatar(lead);
-    if (url || lead.avatarChecked) avatars[lead.id] = url;
+    if (url) avatars[lead.id] = url;
+    if (lead.company.trim()) companies[lead.id] = lead.company;
   });
-  return avatars;
+  return { avatars, companies };
 }
 
 function needsAvatarHydration(lead: Lead) {
-  if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) return false;
-  return !lead.avatarChecked;
+  const url = lead.avatarUrl ?? "";
+  if (isStoredLeadAvatarUrl(url) || isMissingLeadAvatar(url)) return false;
+  if (isRemoteAvatarUrl(url)) return true;
+  return !lead.avatarChecked || !url;
 }
 
 async function hydrateLeadAvatar(lead: Lead): Promise<string> {
@@ -86,10 +95,16 @@ async function hydrateLeadAvatar(lead: Lead): Promise<string> {
 async function hydrateLeadAvatarUncached(lead: Lead): Promise<string> {
   try {
     const url = await resolveStoredPhoto(lead);
-    lead.avatarUrl = url;
+    if (url) {
+      lead.avatarUrl = url;
+      lead.avatarChecked = true;
+      await saveLead(lead);
+      return url;
+    }
+    lead.avatarUrl = MISSING_LEAD_AVATAR;
     lead.avatarChecked = true;
     await saveLead(lead);
-    return url;
+    return "";
   } catch (error) {
     if (error instanceof UnipileError && error.retryable) return "";
     console.error(
@@ -97,8 +112,6 @@ async function hydrateLeadAvatarUncached(lead: Lead): Promise<string> {
       lead.id,
       error instanceof Error ? error.message : error,
     );
-    lead.avatarChecked = true;
-    await saveLead(lead).catch(() => undefined);
     return "";
   }
 }
@@ -113,19 +126,22 @@ async function resolveStoredPhoto(lead: Lead): Promise<string> {
     if (image) return leadAvatarUrl(lead.id);
   }
 
-  const pictureUrl = await fetchUnipilePicture(lead);
-  if (!pictureUrl) return "";
-  const image = await downloadLeadAvatarImage(lead.id, pictureUrl);
-  return image ? leadAvatarUrl(lead.id) : "";
+  const profile = await fetchUnipileProfile(lead);
+  applyProfileCompany(lead, profile.company);
+  if (!profile.pictureUrl) return "";
+  const image = await downloadLeadAvatarImage(lead.id, profile.pictureUrl);
+  if (image) return leadAvatarUrl(lead.id);
+  lead.avatarUrl = profile.pictureUrl;
+  throw new UnipileError("avatar-download-failed", 502, true);
 }
 
-async function fetchUnipilePicture(lead: Lead): Promise<string> {
+async function fetchUnipileProfile(lead: Lead): Promise<{ pictureUrl: string; company: string }> {
   const brand = await fetchBrand(lead.brandId);
   let accountId = await accountIdForBrand(brand);
-  if (!accountId) return "";
+  if (!accountId) throw new UnipileError("unipile-seat-missing", 503, true);
 
   const identifiers = profileIdentifiers(lead);
-  if (!identifiers.length) return "";
+  if (!identifiers.length) return { pictureUrl: "", company: "" };
 
   return withUnipileSlot(async () => {
     let lastError: unknown;
@@ -134,7 +150,10 @@ async function fetchUnipilePicture(lead: Lead): Promise<string> {
         const profile = await getUnipileProfileLite(accountId, identifier);
         if (profile.provider_id) lead.unipileProviderId = profile.provider_id;
         if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
-        return unipilePictureUrl(profile);
+        return {
+          pictureUrl: unipilePictureUrl(profile),
+          company: companyFromProfileRecord(profile as unknown as Record<string, unknown>),
+        };
       } catch (error) {
         if (isMissingAccount(error)) {
           brandSeats.delete(brand?.id ?? "");
@@ -143,7 +162,10 @@ async function fetchUnipilePicture(lead: Lead): Promise<string> {
           const profile = await getUnipileProfileLite(accountId, identifier);
           if (profile.provider_id) lead.unipileProviderId = profile.provider_id;
           if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
-          return unipilePictureUrl(profile);
+          return {
+            pictureUrl: unipilePictureUrl(profile),
+            company: companyFromProfileRecord(profile as unknown as Record<string, unknown>),
+          };
         }
         if (error instanceof UnipileError && error.retryable) throw error;
         if (isUnusableIdentifier(error)) {
@@ -160,8 +182,14 @@ async function fetchUnipilePicture(lead: Lead): Promise<string> {
         lastError instanceof Error ? lastError.message : lastError,
       );
     }
-    return "";
+    return { pictureUrl: "", company: "" };
   });
+}
+
+function applyProfileCompany(lead: Lead, company: string) {
+  if (lead.company.trim()) return;
+  const next = company.trim() || companyFromHeadline(lead.position);
+  if (next) lead.company = next;
 }
 
 async function accountIdForBrand(

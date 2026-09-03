@@ -5,6 +5,7 @@
   },
   "common": {
     "loading": "Loading...",
+    "retry": "Try again",
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
@@ -54,6 +55,7 @@
     "connectScope": "In LinkedIn Products, request access to “Sign in with LinkedIn using OpenID Connect”, then try connecting again.",
     "firebaseUnconfigured": "LinkedIn connected, but Firestore could not save the brand. Add a Firebase service account (FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY) to .env.local and restart the server.",
     "emptyList": "No brands connected yet. Connect a LinkedIn account to start.",
+    "loadFailed": "Brands could not be loaded. Check your connection and try again.",
     "modalCreateTitle": "New brand",
     "modalEditTitle": "Edit brand",
     "nameLabel": "Brand name",
@@ -86,7 +88,6 @@
     "campaigns": "Campaigns",
     "leads": "Leads",
     "messages": "Messages",
-    "reports": "Reports",
     "settings": "Settings",
     "viewProfiles": "View Profiles",
     "collapse": "Collapse menu",
@@ -160,27 +161,27 @@
   },
   "status": {
     "active": "Active",
-    "expiring": "Leads running low",
+    "expiring": "Leads Running Low",
     "paused": "Paused",
     "draft": "Draft",
     "completed": "Completed",
     "queued": "Queued",
-    "queued_view": "Queued · Profile view",
-    "waiting_connection": "Waiting · Connection request",
-    "waiting_accept": "Waiting · Connection accept",
+    "queued_view": "Queued · Profile View",
+    "waiting_connection": "Waiting · Connection Request",
+    "waiting_accept": "Waiting · Connection Accept",
     "queued_message": "Queued · Message",
-    "waiting_reply": "Waiting for reply",
+    "waiting_reply": "Waiting for Reply",
     "replied": "Replied",
-    "failed": "Delivery failed",
-    "flow_completed": "Flow completed"
+    "failed": "Delivery Failed",
+    "flow_completed": "Flow Completed"
   },
   "stage": {
-    "connection_request": "Connection request",
-    "profile_viewed": "Profile viewed",
+    "connection_request": "Connection Request",
+    "profile_viewed": "Profile Viewed",
     "message_1": "Message 1",
     "message_2": "Message 2",
     "message_3": "Message 3",
-    "flow_completed": "Flow completed"
+    "flow_completed": "Flow Completed"
   },
   "campaigns": {
     "title": "Campaigns",
@@ -389,14 +390,6 @@
     "outbound": "Sent",
     "inbound": "Reply",
     "body": "Message"
-  },
-  "reports": {
-    "title": "Reports",
-    "subtitle": "Performance summary for the selected date range.",
-    "sent": "Sent messages",
-    "replied": "Received replies",
-    "success": "Success rate",
-    "campaigns": "Campaign performance"
   },
   "settings": {
     "title": "Settings",

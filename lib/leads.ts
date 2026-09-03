@@ -1,3 +1,4 @@
+import { displayLeadCompany } from "@/lib/linkedin-company";
 import type { Lead, LeadEvent, LeadEventKind, LeadStage, LeadStatus } from "@/types";
 
 export const LEAD_STAGES: LeadStage[] = [
@@ -27,6 +28,14 @@ export const LEAD_EVENT_KINDS: LeadEventKind[] = [
   "inmail_sent",
   "replied",
   "failed",
+];
+
+export const SEND_EVENT_KINDS: LeadEventKind[] = [
+  "connection_sent",
+  "message_1_sent",
+  "message_2_sent",
+  "message_3_sent",
+  "inmail_sent",
 ];
 
 export function isLeadEventKind(value: unknown): value is LeadEventKind {
@@ -201,8 +210,8 @@ export function synthesizeHistory(
 export function lastOutboundAt(history: LeadEvent[], fallback: Date): Date {
   const outbound = [...history]
     .reverse()
-    .find((event) => event.kind !== "replied" && event.kind !== "added");
-  return outbound?.at ?? history[history.length - 1]?.at ?? fallback;
+    .find((event) => SEND_EVENT_KINDS.includes(event.kind));
+  return outbound?.at ?? fallback;
 }
 
 export function leadLastActionAt(lead: Lead): Date {
@@ -247,7 +256,7 @@ export function exportLeadsCsv(
     ...leads.map((lead) =>
       [
         lead.fullName,
-        lead.company,
+        displayLeadCompany(lead),
         lead.position,
         campaignNames.get(lead.campaignId) ?? lead.campaignId,
         stageLabel(lead.stage),

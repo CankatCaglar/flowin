@@ -13,7 +13,8 @@ import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
 import { exportLeadsCsv, leadLastActionAt, leadStatusLabelKey, LEAD_STAGES, LEAD_STATUSES } from "@/lib/leads";
-import { formatLastAction } from "@/lib/utils";
+import { displayLeadCompany } from "@/lib/linkedin-company";
+import { EMPTY_METRIC, formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, LeadStage, LeadStatus } from "@/types";
 
@@ -77,7 +78,7 @@ export function LeadsWorkspace({
       if (status !== "all" && lead.status !== status) return false;
       if (
         term &&
-        !`${lead.fullName} ${lead.company} ${lead.position}`.toLowerCase().includes(term)
+        !`${lead.fullName} ${displayLeadCompany(lead)} ${lead.position}`.toLowerCase().includes(term)
       ) {
         return false;
       }
@@ -186,28 +187,28 @@ export function LeadsWorkspace({
           ) : null}
         </div>
         <div className="min-h-0 flex-1 overflow-x-auto">
-          <table className="w-full min-w-220 text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted">
-              <tr className="h-11 border-l-[3px] border-l-transparent">
-                <th className="px-5 py-3 text-left font-medium">{t("name")}</th>
-                <th className="px-5 py-3 text-center font-medium">
+          <table className="w-full min-w-208 text-xs">
+            <thead className="text-[10px] uppercase tracking-wide text-muted">
+              <tr className="h-10 border-l-[3px] border-l-transparent">
+                <th className="px-3 py-2 text-left font-medium">{t("name")}</th>
+                <th className="w-38 px-3 py-2 text-center font-medium">
                   <span className="inline-flex w-full justify-center">{t("company")}</span>
                 </th>
-                <th className="px-5 py-3 text-center font-medium">
+                <th className="w-44 px-3 py-2 text-center font-medium">
                   <span className="inline-flex w-full justify-center">{t("position")}</span>
                 </th>
                 {showCampaign ? (
-                  <th className="px-5 py-3 text-center font-medium">
+                  <th className="px-3 py-2 text-center font-medium">
                     <span className="inline-flex w-full justify-center">{t("campaign")}</span>
                   </th>
                 ) : null}
-                <th className="px-5 py-3 text-center font-medium">
+                <th className="px-3 py-2 text-center font-medium">
                   <span className="inline-flex w-full justify-center">{t("stage")}</span>
                 </th>
-                <th className="px-5 py-3 text-center font-medium">
+                <th className="px-3 py-2 text-center font-medium">
                   <span className="inline-flex w-full justify-center">{t("status")}</span>
                 </th>
-                <th className="px-5 py-3 text-center font-medium">
+                <th className="px-3 py-2 text-center font-medium">
                   <span className="inline-flex w-full justify-center">{t("lastAction")}</span>
                 </th>
               </tr>
@@ -216,7 +217,7 @@ export function LeadsWorkspace({
               {slots.map((lead, index) => {
                 if (!lead) {
                   return (
-                    <tr key={`empty-${index}`} className="h-14 border-t border-purple-jam/8 border-l-[3px] border-l-transparent">
+                    <tr key={`empty-${index}`} className="h-12 border-t border-purple-jam/8 border-l-[3px] border-l-transparent">
                       <td colSpan={colCount} />
                     </tr>
                   );
@@ -227,48 +228,62 @@ export function LeadsWorkspace({
                     key={lead.id}
                     onClick={() => setSelectedId(lead.id)}
                     className={cn(
-                      "h-14 cursor-pointer border-t border-purple-jam/8 border-l-[3px]",
+                      "h-12 cursor-pointer border-t border-purple-jam/8 border-l-[3px]",
                       active
                         ? "border-l-barney bg-barney/5"
                         : "border-l-transparent hover:bg-canvas/70",
                     )}
                   >
-                    <td className="whitespace-nowrap px-5 py-3">
-                      <span className="flex items-center gap-2.5">
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span className="flex items-center gap-2">
                         <LeadAvatar lead={lead} />
-                        <span className="font-medium text-ink">{lead.fullName}</span>
+                        <span className="max-w-40 truncate text-[13px] font-medium text-ink" title={lead.fullName}>
+                          {lead.fullName}
+                        </span>
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-center text-muted">{lead.company}</td>
-                    <td className="px-5 py-3 text-center text-muted">{lead.position}</td>
+                    <td className="max-w-38 px-3 py-2 text-center text-muted">
+                      <span
+                        className="line-clamp-2 leading-tight wrap-break-word"
+                        title={displayLeadCompany(lead) || undefined}
+                      >
+                        {displayLeadCompany(lead) || EMPTY_METRIC}
+                      </span>
+                    </td>
+                    <td className="max-w-44 px-3 py-2 text-center text-muted">
+                      <span className="line-clamp-2 leading-tight wrap-break-word" title={lead.position || undefined}>
+                        {lead.position || EMPTY_METRIC}
+                      </span>
+                    </td>
                     {showCampaign ? (
-                      <td className="px-5 py-3 text-center">
+                      <td className="max-w-36 px-3 py-2 text-center">
                         <Link
                           href={`/campaigns/${lead.campaignId}`}
                           onClick={(event) => event.stopPropagation()}
-                          className="text-barney hover:opacity-80"
+                          className="block truncate text-barney hover:opacity-80"
+                          title={campaignNames.get(lead.campaignId) ?? lead.campaignId}
                         >
                           {campaignNames.get(lead.campaignId) ?? lead.campaignId}
                         </Link>
                       </td>
                     ) : null}
-                    <td className="px-5 py-3 text-center">
+                    <td className="px-3 py-2 text-center">
                       <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
                     </td>
-                    <td className="px-5 py-3 text-center">
-                      <div className="flex flex-col items-center gap-1">
+                    <td className="px-3 py-2 text-center">
+                      <div className="flex flex-col items-center gap-0.5">
                         <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
                         {lead.nextStepAt &&
                         lead.status !== "failed" &&
                         lead.status !== "replied" &&
                         lead.status !== "flow_completed" ? (
-                          <span className="text-[11px] text-muted">
+                          <span className="text-[10px] text-muted">
                             {formatLastAction(lead.nextStepAt, now, locale)}
                           </span>
                         ) : null}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-center text-muted">
+                    <td className="whitespace-nowrap px-3 py-2 text-center text-muted">
                       {formatLastAction(leadLastActionAt(lead), now, locale)}
                     </td>
                   </tr>

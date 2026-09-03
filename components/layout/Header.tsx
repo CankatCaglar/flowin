@@ -9,12 +9,11 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { usePathname } from "@/i18n/navigation";
 import { BrandAvatar } from "@/components/brands/BrandAvatar";
 
-const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "reports" | "settings"> = {
+const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "settings"> = {
   "/dashboard": "overview",
   "/campaigns": "campaigns",
   "/leads": "leads",
   "/messages": "messages",
-  "/reports": "reports",
   "/settings": "settings",
 };
 
@@ -37,7 +36,7 @@ export function Header({
   const { selectedBrand } = useBrand();
   const pathname = usePathname();
   const pageKey = titles[pathname] ?? (pathname.startsWith("/campaigns") ? "campaigns" : "overview");
-  const showDate = pathname === "/dashboard" || pathname === "/reports";
+  const showDate = pathname === "/dashboard";
   const crumb = campaignBreadcrumb(pathname);
   const { campaigns } = useBrandData(crumb?.kind === "detail" ? selectedBrand?.id ?? null : null);
   const campaignName =

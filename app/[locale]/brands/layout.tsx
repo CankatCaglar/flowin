@@ -1,12 +1,16 @@
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { redirect } from "@/i18n/navigation";
 
-export default async function LocaleHome({
+export default async function BrandsLayout({
+  children,
   params,
 }: {
+  children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const signedIn = Boolean(await getAdminSessionEmail());
-  redirect({ href: signedIn ? "/brands" : "/login", locale });
+  if (!(await getAdminSessionEmail())) {
+    redirect({ href: "/login", locale });
+  }
+  return children;
 }

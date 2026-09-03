@@ -8,9 +8,9 @@ import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { flowStepTitle } from "@/lib/campaign-flow";
 import { leadStatusLabelKey } from "@/lib/leads";
+import { displayLeadCompany } from "@/lib/linkedin-company";
 import { findStep } from "@/lib/sequence";
-import { formatDateTime } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { EMPTY_METRIC, cn, formatDateTime } from "@/lib/utils";
 import type { Campaign, Lead, LeadEventKind } from "@/types";
 
 function linkedinHost(url: string) {
@@ -83,8 +83,8 @@ export function LeadDetailPanel({
         <LeadAvatar lead={lead} size="md" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-display text-lg font-semibold leading-snug text-ink">{lead.fullName}</h2>
-          <p className="text-sm text-muted">{lead.position}</p>
-          <p className="text-sm text-muted">{lead.company}</p>
+          <p className="text-sm text-muted">{lead.position || EMPTY_METRIC}</p>
+          <p className="text-sm text-muted">{displayLeadCompany(lead) || EMPTY_METRIC}</p>
           {campaignName ? <p className="text-sm text-muted">{campaignName}</p> : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <StageBadge stage={lead.stage} label={stageT(lead.stage)} />

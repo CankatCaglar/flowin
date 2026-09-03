@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (!brandId) return NextResponse.json({ error: "invalid" }, { status: 400 });
   try {
     const leads = await fetchLeads(brandId);
-    return NextResponse.json({ avatars: await hydrateLeadAvatars(leads) });
+    return NextResponse.json(await hydrateLeadAvatars(leads));
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });
   }

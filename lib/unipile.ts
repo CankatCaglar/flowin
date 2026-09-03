@@ -1,4 +1,5 @@
 import "server-only";
+import { companyFromHeadline, companyFromProfileRecord } from "@/lib/linkedin-company";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 
 export function getUnipileConfig() {
@@ -149,6 +150,7 @@ export type UnipileAccount = {
       publicIdentifier?: string;
       public_identifier?: string;
       username?: string;
+      organizations?: Array<{ name?: string }>;
     };
   };
 };
@@ -179,13 +181,16 @@ export type UnipileProfile = {
   last_name?: string;
   name?: string;
   headline?: string;
+  description?: string;
   is_relationship?: boolean;
   network_distance?: string;
   notify_visit_token?: string;
   member_urn?: string;
   public_profile_url?: string;
-  current_positions?: Array<{ company?: string; role?: string }>;
-  company?: string;
+  current_positions?: Array<{ company?: unknown; role?: string }>;
+  work_experience?: Array<{ company?: unknown; end?: unknown }>;
+  experience?: Array<{ company?: unknown; ended_on?: unknown; end?: unknown }>;
+  company?: unknown;
   profile_picture_url?: string;
   profile_picture_url_large?: string;
   public_picture_url?: string;
@@ -250,6 +255,66 @@ export async function getUnipileProfile(accountId: string, identifier: string) {
   });
 }
 
+export async function getUnipileProfileExperience(accountId: string, identifier: string) {
+  return unipileRequest<UnipileProfile>(`/api/v1/users/${encodeURIComponent(identifier)}`, {
+    query: { account_id: accountId, linkedin_sections: "experience" },
+  });
+}
+
+export function companyFromUnipileProfile(profile: UnipileProfile) {
+  return companyFromProfileRecord(profile as unknown as Record<string, unknown>);
+}
+
+export function companyFromUnipileAccount(account: UnipileAccount) {
+  const orgs = account.connection_params?.im?.organizations ?? [];
+  return orgs.map((org) => org.name?.trim()).find(Boolean) ?? "";
+}
+
+async function companyFromIdentifier(accountId: string, identifier: string) {
+  try {
+    const fromLite = companyFromUnipileProfile(await getUnipileProfileLite(accountId, identifier));
+    if (fromLite) return fromLite;
+  } catch (error) {
+    console.error(
+      "[unipile] company lite failed:",
+      identifier === "me" ? "me" : "id",
+      error instanceof Error ? error.message : error,
+    );
+  }
+  try {
+    return companyFromUnipileProfile(await getUnipileProfileExperience(accountId, identifier));
+  } catch (error) {
+    console.error(
+      "[unipile] company experience failed:",
+      identifier === "me" ? "me" : "id",
+      error instanceof Error ? error.message : error,
+    );
+    return "";
+  }
+}
+
+export async function fetchAccountCompany(accountId: string, publicId?: string) {
+  const identifiers = ["me", publicId?.trim()].filter(
+    (value, index, list): value is string => Boolean(value) && list.indexOf(value) === index,
+  );
+  for (const identifier of identifiers) {
+    const company = await companyFromIdentifier(accountId, identifier);
+    if (company) return company;
+  }
+  try {
+    const account = await unipileRequest<UnipileAccount>(
+      `/api/v1/accounts/${encodeURIComponent(accountId)}`,
+    );
+    return companyFromUnipileAccount(account);
+  } catch (error) {
+    console.error(
+      "[unipile] company account failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return "";
+  }
+}
+
 export async function getUnipileProfileLite(accountId: string, identifier: string) {
   return unipileRequest<UnipileProfile>(`/api/v1/users/${encodeURIComponent(identifier)}`, {
     query: { account_id: accountId },
@@ -273,7 +338,7 @@ export async function resolveLinkedInProfile(accountId: string, rawUrl: string) 
     linkedinUrl:
       (typeof profile.public_profile_url === "string" && profile.public_profile_url) ||
       (publicId ? `https://www.linkedin.com/in/${publicId}` : linkedinUrl),
-    company: role?.company || profile.company || "",
+    company: companyFromUnipileProfile(profile),
     position: role?.role || profile.headline || "",
     unipileProviderId: profile.provider_id || "",
     pictureUrl: unipilePictureUrl(profile),
@@ -357,14 +422,13 @@ function asPerson(item: Record<string, unknown>): SalesNavPerson | null {
     ? (item.current_positions as Record<string, unknown>[])
     : [];
   const role = positions[0] ?? {};
-  const company =
-    (typeof role.company === "string" && role.company) ||
-    (typeof item.company === "string" && item.company) ||
-    "";
   const position =
     (typeof role.role === "string" && role.role) ||
     (typeof item.headline === "string" && item.headline) ||
     "";
+  const company =
+    companyFromProfileRecord(item) ||
+    companyFromHeadline(position);
   const url =
     (typeof item.public_profile_url === "string" && item.public_profile_url) ||
     (publicId ? `https://www.linkedin.com/in/${publicId}` : "");

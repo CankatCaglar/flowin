@@ -1,19 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  clearAuthSession,
-  readAuthSession,
-  writeAuthSession,
-  writeSelectedBrandId,
-} from "@/lib/storage";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { clearAuthSession, writeSelectedBrandId } from "@/lib/storage";
 import type { AuthUser } from "@/types";
 
 interface AuthContextValue {
@@ -21,18 +9,19 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  endSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setUser(readAuthSession());
-    setLoading(false);
-  }, []);
+export function AuthProvider({
+  children,
+  initialUser = null,
+}: {
+  children: React.ReactNode;
+  initialUser?: AuthUser | null;
+}) {
+  const [user, setUser] = useState<AuthUser | null>(initialUser);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const response = await fetch("/api/auth/login", {
@@ -45,8 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const next = (await response.json()) as AuthUser;
     writeSelectedBrandId(null);
-    writeAuthSession(next);
     setUser(next);
+  }, []);
+
+  const endSession = useCallback(() => {
+    clearAuthSession();
+    setUser(null);
   }, []);
 
   const signOut = useCallback(async () => {
@@ -55,13 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Cookie clear is best-effort; local session still ends.
     }
-    clearAuthSession();
-    setUser(null);
-  }, []);
+    endSession();
+  }, [endSession]);
 
   const value = useMemo(
-    () => ({ user, loading, signIn, signOut }),
-    [user, loading, signIn, signOut],
+    () => ({ user, loading: false, signIn, signOut, endSession }),
+    [user, signIn, signOut, endSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,7 +1,8 @@
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { eachDateKey, previousRange, toDateKey } from "@/lib/dates";
+import { SEND_EVENT_KINDS } from "@/lib/leads";
 import { successRate, trendPercent } from "@/lib/utils";
-import type { Campaign, DailyStat, DateRange, Lead } from "@/types";
+import type { Campaign, DailyStat, DateRange, Lead, LeadEvent } from "@/types";
 
 const UNRESPONSIVE_DAYS = 7;
 const EXPIRING_DAYS = 3;
@@ -160,16 +161,32 @@ export function bestCampaign(campaigns: Campaign[]) {
 }
 
 export function mostRepliedCampaign(campaigns: Campaign[]) {
-  return [...campaigns].sort((a, b) => b.repliedCount - a.repliedCount)[0];
+  return [...campaigns]
+    .filter((campaign) => campaign.repliedCount > 0)
+    .sort((a, b) => b.repliedCount - a.repliedCount)[0];
+}
+
+export function lastSendBeforeReply(lead: Lead): LeadEvent | undefined {
+  const replyAt =
+    lead.history.find((event) => event.kind === "replied")?.at ?? lead.firstReplyReceivedAt;
+  if (!replyAt) return undefined;
+  return [...lead.history]
+    .filter(
+      (event) => SEND_EVENT_KINDS.includes(event.kind) && event.at.getTime() <= replyAt.getTime(),
+    )
+    .sort((a, b) => b.at.getTime() - a.at.getTime())[0];
 }
 
 export function averageReplyDays(leads: Lead[]) {
-  const samples = leads.filter((lead) => lead.firstReplyReceivedAt);
-  if (samples.length === 0) return 0;
-  const total = samples.reduce((sum, lead) => {
-    const firstReply = lead.firstReplyReceivedAt;
-    if (!firstReply) return sum;
-    return sum + (firstReply.getTime() - lead.lastMessageSentAt.getTime());
-  }, 0);
-  return total / samples.length / 86_400_000;
+  const samples: number[] = [];
+  for (const lead of leads) {
+    const replyAt =
+      lead.history.find((event) => event.kind === "replied")?.at ?? lead.firstReplyReceivedAt;
+    const send = lastSendBeforeReply(lead);
+    if (!replyAt || !send) continue;
+    const ms = replyAt.getTime() - send.at.getTime();
+    if (ms >= 0) samples.push(ms / 86_400_000);
+  }
+  if (samples.length === 0) return null;
+  return samples.reduce((sum, value) => sum + value, 0) / samples.length;
 }

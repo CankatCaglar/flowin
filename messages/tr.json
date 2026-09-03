@@ -5,6 +5,7 @@
   },
   "common": {
     "loading": "Yükleniyor...",
+    "retry": "Tekrar dene",
     "save": "Kaydet",
     "cancel": "İptal",
     "close": "Kapat",
@@ -54,6 +55,7 @@
     "connectScope": "LinkedIn Products’ta “Sign in with LinkedIn using OpenID Connect”e Request access yapın; açık olunca tekrar bağlayın.",
     "firebaseUnconfigured": "LinkedIn bağlandı ama Firestore yazılamadı. .env.local içine Firebase service account (FIREBASE_CLIENT_EMAIL ve FIREBASE_PRIVATE_KEY) ekleyip sunucuyu yeniden başlatın.",
     "emptyList": "Henüz bağlı marka yok. Bir LinkedIn hesabı bağlayarak başlayın.",
+    "loadFailed": "Markalar yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
     "modalCreateTitle": "Yeni marka",
     "modalEditTitle": "Markayı düzenle",
     "nameLabel": "Marka adı",
@@ -86,7 +88,6 @@
     "campaigns": "Kampanyalar",
     "leads": "Leadler",
     "messages": "Mesajlar",
-    "reports": "Raporlar",
     "settings": "Ayarlar",
     "viewProfiles": "Profilleri Gör",
     "collapse": "Menüyü daralt",
@@ -165,9 +166,9 @@
     "draft": "Taslak",
     "completed": "Tamamlandı",
     "queued": "Sırada",
-    "queued_view": "Sırada · Profil görüntüleme",
-    "waiting_connection": "Beklemede · Bağlantı isteği",
-    "waiting_accept": "Yanıt bekliyor · Connection",
+    "queued_view": "Sırada · Profil Görüntüleme",
+    "waiting_connection": "Beklemede · Bağlantı İsteği",
+    "waiting_accept": "Yanıt Bekliyor · Connection",
     "queued_message": "Sırada · Mesaj",
     "waiting_reply": "Yanıt Bekliyor",
     "replied": "Yanıtlandı",
@@ -175,8 +176,8 @@
     "flow_completed": "Akış Tamamlandı"
   },
   "stage": {
-    "connection_request": "Bağlantı isteği",
-    "profile_viewed": "Profil görüntülendi",
+    "connection_request": "Bağlantı İsteği",
+    "profile_viewed": "Profil Görüntülendi",
     "message_1": "Mesaj 1",
     "message_2": "Mesaj 2",
     "message_3": "Mesaj 3",
@@ -389,14 +390,6 @@
     "outbound": "Gönderildi",
     "inbound": "Yanıt",
     "body": "Mesaj"
-  },
-  "reports": {
-    "title": "Raporlar",
-    "subtitle": "Seçili tarih aralığındaki performans özeti.",
-    "sent": "Gönderilen mesaj",
-    "replied": "Alınan yanıt",
-    "success": "Başarı oranı",
-    "campaigns": "Kampanya performansı"
   },
   "settings": {
     "title": "Ayarlar",

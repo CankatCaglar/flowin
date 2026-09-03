@@ -2,18 +2,20 @@
 
 import { MessageCircle, Send, TrendingUp, Users } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatNumber, formatPercent } from "@/lib/utils";
+import { EMPTY_METRIC, formatNumber, formatPercent } from "@/lib/utils";
 
 export function CampaignKpiCards({
   leadGoal,
   delivered,
   replied,
   success,
+  hasSends,
 }: {
   leadGoal: number;
   delivered: number;
   replied: number;
   success: number;
+  hasSends: boolean;
 }) {
   const t = useTranslations("campaigns.overview");
   const locale = useLocale();
@@ -21,7 +23,11 @@ export function CampaignKpiCards({
     { title: t("leadGoal"), value: formatNumber(leadGoal, locale), icon: Users },
     { title: t("delivered"), value: formatNumber(delivered, locale), icon: Send },
     { title: t("responded"), value: formatNumber(replied, locale), icon: MessageCircle },
-    { title: t("success"), value: formatPercent(success, locale), icon: TrendingUp },
+    {
+      title: t("success"),
+      value: hasSends ? formatPercent(success, locale) : EMPTY_METRIC,
+      icon: TrendingUp,
+    },
   ];
 
   return (

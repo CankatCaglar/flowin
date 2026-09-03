@@ -3,7 +3,7 @@
 import { ChevronRight, Clock3, MessageCircle, Trophy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { formatDecimal, formatNumber, formatPercent, successRate } from "@/lib/utils";
+import { EMPTY_METRIC, formatDecimal, formatNumber, formatPercent, successRate } from "@/lib/utils";
 import type { Campaign } from "@/types";
 
 export function FeaturedInsights({
@@ -13,7 +13,7 @@ export function FeaturedInsights({
 }: {
   best?: Campaign;
   mostReplied?: Campaign;
-  averageReplyDays: number;
+  averageReplyDays: number | null;
 }) {
   const t = useTranslations("dashboard.insights");
   const common = useTranslations("common");
@@ -26,7 +26,7 @@ export function FeaturedInsights({
       subtitle: best?.name ?? t("empty"),
       value: best
         ? formatPercent(successRate(best.sentCount, best.repliedCount), locale)
-        : "—",
+        : EMPTY_METRIC,
       valueLabel: t("successLabel"),
       icon: Trophy,
       iconClass: "text-barney",
@@ -35,7 +35,7 @@ export function FeaturedInsights({
       href: "/campaigns",
       title: t("mostReplies"),
       subtitle: mostReplied?.name ?? t("empty"),
-      value: mostReplied ? formatNumber(mostReplied.repliedCount, locale) : "—",
+      value: mostReplied ? formatNumber(mostReplied.repliedCount, locale) : EMPTY_METRIC,
       valueLabel: t("repliesLabel"),
       icon: MessageCircle,
       iconClass: "text-emerald-600",
@@ -43,9 +43,10 @@ export function FeaturedInsights({
     {
       href: "/messages",
       title: t("avgReply"),
-      subtitle: undefined,
-      value: formatDecimal(averageReplyDays, locale),
-      valueLabel: common("days"),
+      subtitle: averageReplyDays == null ? t("empty") : undefined,
+      value:
+        averageReplyDays == null ? EMPTY_METRIC : formatDecimal(averageReplyDays, locale),
+      valueLabel: averageReplyDays == null ? undefined : common("days"),
       icon: Clock3,
       iconClass: "text-sky-600",
     },
@@ -74,7 +75,9 @@ export function FeaturedInsights({
               </span>
               <span className="shrink-0 text-right">
                 <span className="block text-sm font-semibold text-ink">{item.value}</span>
-                <span className="mt-0.5 block text-xs text-muted">{item.valueLabel}</span>
+                {item.valueLabel ? (
+                  <span className="mt-0.5 block text-xs text-muted">{item.valueLabel}</span>
+                ) : null}
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted" />
             </Link>

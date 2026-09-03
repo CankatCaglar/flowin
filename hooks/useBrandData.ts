@@ -47,14 +47,20 @@ export function useBrandData(brandId: string | null, campaignId?: string) {
         setMessages(nextMessages);
         const pending = nextLeads.filter(leadNeedsAvatarHydration);
         if (!pending.length) return;
-        void hydrateLeadAvatars(brandId).then((avatars) => {
-          if (cancelled || !Object.keys(avatars).length) return;
+        void hydrateLeadAvatars(brandId).then(({ avatars, companies }) => {
+          if (cancelled) return;
+          if (!Object.keys(avatars).length && !Object.keys(companies).length) return;
           setLeads((current) =>
-            current.map((lead) =>
-              lead.id in avatars
-                ? { ...lead, avatarUrl: avatars[lead.id] ?? "", avatarChecked: true }
-                : lead,
-            ),
+            current.map((lead) => {
+              const avatarUrl = avatars[lead.id];
+              const company = companies[lead.id]?.trim();
+              if (!avatarUrl && !company) return lead;
+              return {
+                ...lead,
+                ...(avatarUrl ? { avatarUrl, avatarChecked: true } : {}),
+                ...(company && !lead.company.trim() ? { company } : {}),
+              };
+            }),
           );
         });
       })

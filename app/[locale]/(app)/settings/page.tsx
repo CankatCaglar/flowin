@@ -83,6 +83,9 @@ export default function SettingsPage() {
               {selectedBrand.linkedinEmail ? (
                 <p className="mt-1 truncate text-sm text-muted">{selectedBrand.linkedinEmail}</p>
               ) : null}
+              {selectedBrand.linkedinCompany ? (
+                <p className="mt-1 truncate text-sm text-muted">{selectedBrand.linkedinCompany}</p>
+              ) : null}
               {linkedinHref ? (
                 <a
                   href={linkedinHref}

@@ -44,6 +44,12 @@ export function isStoredLeadAvatarUrl(url: string) {
   return path.startsWith("/api/leads/") && path.endsWith("/avatar");
 }
 
+export const MISSING_LEAD_AVATAR = "none";
+
+export function isMissingLeadAvatar(url: string) {
+  return url.trim() === MISSING_LEAD_AVATAR;
+}
+
 export function isRemoteAvatarUrl(url: string) {
   return /^https?:\/\//i.test(url) && !isStoredAvatarUrl(url) && !isStoredLeadAvatarUrl(url);
 }

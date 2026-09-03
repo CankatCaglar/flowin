@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useBrand } from "@/contexts/BrandContext";
 import { useRouter } from "@/i18n/navigation";
-import { formatPercent } from "@/lib/utils";
+import { cn, EMPTY_METRIC, formatPercent } from "@/lib/utils";
 import type { Brand } from "@/types";
 
 export default function BrandsPage() {
@@ -35,13 +35,34 @@ function BrandsFallback() {
   );
 }
 
+function BrandCardSkeletons() {
+  return (
+    <>
+      {Array.from({ length: 4 }, (_, index) => (
+        <div
+          key={`brand-skeleton-${index}`}
+          className="admin-card animate-pulse rounded-2xl p-5"
+          aria-hidden
+        >
+          <div className="mx-auto h-16 w-16 rounded-full bg-white/10" />
+          <div className="mx-auto mt-4 h-4 w-24 rounded bg-white/10" />
+          <div className="mx-auto mt-2 h-3 w-16 rounded bg-white/5" />
+          <div className="mx-auto mt-4 h-3 w-28 rounded bg-white/5" />
+          <div className="mx-auto mt-2 h-3 w-20 rounded bg-white/5" />
+          <div className="mx-auto mt-5 h-7 w-32 rounded-lg bg-white/5" />
+        </div>
+      ))}
+    </>
+  );
+}
+
 function BrandsPageInner() {
   const t = useTranslations("brands");
   const common = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { brands, loading, selectBrand, editBrand, removeBrand, refresh } = useBrand();
+  const { brands, loading, failed, selectBrand, editBrand, removeBrand, refresh } = useBrand();
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Brand | null>(null);
@@ -60,9 +81,14 @@ function BrandsPageInner() {
 
   const filtered = useMemo(
     () =>
-      brands.filter((brand) =>
-        brand.name.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)),
-      ),
+      brands.filter((brand) => {
+        const term = query.trim().toLocaleLowerCase(locale);
+        if (!term) return true;
+        return [brand.name, brand.linkedinCompany ?? ""]
+          .join(" ")
+          .toLocaleLowerCase(locale)
+          .includes(term);
+      }),
     [brands, locale, query],
   );
 
@@ -146,7 +172,8 @@ function BrandsPageInner() {
         </div>
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {filtered.map((brand) => {
+          {loading ? <BrandCardSkeletons /> : null}
+          {loading ? null : filtered.map((brand) => {
             const stats = {
               activeCampaigns: brand.activeCampaigns ?? 0,
               successRate: brand.successRate ?? 0,
@@ -155,7 +182,7 @@ function BrandsPageInner() {
             return (
               <article
                 key={brand.id}
-                className="admin-card rounded-2xl p-5 text-center"
+                className="admin-card animate-rise rounded-2xl p-5 text-center"
               >
                 <button
                   type="button"
@@ -173,9 +200,9 @@ function BrandsPageInner() {
                     className="mx-auto"
                   />
                   <h2 className="mt-4 text-lg font-semibold text-white">{brand.name}</h2>
-                  {brand.linkedinEmail ? (
-                    <p className="mt-1 truncate text-[12px] text-white/45">{brand.linkedinEmail}</p>
-                  ) : null}
+                  <p className="mt-1 truncate text-[12px] text-white/45">
+                    {brand.linkedinCompany || EMPTY_METRIC}
+                  </p>
                   <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-white/60">
                     <LinkedInIcon className="h-3.5 w-3.5" />
                     {t("connected")}
@@ -242,7 +269,10 @@ function BrandsPageInner() {
           <button
             type="button"
             onClick={() => setConnectOpen(true)}
-            className="admin-card flex flex-col items-center justify-center rounded-2xl p-5 text-center hover:border-purple-jam/60"
+            className={cn(
+              "admin-card flex flex-col items-center justify-center rounded-2xl p-5 text-center hover:border-purple-jam/60",
+              loading && "hidden",
+            )}
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-purple-jam/60 text-barney">
               <Plus className="h-6 w-6" />
@@ -252,11 +282,20 @@ function BrandsPageInner() {
           </button>
         </div>
 
-        {!loading && brands.length === 0 ? (
+        {failed ? (
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <p className="text-center text-sm text-amber-200/90">{t("loadFailed")}</p>
+            <Button variant="ghost" onClick={() => void refresh()}>
+              {common("retry")}
+            </Button>
+          </div>
+        ) : null}
+
+        {!loading && !failed && brands.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/50">{t("emptyList")}</p>
         ) : null}
 
-        {!loading && brands.length > 0 && filtered.length === 0 ? (
+        {!loading && !failed && brands.length > 0 && filtered.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/50">{t("emptySearch")}</p>
         ) : null}
 

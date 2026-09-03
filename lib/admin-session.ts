@@ -70,3 +70,9 @@ export async function getAdminSessionEmail() {
 export async function requireAdminEmail() {
   return getAdminSessionEmail();
 }
+
+export async function adminSessionUser() {
+  const email = await getAdminSessionEmail();
+  if (!email) return null;
+  return { uid: "flowin-admin", email, displayName: "Admin" };
+}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Nunito, Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { adminSessionUser } from "@/lib/admin-session";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -25,15 +26,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await adminSessionUser();
   return (
     <html lang="tr" className={`${poppins.variable} ${nunito.variable} h-full antialiased`}>
       <body className="h-full overflow-hidden font-sans">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialUser={user}>{children}</AppProviders>
         <Analytics />
       </body>
     </html>

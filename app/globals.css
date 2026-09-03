@@ -87,6 +87,27 @@ a[aria-disabled="true"] {
   box-shadow: 0 10px 30px rgb(32 6 36 / 0.06);
 }
 
+@keyframes flowin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: flowin-rise 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
+}
+
 input[type="date"].hide-native-date-icon::-webkit-calendar-picker-indicator {
   opacity: 0;
   position: absolute;

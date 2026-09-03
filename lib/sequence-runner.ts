@@ -10,6 +10,7 @@ import {
   saveLead,
   todayPacingUsage,
 } from "@/lib/outreach-data";
+import { SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { isQuietHours, normalizePacing, normalizeSchedule, warmupPacing } from "@/lib/pacing";
 import {
@@ -23,6 +24,7 @@ import {
   tomorrowMorning,
 } from "@/lib/sequence";
 import {
+  companyFromUnipileProfile,
   getUnipileProfile,
   isFirstDegree,
   reportProfileVisit,
@@ -30,6 +32,7 @@ import {
   startUnipileChat,
   UnipileError,
   unipilePictureUrl,
+  type UnipileProfile,
 } from "@/lib/unipile";
 import { ingestLeadAvatar, isStoredLeadAvatarUrl } from "@/lib/brand-avatar";
 import type { Campaign, CampaignFlowStep, Lead } from "@/types";
@@ -50,6 +53,8 @@ function stepCopy(step: CampaignFlowStep, lead: Lead) {
 }
 
 async function applyProfilePhoto(lead: Lead, profile: unknown) {
+  const company = companyFromUnipileProfile((profile ?? {}) as UnipileProfile);
+  if (company && !lead.company.trim()) lead.company = company;
   if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) {
     lead.avatarChecked = true;
     return;
@@ -103,8 +108,9 @@ async function applyUsage(
 }
 
 function appendHistory(lead: Lead, kind: Lead["history"][number]["kind"]) {
-  lead.history = [...lead.history, { kind, at: new Date() }];
-  lead.lastMessageSentAt = new Date();
+  const at = new Date();
+  lead.history = [...lead.history, { kind, at }];
+  if (SEND_EVENT_KINDS.includes(kind)) lead.lastMessageSentAt = at;
 }
 
 function scheduleNext(

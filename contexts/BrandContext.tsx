@@ -17,6 +17,7 @@ interface BrandContextValue {
   brands: Brand[];
   selectedBrand: Brand | null;
   loading: boolean;
+  failed: boolean;
   selectBrand: (brandId: string | null) => void;
   addBrand: (input: {
     name: string;
@@ -55,40 +56,61 @@ interface BrandContextValue {
 
 const BrandContext = createContext<BrandContextValue | null>(null);
 
+const LOAD_RETRIES = 2;
+const RETRY_DELAY_MS = 500;
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function BrandProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, endSession } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setFailed(false);
     try {
-      let next: Brand[] = [];
-      try {
-        next = await fetchBrands();
-      } catch {
-        next = [];
-      }
-      setBrands(next);
-      const stored = readSelectedBrandId();
-      setSelectedBrandId((current) => {
-        const candidate = current ?? stored;
-        if (candidate && next.some((brand) => brand.id === candidate)) {
-          return candidate;
+      // A dropped session or a hiccup on the Firestore call used to leave the
+      // brands page silently empty, so retry before giving up.
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const next = await fetchBrands();
+          setBrands(next);
+          const stored = readSelectedBrandId();
+          setSelectedBrandId((current) => {
+            const candidate = current ?? stored;
+            return candidate && next.some((brand) => brand.id === candidate) ? candidate : null;
+          });
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.message === "unauthorized") {
+            setBrands([]);
+            setSelectedBrandId(null);
+            endSession();
+            return;
+          }
+          if (attempt >= LOAD_RETRIES) {
+            setFailed(true);
+            return;
+          }
+          await wait(RETRY_DELAY_MS * (attempt + 1));
         }
-        return null;
-      });
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [endSession]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       setBrands([]);
       setSelectedBrandId(null);
+      setFailed(false);
       setLoading(false);
       return;
     }
@@ -183,13 +205,14 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       brands,
       selectedBrand,
       loading,
+      failed,
       selectBrand,
       addBrand,
       editBrand,
       removeBrand,
       refresh,
     }),
-    [brands, selectedBrand, loading, selectBrand, addBrand, editBrand, removeBrand, refresh],
+    [brands, selectedBrand, loading, failed, selectBrand, addBrand, editBrand, removeBrand, refresh],
   );
 
   return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>;

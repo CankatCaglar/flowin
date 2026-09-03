@@ -17,6 +17,8 @@ export function colorFromKey(key: string) {
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
+export const EMPTY_METRIC = "—";
+
 export function formatNumber(value: number, locale: string) {
   return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(value);
 }
@@ -81,6 +83,11 @@ export function personInitials(name: string) {
 export function successRate(sent: number, replied: number) {
   if (sent <= 0) return 0;
   return (replied / sent) * 100;
+}
+
+export function formatSuccessRate(sent: number, replied: number, locale: string) {
+  if (sent <= 0) return EMPTY_METRIC;
+  return formatPercent(successRate(sent, replied), locale);
 }
 
 export function trendPercent(current: number, previous: number) {

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createBrand, deleteBrand, fetchBrands, updateBrand } from "@/lib/brands-api";
@@ -69,9 +70,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const ready = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!ready.current) setLoading(true);
     setFailed(false);
     try {
       // A dropped session or a hiccup on the Firestore call used to leave the
@@ -79,6 +81,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       for (let attempt = 0; ; attempt += 1) {
         try {
           const next = await fetchBrands();
+          ready.current = true;
           setBrands(next);
           const stored = readSelectedBrandId();
           setSelectedBrandId((current) => {
@@ -108,6 +111,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
+      ready.current = false;
       setBrands([]);
       setSelectedBrandId(null);
       setFailed(false);

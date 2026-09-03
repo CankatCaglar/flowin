@@ -9,6 +9,7 @@ import { CampaignStatusFilter } from "@/components/campaigns/CampaignStatusFilte
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { TableRowSkeleton } from "@/components/ui/PageSkeleton";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -206,6 +207,7 @@ export default function CampaignsPage() {
             </tr>
           </thead>
           <tbody>
+            {loading && rows.length === 0 ? <TableRowSkeleton cols={8} /> : null}
             {rows.map((campaign) => {
               const visual = campaignIconStyle(campaign.id);
               const Icon = visual.icon;

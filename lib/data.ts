@@ -140,14 +140,8 @@ export async function requireBrandDocs() {
 let brandIdsMigrated = false;
 
 export async function fetchBrands(): Promise<Brand[]> {
-  const db = requireFirebaseDb();
-  const [snapshot, summaries] = await Promise.all([
-    db.collection("brands").get(),
-    fetchBrandSummaries().catch(
-      () => ({}) as Record<string, { activeCampaigns: number; successRate: number }>,
-    ),
-  ]);
-  const brands = snapshot.docs.map((item) => {
+  const snapshot = await requireFirebaseDb().collection("brands").get();
+  return snapshot.docs.map((item) => {
     const data = item.data();
     return hydrateBrandRecord({
       id: item.id,
@@ -168,11 +162,10 @@ export async function fetchBrands(): Promise<Brand[]> {
       testMode: data.testMode,
       archived: data.archived,
       alerts: data.alerts,
-      activeCampaigns: summaries[item.id]?.activeCampaigns ?? 0,
-      successRate: summaries[item.id]?.successRate ?? 0,
+      activeCampaigns: Number(data.activeCampaigns ?? 0),
+      successRate: Number(data.successRate ?? 0),
     });
   });
-  return brands;
 }
 
 // Unipile lookups are slow, so they run after the response instead of blocking
@@ -253,6 +246,25 @@ export async function runBrandListSideEffects(brands: Brand[]) {
     await syncUnipileSeats();
   } catch (error) {
     console.error("[unipile] seat sync skipped:", error instanceof Error ? error.message : error);
+  }
+  try {
+    const summaries = await fetchBrandSummaries();
+    const db = requireFirebaseDb();
+    await Promise.all(
+      brands.map((brand) => {
+        const stats = summaries[brand.id];
+        if (!stats) return undefined;
+        return db.collection("brands").doc(brand.id).update({
+          activeCampaigns: stats.activeCampaigns,
+          successRate: stats.successRate,
+        });
+      }),
+    );
+  } catch (error) {
+    console.error(
+      "[brands] summary persist skipped:",
+      error instanceof Error ? error.message : error,
+    );
   }
   try {
     await enrichBrandCompanies(await backfillBrandPublicIds(brands));

@@ -63,7 +63,8 @@ export function RouteGuard({
     pathname,
   ]);
 
-  if (authLoading || (requireBrand && brandLoading)) {
+  const storedBrandId = selectedBrand?.id ?? (requireBrand ? readSelectedBrandId() : null);
+  if (authLoading || (requireBrand && brandLoading && !selectedBrand && !storedBrandId)) {
     return (
       <div
         className={cn(

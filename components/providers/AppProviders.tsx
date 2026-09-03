@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BrandDataProvider } from "@/contexts/BrandDataContext";
 import { BrandProvider } from "@/contexts/BrandContext";
 import { DateRangeProvider } from "@/contexts/DateRangeContext";
 import { MenuProvider } from "@/contexts/MenuContext";
@@ -16,11 +17,13 @@ export function AppProviders({
   return (
     <AuthProvider initialUser={initialUser}>
       <BrandProvider>
-        <DateRangeProvider>
-          <MenuProvider>
-            <div className="h-full">{children}</div>
-          </MenuProvider>
-        </DateRangeProvider>
+        <BrandDataProvider>
+          <DateRangeProvider>
+            <MenuProvider>
+              <div className="h-full">{children}</div>
+            </MenuProvider>
+          </DateRangeProvider>
+        </BrandDataProvider>
       </BrandProvider>
     </AuthProvider>
   );

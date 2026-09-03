@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { ActiveCampaignsTable } from "@/components/dashboard/ActiveCampaignsTable";
 import { AttentionList } from "@/components/dashboard/AttentionList";
 import { FeaturedInsights } from "@/components/dashboard/FeaturedInsights";
@@ -9,6 +8,7 @@ import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { useBrand } from "@/contexts/BrandContext";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useBrandData } from "@/hooks/useBrandData";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import {
   averageReplyDays,
   bestCampaign,
@@ -21,13 +21,12 @@ import {
 } from "@/lib/metrics";
 
 export default function DashboardPage() {
-  const t = useTranslations("common");
   const { selectedBrand } = useBrand();
   const { range, now } = useDateRange();
   const { campaigns, leads, stats, loading } = useBrandData(selectedBrand?.id ?? null);
 
   if (loading) {
-    return <p className="text-sm text-muted">{t("loading")}</p>;
+    return <PageSkeleton />;
   }
 
   const kpis = kpiMetrics(campaigns, stats, range, leads);

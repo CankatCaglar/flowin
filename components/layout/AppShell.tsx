@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-6">{children}</main>
       </div>
     </div>
   );

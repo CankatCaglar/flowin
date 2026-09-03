@@ -1,12 +1,12 @@
 export function PageSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="animate-pulse space-y-4" aria-hidden>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={`kpi-${index}`} className="surface-card h-24 rounded-2xl" />
+          <div key={`kpi-${index}`} className="surface-card h-20 rounded-2xl sm:h-24" />
         ))}
       </div>
-      <div className="surface-card h-64 rounded-2xl" />
+      <div className="surface-card h-52 rounded-2xl sm:h-64" />
       {Array.from({ length: rows }, (_, index) => (
         <div key={`row-${index}`} className="h-10 rounded-xl bg-white/80" />
       ))}

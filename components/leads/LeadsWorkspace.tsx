@@ -99,13 +99,13 @@ export function LeadsWorkspace({
   return (
     <div
       className={cn(
-        "grid items-stretch gap-6",
+        "grid items-stretch gap-4 sm:gap-6",
         selected ? "xl:grid-cols-[minmax(0,1fr)_26rem]" : "grid-cols-1",
       )}
     >
       <div className="surface-card flex min-h-0 flex-col overflow-hidden rounded-2xl">
-        <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-b border-purple-jam/8 p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <label className="relative min-w-40 flex-1">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-purple-jam/8 p-3 [scrollbar-width:none] sm:gap-3 sm:p-4 [&::-webkit-scrollbar]:hidden">
+          <label className="relative min-w-36 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input
               value={query}
@@ -114,14 +114,14 @@ export function LeadsWorkspace({
                 setPage(1);
               }}
               placeholder={t("searchPlaceholder")}
-              className="h-10 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40"
+              className="h-9 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40 sm:h-10"
             />
           </label>
           {showCampaign ? (
             <SelectMenu
               id="leads-campaign"
               className="w-48 shrink-0"
-              triggerClassName="h-10"
+              triggerClassName="h-9 sm:h-10"
               value={campaignId}
               ariaLabel={t("campaign")}
               options={[
@@ -137,7 +137,7 @@ export function LeadsWorkspace({
           <SelectMenu
             id="leads-stage"
             className="w-44 shrink-0"
-            triggerClassName="h-10"
+            triggerClassName="h-9 sm:h-10"
             value={stage}
             ariaLabel={t("stage")}
             options={[
@@ -152,7 +152,7 @@ export function LeadsWorkspace({
           <SelectMenu
             id="leads-status"
             className="w-44 shrink-0"
-            triggerClassName="h-10"
+            triggerClassName="h-9 sm:h-10"
             value={status}
             ariaLabel={t("status")}
             options={[
@@ -166,7 +166,7 @@ export function LeadsWorkspace({
           />
           <Button
             variant="brand"
-            className="h-10 shrink-0"
+            className="h-9 shrink-0 px-2.5 sm:h-10 sm:px-4"
             onClick={() =>
               exportLeadsCsv(filtered, {
                 campaignNames,
@@ -177,12 +177,12 @@ export function LeadsWorkspace({
             }
           >
             <Upload className="h-4 w-4" />
-            {t("export")}
+            <span className="hidden sm:inline">{t("export")}</span>
           </Button>
           {onAddLead ? (
-            <Button className="h-10 shrink-0" onClick={() => setAddOpen(true)}>
+            <Button className="h-9 shrink-0 px-2.5 sm:h-10 sm:px-4" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />
-              {t("add")}
+              <span className="hidden sm:inline">{t("add")}</span>
             </Button>
           ) : null}
         </div>

@@ -17,9 +17,11 @@ export type CampaignDatePreset = "all" | "last7" | "thisMonth";
 export function CampaignDateFilter({
   value,
   onChange,
+  className,
 }: {
   value: CampaignDatePreset;
   onChange: (value: CampaignDatePreset) => void;
+  className?: string;
 }) {
   const t = useTranslations("campaigns");
   const header = useTranslations("header");
@@ -36,18 +38,20 @@ export function CampaignDateFilter({
   const selected = options.find((option) => option.value === value);
 
   return (
-    <div className="relative shrink-0" ref={rootRef}>
+    <div className={cn("relative min-w-0", className)} ref={rootRef}>
       <button
         type="button"
         onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex h-10 items-center gap-2 rounded-xl border border-purple-jam/15 bg-white px-3 text-sm text-ink"
+        aria-label={selected?.label}
+        title={selected?.label}
+        className="inline-flex h-9 w-full min-w-0 items-center gap-1 rounded-xl border border-purple-jam/15 bg-white px-2 text-xs text-ink sm:h-10 sm:gap-1.5 sm:px-3 sm:text-sm"
       >
-        <Calendar className="h-4 w-4 text-barney" />
-        <span className="whitespace-nowrap">{selected?.label}</span>
+        <Calendar className="h-3.5 w-3.5 shrink-0 text-barney sm:h-4 sm:w-4" />
+        <span className="min-w-0 flex-1 truncate text-left">{selected?.label}</span>
         <ChevronDown
-          className={cn("h-4 w-4 text-muted transition-transform", open && "rotate-180")}
+          className={cn("h-3.5 w-3.5 shrink-0 text-muted transition-transform sm:h-4 sm:w-4", open && "rotate-180")}
         />
       </button>
       <AnchoredMenu open={open} anchorRef={rootRef} align="right" panelRef={panelRef}>

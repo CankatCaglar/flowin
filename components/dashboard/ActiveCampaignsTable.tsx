@@ -18,9 +18,9 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
     .slice(0, VISIBLE_ROWS);
 
   return (
-    <article className="surface-card flex h-full flex-col rounded-2xl p-5">
-      <h2 className="text-base font-semibold text-ink">{t("title")}</h2>
-      <div className="mt-4 flex-1 overflow-x-auto">
+    <article className="surface-card flex h-full flex-col rounded-2xl p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-ink sm:text-base">{t("title")}</h2>
+      <div className="mt-3 flex-1 overflow-x-auto sm:mt-4">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="bg-canvas/80 text-xs uppercase tracking-wide text-muted">
             <tr>

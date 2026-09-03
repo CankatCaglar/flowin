@@ -132,10 +132,10 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div>
+    <div className="min-w-0 overflow-x-hidden">
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <div className="mb-4 flex items-center gap-2">
-        <label className="relative w-44 shrink-0 sm:w-52">
+      <div className="mb-4 min-w-0 space-y-2">
+        <label className="relative block w-full min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={query}
@@ -144,27 +144,35 @@ export default function CampaignsPage() {
               setPage(1);
             }}
             placeholder={t("searchPlaceholder")}
-            className="h-10 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40"
+            className="h-9 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40 sm:h-10"
           />
         </label>
-        <CampaignStatusFilter
-          value={filter}
-          onChange={(value) => {
-            setFilter(value);
-            setPage(1);
-          }}
-        />
-        <CampaignDateFilter
-          value={dateFilter}
-          onChange={(value) => {
-            setDateFilter(value);
-            setPage(1);
-          }}
-        />
-        <Button className="h-10 shrink-0" onClick={() => router.push("/campaigns/new")}>
-          <Plus className="h-4 w-4" />
-          {t("new")}
-        </Button>
+        <div className="flex min-w-0 items-stretch gap-1.5 sm:gap-2">
+          <CampaignStatusFilter
+            layout="select"
+            className="min-w-0 flex-[1.15]"
+            value={filter}
+            onChange={(value) => {
+              setFilter(value);
+              setPage(1);
+            }}
+          />
+          <CampaignDateFilter
+            className="min-w-0 flex-1"
+            value={dateFilter}
+            onChange={(value) => {
+              setDateFilter(value);
+              setPage(1);
+            }}
+          />
+          <Button
+            className="h-9 min-w-0 shrink-0 gap-1 px-2 sm:h-10 sm:gap-1.5 sm:px-3"
+            onClick={() => router.push("/campaigns/new")}
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            <span className="truncate text-xs sm:text-sm">{t("new")}</span>
+          </Button>
+        </div>
       </div>
       <div className="surface-card overflow-x-auto rounded-2xl">
         <table className="w-full min-w-220 text-left text-sm">

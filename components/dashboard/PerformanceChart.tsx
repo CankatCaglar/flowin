@@ -105,13 +105,14 @@ export function PerformanceChart({ data }: { data: Point[] }) {
   }, [metric, yMax]);
 
   return (
-    <article className="surface-card rounded-2xl p-5">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-ink">{t("title")}</h2>
+    <article className="surface-card min-w-0 overflow-hidden rounded-2xl p-4 sm:p-5">
+      <div className="mb-4 flex min-w-0 flex-col gap-2 sm:mb-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <h2 className="shrink-0 text-sm font-semibold text-ink sm:text-base">{t("title")}</h2>
         <SelectMenu
           id="performance-metric"
           align="right"
-          className="w-56"
+          className="min-w-0 w-full sm:w-56"
+          triggerClassName="h-9 text-xs sm:h-9 sm:text-sm"
           ariaLabel={t("metric")}
           value={metric}
           options={metrics.map((option) => ({ value: option, label: t(option) }))}
@@ -119,10 +120,10 @@ export function PerformanceChart({ data }: { data: Point[] }) {
         />
       </div>
       <div
-        className="h-72 select-none outline-none [&_*]:outline-none [&_svg]:outline-none"
+        className="h-56 min-w-0 w-full max-w-full overflow-hidden select-none outline-none sm:h-72 [&_*]:outline-none [&_svg]:outline-none"
         onMouseDown={(event) => event.preventDefault()}
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ComposedChart
             data={chartData}
             margin={{ top: 16, right: 16, left: 4, bottom: 8 }}

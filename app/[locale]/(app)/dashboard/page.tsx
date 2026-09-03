@@ -33,10 +33,10 @@ export default function DashboardPage() {
   const series = chartSeries(stats, range);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
       <KpiCards {...kpis} />
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+      <div className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-3">
+        <div className="min-w-0 xl:col-span-2">
           <PerformanceChart data={series} />
         </div>
         <AttentionList
@@ -49,8 +49,8 @@ export default function DashboardPage() {
           showLowResponse={selectedBrand?.alerts?.lowLeads !== false}
         />
       </div>
-      <div className="grid items-stretch gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+      <div className="grid min-w-0 items-stretch gap-4 sm:gap-6 xl:grid-cols-3">
+        <div className="min-w-0 xl:col-span-2">
           <ActiveCampaignsTable campaigns={campaigns} />
         </div>
         <FeaturedInsights

@@ -33,12 +33,13 @@ export function UserMenu({
       <button
         type="button"
         onClick={toggle}
+        aria-label={user.displayName}
         className={cn(
-          "flex items-center gap-3 rounded-xl px-2 py-1.5 text-left",
+          "flex items-center rounded-xl px-1 py-1 text-left sm:gap-3 sm:px-2 sm:py-1.5",
           variant === "dark" ? "hover:bg-white/5" : "hover:bg-canvas",
         )}
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-barney text-sm font-semibold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-barney text-sm font-semibold text-white sm:h-9 sm:w-9">
           {initial}
         </span>
         <span className="hidden sm:block">
@@ -61,7 +62,7 @@ export function UserMenu({
         </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4",
+            "hidden h-4 w-4 sm:block",
             variant === "dark" ? "text-white/50" : "text-muted",
           )}
         />

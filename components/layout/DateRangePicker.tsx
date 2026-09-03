@@ -63,10 +63,12 @@ export function DateRangePicker() {
       <button
         type="button"
         onClick={toggle}
-        className="inline-flex items-center gap-2 rounded-xl border border-purple-jam/15 bg-white px-3 py-2 text-sm text-ink"
+        aria-label={label}
+        title={label}
+        className="inline-flex h-9 max-w-full items-center gap-1 rounded-xl border border-purple-jam/15 bg-white px-2 text-xs text-ink sm:gap-1.5 sm:px-3 sm:text-sm"
       >
-        <Calendar className="h-4 w-4 text-barney" />
-        {label}
+        <Calendar className="h-3.5 w-3.5 shrink-0 text-barney sm:h-4 sm:w-4" />
+        <span className="min-w-0 max-w-[5.5rem] truncate sm:max-w-[8rem] md:max-w-none">{label}</span>
       </button>
       <AnchoredMenu
         open={open}

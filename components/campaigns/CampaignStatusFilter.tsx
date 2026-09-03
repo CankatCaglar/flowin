@@ -18,9 +18,13 @@ const FILTERS: Array<"all" | CampaignStatus> = [
 export function CampaignStatusFilter({
   value,
   onChange,
+  layout = "auto",
+  className,
 }: {
   value: (typeof FILTERS)[number];
   onChange: (value: (typeof FILTERS)[number]) => void;
+  layout?: "auto" | "select";
+  className?: string;
 }) {
   const t = useTranslations("campaigns");
   const statusT = useTranslations("status");
@@ -38,6 +42,7 @@ export function CampaignStatusFilter({
   );
 
   useLayoutEffect(() => {
+    if (layout === "select") return;
     const slot = slotRef.current;
     const measure = measureRef.current;
     if (!slot || !measure) return;
@@ -49,10 +54,19 @@ export function CampaignStatusFilter({
     const observer = new ResizeObserver(update);
     observer.observe(slot);
     return () => observer.disconnect();
-  }, [options]);
+  }, [layout, options]);
+
+  const useSelect = layout === "select" || compact;
 
   return (
-    <div ref={slotRef} className="relative min-h-10 min-w-0 flex-1 overflow-hidden">
+    <div
+      ref={slotRef}
+      className={cn(
+        "relative min-w-0 overflow-hidden",
+        layout === "select" ? "min-h-9 sm:min-h-10" : "min-h-10 flex-1",
+        className,
+      )}
+    >
       <div
         ref={measureRef}
         aria-hidden
@@ -67,11 +81,11 @@ export function CampaignStatusFilter({
           </span>
         ))}
       </div>
-      {compact ? (
+      {useSelect ? (
         <SelectMenu
           id="campaigns-status-filter"
-          className="w-44"
-          triggerClassName="h-10 border-barney font-medium text-barney"
+          className="w-full"
+          triggerClassName="h-9 border-barney px-2 text-xs font-medium text-barney sm:h-10 sm:px-3 sm:text-sm"
           value={value}
           ariaLabel={t("status")}
           options={options}

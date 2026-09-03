@@ -53,16 +53,16 @@ export function FeaturedInsights({
   ];
 
   return (
-    <article className="surface-card flex h-full flex-col rounded-2xl p-5">
-      <h2 className="text-base font-semibold text-ink">{t("title")}</h2>
-      <div className="mt-4 flex flex-1 flex-col justify-center space-y-3">
+    <article className="surface-card flex h-full flex-col rounded-2xl p-4 sm:p-5">
+      <h2 className="text-sm font-semibold text-ink sm:text-base">{t("title")}</h2>
+      <div className="mt-3 flex flex-1 flex-col justify-center space-y-2.5 sm:mt-4 sm:space-y-3">
         {items.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.title}
               href={item.href}
-              className="flex items-center gap-3 rounded-xl border border-purple-jam/10 bg-white px-3 py-3"
+              className="flex items-center gap-2.5 rounded-xl border border-purple-jam/10 bg-white px-2.5 py-2.5 sm:gap-3 sm:px-3 sm:py-3"
             >
               <Icon className={`h-4 w-4 shrink-0 ${item.iconClass}`} />
               <span className="min-w-0 flex-1">

@@ -46,19 +46,27 @@ export function Header({
 
   if (!selectedBrand) return null;
 
+  const mobileTitle =
+    crumb?.kind === "new"
+      ? campaignsT("create.title")
+      : campaignName ?? t(pageKey);
+
   return (
-    <header className="flex h-app-header shrink-0 items-center justify-between gap-3 border-b border-purple-jam/10 bg-white px-4 sm:px-5 lg:px-6">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="flex h-app-header shrink-0 items-center justify-between gap-2 border-b border-purple-jam/10 bg-white px-3 sm:gap-3 sm:px-5 lg:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={onOpenMobileMenu}
           aria-label={t("openMenu")}
-          className="rounded-lg p-2 text-ink hover:bg-canvas lg:hidden"
+          className="-ml-1 rounded-lg p-1.5 text-ink hover:bg-canvas lg:hidden"
         >
           <Menu className="h-5 w-5" />
         </button>
-        <BrandAvatar brand={selectedBrand} size="sm" />
-        <p className="truncate font-display text-sm font-medium text-ink">
+        <BrandAvatar brand={selectedBrand} size="sm" className="hidden shrink-0 sm:block" />
+        <p className="min-w-0 truncate font-display text-sm font-semibold text-ink lg:hidden">
+          {mobileTitle}
+        </p>
+        <p className="hidden min-w-0 truncate font-display text-sm font-medium text-ink lg:block">
           {selectedBrand.name}
           <span className="text-muted"> / {t(pageKey)}</span>
           {crumb?.kind === "new" ? (
@@ -67,7 +75,7 @@ export function Header({
           {campaignName ? <span className="text-muted"> / {campaignName}</span> : null}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {showDate ? <DateRangePicker /> : null}
         <UserMenu variant="light" />
       </div>

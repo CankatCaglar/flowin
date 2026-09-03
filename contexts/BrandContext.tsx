@@ -73,14 +73,11 @@ function wait(ms: number) {
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading, endSession } = useAuth();
-  const cached = typeof window !== "undefined" ? readBrandsCache() : [];
-  const [brands, setBrands] = useState<Brand[]>(cached);
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(() =>
-    typeof window !== "undefined" ? readSelectedBrandId() : null,
-  );
-  const [loading, setLoading] = useState(cached.length === 0);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(() => user != null);
   const [failed, setFailed] = useState(false);
-  const ready = useRef(cached.length > 0);
+  const ready = useRef(false);
 
   const applyBrands = useCallback((next: Brand[]) => {
     const hydrated = next.map(hydrateBrandDates);
@@ -103,6 +100,18 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     },
     [applyBrands],
   );
+
+  useEffect(() => {
+    const cached = readBrandsCache();
+    const stored = readSelectedBrandId();
+    if (cached.length > 0) {
+      applyBrands(cached);
+      return;
+    }
+    if (stored) {
+      setSelectedBrandId(stored);
+    }
+  }, [applyBrands]);
 
   const refresh = useCallback(async () => {
     if (!ready.current) setLoading(true);

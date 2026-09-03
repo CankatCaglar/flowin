@@ -25,6 +25,29 @@ export function writeSelectedBrandId(brandId: string | null) {
   else window.localStorage.removeItem(BRAND_KEY);
 }
 
+const BRANDS_CACHE_KEY = "flowin.brands.v1";
+
+export function readBrandsCache(): Brand[] {
+  if (!canUseStorage()) return [];
+  try {
+    const raw = window.sessionStorage.getItem(BRANDS_CACHE_KEY);
+    if (!raw) return [];
+    const rows = JSON.parse(raw) as Brand[];
+    return Array.isArray(rows) ? rows.map(hydrateBrandDates) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeBrandsCache(brands: Brand[]) {
+  if (!canUseStorage()) return;
+  try {
+    window.sessionStorage.setItem(BRANDS_CACHE_KEY, JSON.stringify(brands));
+  } catch {
+    // Ignore quota / private-mode failures.
+  }
+}
+
 export function hydrateBrandDates(brand: Brand): Brand {
   return {
     ...brand,

@@ -1,16 +1,5 @@
-import { getAdminSessionEmail } from "@/lib/admin-session";
-import { redirect } from "@/i18n/navigation";
+import { BrandsBootstrap } from "@/components/brands/BrandsBootstrap";
 
-export default async function BrandsLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  if (!(await getAdminSessionEmail())) {
-    redirect({ href: "/login", locale });
-  }
-  return children;
+export default function BrandsLayout({ children }: { children: React.ReactNode }) {
+  return <BrandsBootstrap>{children}</BrandsBootstrap>;
 }

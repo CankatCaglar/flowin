@@ -10,7 +10,13 @@ import {
   useState,
 } from "react";
 import { createBrand, deleteBrand, fetchBrands, updateBrand } from "@/lib/brands-api";
-import { readSelectedBrandId, writeSelectedBrandId } from "@/lib/storage";
+import {
+  hydrateBrandDates,
+  readBrandsCache,
+  readSelectedBrandId,
+  writeBrandsCache,
+  writeSelectedBrandId,
+} from "@/lib/storage";
 import type { Brand } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,6 +26,7 @@ interface BrandContextValue {
   loading: boolean;
   failed: boolean;
   selectBrand: (brandId: string | null) => void;
+  seedBrands: (brands: Brand[]) => void;
   addBrand: (input: {
     name: string;
     avatarColor: string;
@@ -66,33 +73,50 @@ function wait(ms: number) {
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading, endSession } = useAuth();
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = typeof window !== "undefined" ? readBrandsCache() : [];
+  const [brands, setBrands] = useState<Brand[]>(cached);
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? readSelectedBrandId() : null,
+  );
+  const [loading, setLoading] = useState(cached.length === 0);
   const [failed, setFailed] = useState(false);
-  const ready = useRef(false);
+  const ready = useRef(cached.length > 0);
+
+  const applyBrands = useCallback((next: Brand[]) => {
+    const hydrated = next.map(hydrateBrandDates);
+    ready.current = true;
+    setBrands(hydrated);
+    writeBrandsCache(hydrated);
+    const stored = readSelectedBrandId();
+    setSelectedBrandId((current) => {
+      const candidate = current ?? stored;
+      return candidate && hydrated.some((brand) => brand.id === candidate) ? candidate : null;
+    });
+    setLoading(false);
+    setFailed(false);
+  }, []);
+
+  const seedBrands = useCallback(
+    (next: Brand[]) => {
+      if (!next.length) return;
+      applyBrands(next);
+    },
+    [applyBrands],
+  );
 
   const refresh = useCallback(async () => {
     if (!ready.current) setLoading(true);
     setFailed(false);
     try {
-      // A dropped session or a hiccup on the Firestore call used to leave the
-      // brands page silently empty, so retry before giving up.
       for (let attempt = 0; ; attempt += 1) {
         try {
-          const next = await fetchBrands();
-          ready.current = true;
-          setBrands(next);
-          const stored = readSelectedBrandId();
-          setSelectedBrandId((current) => {
-            const candidate = current ?? stored;
-            return candidate && next.some((brand) => brand.id === candidate) ? candidate : null;
-          });
+          applyBrands(await fetchBrands());
           return;
         } catch (error) {
           if (error instanceof Error && error.message === "unauthorized") {
             setBrands([]);
             setSelectedBrandId(null);
+            writeBrandsCache([]);
             endSession();
             return;
           }
@@ -106,7 +130,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [endSession]);
+  }, [applyBrands, endSession]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -114,6 +138,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       ready.current = false;
       setBrands([]);
       setSelectedBrandId(null);
+      writeBrandsCache([]);
       setFailed(false);
       setLoading(false);
       return;
@@ -211,12 +236,24 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       loading,
       failed,
       selectBrand,
+      seedBrands,
       addBrand,
       editBrand,
       removeBrand,
       refresh,
     }),
-    [brands, selectedBrand, loading, failed, selectBrand, addBrand, editBrand, removeBrand, refresh],
+    [
+      brands,
+      selectedBrand,
+      loading,
+      failed,
+      selectBrand,
+      seedBrands,
+      addBrand,
+      editBrand,
+      removeBrand,
+      refresh,
+    ],
   );
 
   return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>;

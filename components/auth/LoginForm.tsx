@@ -7,13 +7,16 @@ import { FlowinLogo } from "@/components/brand/FlowinLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBrand } from "@/contexts/BrandContext";
 import { useRouter } from "@/i18n/navigation";
+import { fetchBrands } from "@/lib/brands-api";
 
 export function LoginForm({ reauthLinkedIn = false }: { reauthLinkedIn?: boolean }) {
   const t = useTranslations("login");
   const authT = useTranslations("auth");
   const locale = useLocale();
   const { signIn, signOut } = useAuth();
+  const { seedBrands } = useBrand();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +43,11 @@ export function LoginForm({ reauthLinkedIn = false }: { reauthLinkedIn?: boolean
         // Top-level navigation: OAuth start sets cookies and leaves the app.
         window.location.replace(`/api/linkedin/start?locale=${locale}`);
         return;
+      }
+      try {
+        seedBrands(await fetchBrands());
+      } catch {
+        // BrandProvider refresh will retry on the brands page.
       }
       router.replace("/brands");
     } catch {

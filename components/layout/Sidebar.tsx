@@ -53,9 +53,20 @@ export function Sidebar({
   const [autoNarrow, setAutoNarrow] = useState(false);
   const [contentTight, setContentTight] = useState(false);
   const [forceExpand, setForceExpand] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const tightAtWidth = useRef(0);
   const lastWidth = useRef(0);
   const skipOverflowPass = useRef(true);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    for (const item of items) {
+      router.prefetch(item.href);
+    }
+  }, [router]);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -162,10 +173,11 @@ export function Sidebar({
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2">
         {items.map((item) => {
+          const current = pendingHref ?? pathname;
           const active =
             item.href === "/campaigns"
-              ? pathname === "/campaigns" || pathname.startsWith("/campaigns/")
-              : pathname === item.href;
+              ? current === "/campaigns" || current.startsWith("/campaigns/")
+              : current === item.href;
           const Icon = item.icon;
           const label = t(item.key);
           return (
@@ -173,8 +185,13 @@ export function Sidebar({
               key={item.href}
               href={item.href}
               title={label}
+              prefetch
+              onClick={() => {
+                setPendingHref(item.href);
+                onMobileClose?.();
+              }}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 font-display text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 font-display text-sm font-medium transition-colors duration-150",
                 rail && "lg:justify-center lg:gap-0 lg:px-0",
                 active
                   ? "bg-barney/25 text-white"

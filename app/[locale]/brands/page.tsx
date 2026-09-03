@@ -14,7 +14,9 @@ import { UserMenu } from "@/components/layout/UserMenu";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useBrand } from "@/contexts/BrandContext";
+import { useSeededBrands } from "@/components/brands/BrandsBootstrap";
 import { useRouter } from "@/i18n/navigation";
+import { warmBrandBundle } from "@/lib/brand-data-cache";
 import { cn, EMPTY_METRIC, formatPercent } from "@/lib/utils";
 import type { Brand } from "@/types";
 
@@ -62,7 +64,10 @@ function BrandsPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { brands, loading, failed, selectBrand, editBrand, removeBrand, refresh } = useBrand();
+  const { brands: contextBrands, loading, failed, selectBrand, editBrand, removeBrand, refresh } =
+    useBrand();
+  const seeded = useSeededBrands();
+  const brands = contextBrands.length > 0 ? contextBrands : seeded;
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Brand | null>(null);
@@ -172,8 +177,8 @@ function BrandsPageInner() {
         </div>
 
         <div className="mt-10 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {loading ? <BrandCardSkeletons /> : null}
-          {loading ? null : filtered.map((brand) => {
+          {loading && brands.length === 0 ? <BrandCardSkeletons /> : null}
+          {loading && brands.length === 0 ? null : filtered.map((brand) => {
             const stats = {
               activeCampaigns: brand.activeCampaigns ?? 0,
               successRate: brand.successRate ?? 0,
@@ -189,6 +194,7 @@ function BrandsPageInner() {
                   className="w-full"
                   onClick={() => {
                     selectBrand(brand.id);
+                    void warmBrandBundle(brand.id);
                     router.push("/dashboard");
                   }}
                 >
@@ -271,7 +277,7 @@ function BrandsPageInner() {
             onClick={() => setConnectOpen(true)}
             className={cn(
               "admin-card flex flex-col items-center justify-center rounded-2xl p-5 text-center hover:border-purple-jam/60",
-              loading && "hidden",
+              loading && brands.length === 0 && "hidden",
             )}
           >
             <span className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-purple-jam/60 text-barney">

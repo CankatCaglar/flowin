@@ -17,7 +17,7 @@ export default function MessagesPage() {
   return (
     <div>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      {loading ? (
+      {loading && messages.length === 0 ? (
         <PageSkeleton rows={6} />
       ) : (
         <MessagesWorkspace messages={messages} leads={leads} campaigns={campaigns} now={now} />

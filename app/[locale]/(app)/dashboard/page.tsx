@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const { range, now } = useDateRange();
   const { campaigns, leads, stats, loading } = useBrandData(selectedBrand?.id ?? null);
 
-  if (loading) {
+  if (loading && campaigns.length === 0) {
     return <PageSkeleton />;
   }
 

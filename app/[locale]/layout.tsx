@@ -19,7 +19,14 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("description"),
-    icons: { icon: "/favicon.svg" },
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "48x48" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    },
   };
 }
 

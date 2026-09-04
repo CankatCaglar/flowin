@@ -55,7 +55,16 @@ function hydrateBrandRecord(
     linkedinSub: String(input.linkedinSub ?? ""),
     linkedinEmail: String(input.linkedinEmail ?? ""),
     linkedinPublicId: String(input.linkedinPublicId ?? "").trim(),
-    linkedinCompany: String(input.linkedinCompany ?? "").trim(),
+    linkedinCompany: (() => {
+      // Preserve the 3-way distinction coming from Firestore:
+      //   undefined → field never written  → auto-fill allowed
+      //   null      → user explicitly cleared → skip auto-fill
+      //   "string"  → has a value           → skip auto-fill
+      const raw = (input as { linkedinCompany?: string | null }).linkedinCompany;
+      if (raw === undefined) return undefined;
+      if (raw === null) return null;
+      return String(raw).trim();
+    })(),
     avatarUrl: String(input.avatarUrl ?? ""),
     unipileAccountId: String(input.unipileAccountId ?? ""),
     unipileStatus: asUnipileStatus(input.unipileStatus),
@@ -196,7 +205,8 @@ async function backfillBrandPublicIds(brands: Brand[]) {
 }
 
 async function fillBrandLinkedInCompany(brand: Brand) {
-  if (brand.linkedinCompany || !brand.unipileAccountId) return brand;
+  // null = user explicitly cleared → respect that, don't re-fill
+  if (brand.linkedinCompany !== undefined || !brand.unipileAccountId) return brand;
   try {
     const { fetchAccountCompany } = await import("@/lib/unipile");
     const company = await fetchAccountCompany(brand.unipileAccountId, brand.linkedinPublicId);
@@ -219,7 +229,8 @@ async function fillBrandLinkedInCompany(brand: Brand) {
 }
 
 async function enrichBrandCompanies(brands: Brand[]) {
-  const missing = brands.filter((brand) => brand.unipileAccountId && !brand.linkedinCompany);
+  // null = explicitly cleared, undefined = never fetched; only auto-fill truly-missing ones
+  const missing = brands.filter((brand) => brand.unipileAccountId && brand.linkedinCompany === undefined);
   if (missing.length === 0) return brands;
   const filled = await Promise.all(missing.map((brand) => fillBrandLinkedInCompany(brand)));
   const byId = new Map(filled.map((brand) => [brand.id, brand.linkedinCompany]));
@@ -377,6 +388,7 @@ export async function updateBrand(
     archived?: boolean;
     alerts?: BrandAlerts;
     disconnectOutreach?: boolean;
+    linkedinCompany?: string | null;
   },
 ) {
   const db = requireFirebaseDb();
@@ -416,6 +428,7 @@ export async function updateBrand(
     alerts,
     unipileAccountId,
     unipileStatus,
+    ...(input.linkedinCompany !== undefined ? { linkedinCompany: input.linkedinCompany ?? null } : {}),
   };
   const unipileSyncedAt = input.disconnectOutreach
     ? undefined

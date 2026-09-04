@@ -17,17 +17,19 @@ export function BrandFormModal({
   open: boolean;
   brand: Brand | null;
   onClose: () => void;
-  onSubmit: (input: { name: string }) => Promise<void>;
+  onSubmit: (input: { name: string; linkedinCompany: string | null }) => Promise<void>;
   onRefreshPhoto?: () => void;
 }) {
   const t = useTranslations("brands");
   const common = useTranslations("common");
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setName(brand?.name ?? "");
+      setCompany(brand?.linkedinCompany ?? "");
     }
   }, [open, brand]);
 
@@ -36,7 +38,10 @@ export function BrandFormModal({
     if (!brand || !name.trim()) return;
     setSubmitting(true);
     try {
-      await onSubmit({ name: name.trim() });
+      await onSubmit({
+        name: name.trim(),
+        linkedinCompany: company.trim() === "" ? null : company.trim(),
+      });
       onClose();
     } finally {
       setSubmitting(false);
@@ -72,6 +77,16 @@ export function BrandFormModal({
             placeholder={t("namePlaceholder")}
             className="mt-2 h-11 w-full rounded-xl border border-purple-jam/40 bg-midnight/80 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-purple-jam/80"
           />
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-white">{t("companyLabel")}</span>
+          <input
+            value={company}
+            onChange={(event) => setCompany(event.target.value)}
+            placeholder={t("companyPlaceholder")}
+            className="mt-2 h-11 w-full rounded-xl border border-purple-jam/40 bg-midnight/80 px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-purple-jam/80"
+          />
+          <p className="mt-1.5 text-[11px] text-white/40">{t("companyHint")}</p>
         </label>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>

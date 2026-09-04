@@ -127,10 +127,12 @@ export function LeadDetailPanel({
         <h3 className="font-display text-sm font-semibold text-ink">{t("contact")}</h3>
         <div className="mt-2 border-t border-purple-jam/10 pt-3">
           <ul className="space-y-2.5 text-sm text-ink">
-            <li className="flex items-center gap-2.5">
-              <Mail className="h-4 w-4 shrink-0 text-barney" />
-              <span className="truncate">{lead.email}</span>
-            </li>
+            {lead.email ? (
+              <li className="flex items-center gap-2.5">
+                <Mail className="h-4 w-4 shrink-0 text-barney" />
+                <span className="truncate">{lead.email}</span>
+              </li>
+            ) : null}
             {lead.phone ? (
               <li className="flex items-center gap-2.5">
                 <Phone className="h-4 w-4 shrink-0 text-barney" />

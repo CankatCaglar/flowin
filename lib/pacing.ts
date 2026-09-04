@@ -32,10 +32,9 @@ export function normalizeAlerts(input?: Partial<BrandAlerts> | null): BrandAlert
 
 /** First calendar days of a campaign — stay under LinkedIn’s radar. */
 const WARMUP: BrandPacing[] = [
-  { dailyViews: 3, dailyInvites: 3, dailyMessages: 3, dailyInmails: 1 },
-  { dailyViews: 5, dailyInvites: 5, dailyMessages: 5, dailyInmails: 2 },
-  { dailyViews: 8, dailyInvites: 8, dailyMessages: 8, dailyInmails: 3 },
-  { dailyViews: 12, dailyInvites: 8, dailyMessages: 10, dailyInmails: 4 },
+  { dailyViews: 8,  dailyInvites: 5,  dailyMessages: 5,  dailyInmails: 2 },
+  { dailyViews: 12, dailyInvites: 8,  dailyMessages: 8,  dailyInmails: 3 },
+  { dailyViews: 15, dailyInvites: 10, dailyMessages: 10, dailyInmails: 4 },
 ];
 
 const ISO_WEEKDAY: Record<string, number> = {

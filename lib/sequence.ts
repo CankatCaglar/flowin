@@ -58,9 +58,11 @@ export function withJitter(baseMs: number) {
 }
 
 function morningJitter() {
+  // Tight 30-min window (09:00–09:29 Istanbul) so all due leads fall within a
+  // single hourly cron window and are processed as a batch on the same day.
   return {
-    hour: 9 + Math.floor(Math.random() * 2),
-    minute: Math.floor(Math.random() * 50),
+    hour: 9,
+    minute: Math.floor(Math.random() * 30),
   };
 }
 

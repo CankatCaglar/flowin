@@ -14,6 +14,7 @@ export async function PATCH(
   let body: {
     name?: unknown;
     avatarColor?: unknown;
+    linkedinCompany?: unknown;
     pacing?: {
       dailyInvites?: unknown;
       dailyMessages?: unknown;
@@ -44,6 +45,12 @@ export async function PATCH(
     const brand = await updateBrand(id, {
       name: typeof body.name === "string" ? body.name : undefined,
       avatarColor: typeof body.avatarColor === "string" ? body.avatarColor : undefined,
+      linkedinCompany:
+        body.linkedinCompany === null
+          ? null
+          : typeof body.linkedinCompany === "string"
+            ? body.linkedinCompany
+            : undefined,
       pacing: body.pacing
         ? {
             dailyInvites: Number(body.pacing.dailyInvites),

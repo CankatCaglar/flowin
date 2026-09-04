@@ -188,6 +188,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       input: {
         name?: string;
         avatarColor?: string;
+        linkedinCompany?: string | null;
         pacing?: {
           dailyInvites: number;
           dailyMessages: number;

@@ -73,7 +73,7 @@ export interface Brand {
   linkedinSub?: string;
   linkedinEmail?: string;
   linkedinPublicId?: string;
-  linkedinCompany?: string;
+  linkedinCompany?: string | null;
   avatarUrl?: string;
   unipileAccountId?: string;
   unipileStatus?: UnipileStatus;

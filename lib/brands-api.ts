@@ -48,6 +48,7 @@ export async function updateBrand(
   input: {
     name?: string;
     avatarColor?: string;
+    linkedinCompany?: string | null;
     pacing?: {
       dailyInvites: number;
       dailyMessages: number;

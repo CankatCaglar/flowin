@@ -15,6 +15,7 @@ const statusClass: Record<CampaignStatus | LeadStatus, string> = {
 };
 
 const stageClass: Record<LeadStage, string> = {
+  pending: "bg-zinc-100 text-zinc-500",
   connection_request: "bg-sky-50 text-sky-700",
   profile_viewed: "bg-violet-50 text-barney",
   message_1: "bg-sky-50 text-sky-700",

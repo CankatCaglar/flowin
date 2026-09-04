@@ -547,7 +547,7 @@ export async function createLead(input: {
     lastMessageSentAt: addedAt,
     company: input.company?.trim() || companyFromHeadline(input.position ?? ""),
     position: input.position?.trim() ?? "",
-    stage: "connection_request",
+    stage: "pending",
     email: input.email?.trim() ?? "",
     phone: input.phone?.trim() ?? "",
     history: [{ kind: "added", at: addedAt }],

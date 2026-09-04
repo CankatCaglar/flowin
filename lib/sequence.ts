@@ -57,14 +57,14 @@ export function withJitter(baseMs: number) {
   return baseMs + jitter;
 }
 
-function morningJitter() {
-  // Narrow 10-min window (09:00–09:09 Istanbul).
-  // Vercel Hobby fires "0 6 * * *" anywhere between 09:00–09:59 Istanbul,
-  // so all leads scheduled here are guaranteed to fall in the same daily run
-  // → whole batch processes together instead of 1 lead per day.
+function morningJitter(startHour: number, endHour: number) {
+  // Spread leads across the full active window so each 2-hour cron run (Pro)
+  // picks up a natural slice throughout the day instead of a single 09:00 burst.
+  const windowMinutes = Math.max(60, (endHour - startHour) * 60);
+  const offsetMin = Math.floor(Math.random() * windowMinutes);
   return {
-    hour: 9,
-    minute: Math.floor(Math.random() * 10),
+    hour: startHour + Math.floor(offsetMin / 60),
+    minute: offsetMin % 60,
   };
 }
 
@@ -78,7 +78,7 @@ export function nextBusinessMorning(
   let key = istanbulDateKey(from);
   for (let i = 0; i < skipDays; i += 1) key = addIstanbulDateKey(key, 1);
   key = skipToScheduleDay(key, hours);
-  const { hour, minute } = morningJitter();
+  const { hour, minute } = morningJitter(hours.startHour, hours.endHour);
   return istanbulWallDate(key, hour, minute);
 }
 

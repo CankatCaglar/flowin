@@ -179,6 +179,7 @@
     "flow_completed": "Flow Completed"
   },
   "stage": {
+    "pending": "Pending",
     "connection_request": "Connection Request",
     "profile_viewed": "Profile Viewed",
     "message_1": "Message 1",

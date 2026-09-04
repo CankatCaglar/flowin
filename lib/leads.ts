@@ -2,6 +2,7 @@ import { displayLeadCompany } from "@/lib/linkedin-company";
 import type { Lead, LeadEvent, LeadEventKind, LeadStage, LeadStatus } from "@/types";
 
 export const LEAD_STAGES: LeadStage[] = [
+  "pending",
   "connection_request",
   "profile_viewed",
   "message_1",
@@ -76,12 +77,13 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
 };
 
 const STAGE_RANK: Record<LeadStage, number> = {
-  connection_request: 0,
-  profile_viewed: 1,
-  message_1: 2,
-  message_2: 3,
-  message_3: 4,
-  flow_completed: 5,
+  pending: 0,
+  connection_request: 1,
+  profile_viewed: 2,
+  message_1: 3,
+  message_2: 4,
+  message_3: 5,
+  flow_completed: 6,
 };
 
 export function historyHas(lead: Pick<Lead, "history">, kind: LeadEventKind) {
@@ -98,7 +100,8 @@ export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">
   if (historyHas(lead, "message_1_sent") || accepted) return "message_1";
   if (invited) return "connection_request";
   if (viewed) return "profile_viewed";
-  return lead.stage === "profile_viewed" ? "profile_viewed" : "connection_request";
+  // Nothing has happened yet — only added to the campaign.
+  return "pending";
 }
 
 export function leadStatusLabelKey(lead: Lead): LeadStatusLabelKey {
@@ -123,10 +126,15 @@ export function asLeadStage(value: unknown, status: LeadStatus): LeadStage {
   if (status === "flow_completed") return "flow_completed";
   const raw = String(value ?? "");
   if (raw === "failed") return "connection_request";
-  return LEGACY_STAGE[raw] ?? "connection_request";
+  return LEGACY_STAGE[raw] ?? "pending";
 }
 
 export function historyKinds(stage: LeadStage, status: LeadStatus): LeadEventKind[] {
+  // Lead added but flow not yet started
+  if (stage === "pending") {
+    return ["added"];
+  }
+
   if (status === "queued" && stage === "connection_request") {
     return ["added"];
   }

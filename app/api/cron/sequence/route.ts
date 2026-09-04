@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { runDueSequence } from "@/lib/sequence-runner";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function cronAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -24,7 +24,7 @@ async function run(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const results = await runDueSequence(20);
+    const results = await runDueSequence(50);
     return NextResponse.json(results);
   } catch (error) {
     console.error("[cron] sequence failed:", error instanceof Error ? error.message : error);

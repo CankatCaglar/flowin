@@ -146,6 +146,42 @@ export function isIstanbulWeekendKey(key: string) {
   return day === 6 || day === 7;
 }
 
+/**
+ * Deterministic pseudo-random float in [0, 1) based on an arbitrary seed string.
+ * Uses FNV-1a 32-bit hash — fast, zero dependencies.
+ */
+function seededFloat(seed: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h / 4294967296;
+}
+
+/**
+ * Per-brand, per-day multiplier in [0.65, 1.0].
+ * Same brand + same date → same value every cron run that day.
+ * Different days → naturally different values → looks human to LinkedIn.
+ */
+export function dailyPacingMultiplier(dateKey: string, brandId: string): number {
+  return 0.65 + seededFloat(`${dateKey}::${brandId}`) * 0.35;
+}
+
+/**
+ * Apply daily variance to the effective pacing caps.
+ * Call this after warmupPacing so warmup limits are already applied.
+ */
+export function variedPacing(caps: BrandPacing, dateKey: string, brandId: string): BrandPacing {
+  const m = dailyPacingMultiplier(dateKey, brandId);
+  return {
+    dailyViews:    Math.max(1, Math.round(caps.dailyViews    * m)),
+    dailyInvites:  Math.max(1, Math.round(caps.dailyInvites  * m)),
+    dailyMessages: Math.max(1, Math.round(caps.dailyMessages * m)),
+    dailyInmails:  Math.max(1, Math.round(caps.dailyInmails  * m)),
+  };
+}
+
 export function skipToScheduleDay(key: string, schedule?: Partial<BrandSchedule> | null) {
   const hours = normalizeSchedule(schedule);
   let next = key;

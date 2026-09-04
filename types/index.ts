@@ -6,6 +6,7 @@ export type LeadStatus =
   | "failed"
   | "flow_completed";
 export type LeadStage =
+  | "pending"
   | "connection_request"
   | "profile_viewed"
   | "message_1"

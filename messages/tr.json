@@ -179,6 +179,7 @@
     "flow_completed": "Akış Tamamlandı"
   },
   "stage": {
+    "pending": "Sırada",
     "connection_request": "Bağlantı İsteği",
     "profile_viewed": "Profil Görüntülendi",
     "message_1": "Mesaj 1",

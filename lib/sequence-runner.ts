@@ -12,7 +12,7 @@ import {
 } from "@/lib/outreach-data";
 import { SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
-import { isQuietHours, normalizePacing, normalizeSchedule, warmupPacing } from "@/lib/pacing";
+import { isQuietHours, istanbulDateKey, normalizePacing, normalizeSchedule, variedPacing, warmupPacing } from "@/lib/pacing";
 import {
   findStep,
   firstBranchStep,
@@ -340,7 +340,11 @@ export async function runLeadStep(lead: Lead) {
   const step = findStep(campaign.flow, lead.nextStepId);
   if (!step) return { skipped: true as const };
 
-  const caps = warmupPacing(normalizePacing(brand.pacing), campaign.startDate);
+  const caps = variedPacing(
+    warmupPacing(normalizePacing(brand.pacing), campaign.startDate),
+    istanbulDateKey(),
+    brand.id,
+  );
   const usage = await todayPacingUsage(brand.id);
   const needsView = step.kind === "profile_view" || step.kind === "connection_check";
   const needsInvite = step.kind === "connection";

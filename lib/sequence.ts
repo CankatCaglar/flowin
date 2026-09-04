@@ -58,11 +58,13 @@ export function withJitter(baseMs: number) {
 }
 
 function morningJitter() {
-  // Tight 30-min window (09:00–09:29 Istanbul) so all due leads fall within a
-  // single hourly cron window and are processed as a batch on the same day.
+  // Narrow 10-min window (09:00–09:09 Istanbul).
+  // Vercel Hobby fires "0 6 * * *" anywhere between 09:00–09:59 Istanbul,
+  // so all leads scheduled here are guaranteed to fall in the same daily run
+  // → whole batch processes together instead of 1 lead per day.
   return {
     hour: 9,
-    minute: Math.floor(Math.random() * 30),
+    minute: Math.floor(Math.random() * 10),
   };
 }
 

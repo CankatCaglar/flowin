@@ -134,8 +134,8 @@ export default function CampaignsPage() {
   return (
     <div className="min-w-0 overflow-x-hidden">
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
-      <div className="mb-4 min-w-0 space-y-2">
-        <label className="relative block w-full min-w-0">
+      <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+        <label className="relative block min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={query}
@@ -150,7 +150,7 @@ export default function CampaignsPage() {
         <div className="flex min-w-0 items-stretch gap-1.5 sm:gap-2">
           <CampaignStatusFilter
             layout="select"
-            className="min-w-0 flex-[1.15]"
+            className="min-w-0 flex-[1.15] sm:w-36 sm:flex-none"
             value={filter}
             onChange={(value) => {
               setFilter(value);
@@ -158,7 +158,7 @@ export default function CampaignsPage() {
             }}
           />
           <CampaignDateFilter
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
             value={dateFilter}
             onChange={(value) => {
               setDateFilter(value);

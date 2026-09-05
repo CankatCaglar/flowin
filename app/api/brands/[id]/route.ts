@@ -15,6 +15,7 @@ export async function PATCH(
     name?: unknown;
     avatarColor?: unknown;
     linkedinCompany?: unknown;
+    linkedinPublicId?: unknown;
     pacing?: {
       dailyInvites?: unknown;
       dailyMessages?: unknown;
@@ -51,6 +52,8 @@ export async function PATCH(
           : typeof body.linkedinCompany === "string"
             ? body.linkedinCompany
             : undefined,
+      linkedinPublicId:
+        typeof body.linkedinPublicId === "string" ? body.linkedinPublicId : undefined,
       pacing: body.pacing
         ? {
             dailyInvites: Number(body.pacing.dailyInvites),

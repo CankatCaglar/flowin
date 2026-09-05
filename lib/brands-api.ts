@@ -49,6 +49,7 @@ export async function updateBrand(
     name?: string;
     avatarColor?: string;
     linkedinCompany?: string | null;
+    linkedinPublicId?: string;
     pacing?: {
       dailyInvites: number;
       dailyMessages: number;

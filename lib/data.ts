@@ -396,6 +396,7 @@ export async function updateBrand(
     alerts?: BrandAlerts;
     disconnectOutreach?: boolean;
     linkedinCompany?: string | null;
+    linkedinPublicId?: string;
   },
 ) {
   const db = requireFirebaseDb();
@@ -436,6 +437,9 @@ export async function updateBrand(
     unipileAccountId,
     unipileStatus,
     ...(input.linkedinCompany !== undefined ? { linkedinCompany: input.linkedinCompany ?? null } : {}),
+    ...(input.linkedinPublicId !== undefined
+      ? { linkedinPublicId: input.linkedinPublicId.trim() }
+      : {}),
   };
   const unipileSyncedAt = input.disconnectOutreach
     ? undefined

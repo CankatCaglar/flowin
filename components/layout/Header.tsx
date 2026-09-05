@@ -62,7 +62,9 @@ export function Header({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <BrandAvatar brand={selectedBrand} size="sm" className="hidden shrink-0 sm:block" />
+        <div className="hidden shrink-0 sm:flex">
+          <BrandAvatar brand={selectedBrand} size="sm" />
+        </div>
         <p className="min-w-0 truncate font-display text-sm font-semibold text-ink lg:hidden">
           {mobileTitle}
         </p>

@@ -157,7 +157,8 @@ export type UnipileAccount = {
 
 export function unipileAccountPublicId(account: UnipileAccount) {
   const im = account.connection_params?.im;
-  return String(im?.publicIdentifier ?? im?.public_identifier ?? "").trim();
+  // Try the most specific field first, fall back to username (LinkedIn vanity name)
+  return String(im?.publicIdentifier ?? im?.public_identifier ?? im?.username ?? "").trim();
 }
 
 export async function listUnipileAccounts() {

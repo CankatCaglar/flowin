@@ -71,6 +71,7 @@ export async function GET(request: Request) {
       linkedinSub: profile.sub,
       linkedinEmail: profile.email,
       avatarUrl: profile.picture,
+      linkedinPublicId: profile.vanityName || undefined,
     });
     const response = NextResponse.redirect(
       brands(brand.avatarUrl ? "linkedin=photo" : "linkedin=nophoto"),

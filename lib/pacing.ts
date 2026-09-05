@@ -2,9 +2,9 @@ import type { BrandAlerts, BrandPacing, BrandSchedule } from "@/types";
 
 /** Conservative ceilings after the campaign warmup ramp. */
 export const DEFAULT_PACING: BrandPacing = {
-  dailyInvites: 8,
-  dailyMessages: 12,
-  dailyViews: 15,
+  dailyInvites: 10,
+  dailyMessages: 15,
+  dailyViews: 20,
   dailyInmails: 5,
 };
 
@@ -30,11 +30,26 @@ export function normalizeAlerts(input?: Partial<BrandAlerts> | null): BrandAlert
   };
 }
 
-/** First calendar days of a campaign — stay under LinkedIn’s radar. */
+/**
+ * Warmup ramp — 7 calendar days for new campaigns.
+ *
+ * LinkedIn flags sudden spikes from zero. Even on established accounts, a new
+ * campaign starting at full throttle can trigger a spam/bot review. 7 days is
+ * the minimum safe ramp; the daily variance (65-100%) adds organic noise on top.
+ *
+ * LinkedIn 2024-25 safe hard ceilings (research-based community consensus):
+ *   views:    ~30/day      invites: ~15/day
+ *   messages: ~25/day      inmails: ~10/day
+ */
 const WARMUP: BrandPacing[] = [
-  { dailyViews: 8,  dailyInvites: 5,  dailyMessages: 5,  dailyInmails: 2 },
-  { dailyViews: 12, dailyInvites: 8,  dailyMessages: 8,  dailyInmails: 3 },
-  { dailyViews: 15, dailyInvites: 10, dailyMessages: 10, dailyInmails: 4 },
+  { dailyViews:  4, dailyInvites:  2, dailyMessages:  4, dailyInmails: 1 }, // day 0
+  { dailyViews:  7, dailyInvites:  4, dailyMessages:  7, dailyInmails: 2 }, // day 1
+  { dailyViews: 10, dailyInvites:  5, dailyMessages: 10, dailyInmails: 2 }, // day 2
+  { dailyViews: 13, dailyInvites:  7, dailyMessages: 12, dailyInmails: 3 }, // day 3
+  { dailyViews: 16, dailyInvites:  8, dailyMessages: 14, dailyInmails: 3 }, // day 4
+  { dailyViews: 18, dailyInvites:  9, dailyMessages: 16, dailyInmails: 4 }, // day 5
+  { dailyViews: 20, dailyInvites: 10, dailyMessages: 18, dailyInmails: 4 }, // day 6
+  // Day 7+: full brand pacing (with dailyVariance applied on top)
 ];
 
 const ISO_WEEKDAY: Record<string, number> = {
@@ -49,10 +64,12 @@ const ISO_WEEKDAY: Record<string, number> = {
 
 export function normalizePacing(input?: Partial<BrandPacing> | null): BrandPacing {
   return {
-    dailyInvites: clampCap(input?.dailyInvites, DEFAULT_PACING.dailyInvites, 25),
-    dailyMessages: clampCap(input?.dailyMessages, DEFAULT_PACING.dailyMessages, 40),
-    dailyViews: clampCap(input?.dailyViews, DEFAULT_PACING.dailyViews, 40),
-    dailyInmails: clampCap(input?.dailyInmails, DEFAULT_PACING.dailyInmails, 15),
+    // Hard ceilings are set to LinkedIn 2024-25 safe limits.
+    // These are absolute maximums regardless of what the admin configures.
+    dailyInvites:  clampCap(input?.dailyInvites,  DEFAULT_PACING.dailyInvites,  15),
+    dailyMessages: clampCap(input?.dailyMessages, DEFAULT_PACING.dailyMessages, 25),
+    dailyViews:    clampCap(input?.dailyViews,    DEFAULT_PACING.dailyViews,    30),
+    dailyInmails:  clampCap(input?.dailyInmails,  DEFAULT_PACING.dailyInmails,  10),
   };
 }
 

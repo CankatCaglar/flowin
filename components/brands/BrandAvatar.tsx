@@ -54,7 +54,7 @@ export function BrandAvatar({
           }
           setSrc("");
         }}
-        className={cn("object-cover ring-1 ring-white/15", dim, rounded, className)}
+        className={cn("shrink-0 object-cover ring-1 ring-white/15", dim, rounded, className)}
       />
     );
   }
@@ -62,7 +62,7 @@ export function BrandAvatar({
   return (
     <span
       className={cn(
-        "flex items-center justify-center font-bold text-white",
+        "flex shrink-0 items-center justify-center font-bold leading-none text-white",
         dim,
         rounded,
         className,

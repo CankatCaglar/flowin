@@ -311,6 +311,7 @@ export async function createBrand(input: {
   linkedinSub: string;
   linkedinEmail?: string;
   avatarUrl?: string;
+  linkedinPublicId?: string;
 }) {
   const db = requireFirebaseDb();
   const linkedinSub = input.linkedinSub.trim();
@@ -330,6 +331,11 @@ export async function createBrand(input: {
     if (avatarUrl) updates.avatarUrl = avatarUrl;
     if (linkedinEmail && linkedinEmail !== current.linkedinEmail) {
       updates.linkedinEmail = linkedinEmail;
+    }
+    // Save vanity name when available and not already set
+    const incomingPublicId = input.linkedinPublicId?.trim() ?? "";
+    if (incomingPublicId && !current.linkedinPublicId) {
+      updates.linkedinPublicId = incomingPublicId;
     }
     if (Object.keys(updates).length > 0) {
       await existing.ref.update(updates);
@@ -362,6 +368,7 @@ export async function createBrand(input: {
     createdAt: new Date(),
     linkedinSub,
     linkedinEmail: input.linkedinEmail?.trim() ?? "",
+    linkedinPublicId: input.linkedinPublicId?.trim() ?? "",
     avatarUrl,
     unipileAccountId: "",
     unipileStatus: "none" as UnipileStatus,

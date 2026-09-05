@@ -16,6 +16,7 @@ import {
   Lock,
   Mail,
   MessageCircle,
+  Pencil,
   RefreshCw,
   Trash2,
   UserPlus,
@@ -32,13 +33,79 @@ import {
   DEFAULT_ALERTS,
   DEFAULT_PACING,
   DEFAULT_SCHEDULE,
+  istanbulDateKey,
   normalizeAlerts,
   normalizePacing,
   normalizeSchedule,
+  variedPacing,
 } from "@/lib/pacing";
 import { linkedInProfileHref } from "@/lib/linkedin-profile";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { BrandAlerts, BrandPacing, BrandSchedule } from "@/types";
+
+/** Inline input shown in the profile card when linkedinPublicId is empty. */
+function LinkedInUrlInput({ brandId }: { brandId: string }) {
+  const { editBrand, refresh } = useBrand();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations("brands");
+
+  const handleSave = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    try {
+      await editBrand(brandId, { linkedinPublicId: trimmed });
+      await refresh();
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setEditing(true);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-barney/50 hover:text-barney"
+      >
+        <LinkedInIcon className="h-3.5 w-3.5" />
+        {t("addProfileUrl")}
+        <Pencil className="h-3 w-3" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-1.5">
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") void handleSave();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        placeholder="linkedin.com/in/kullanici-adi"
+        className="h-7 min-w-0 flex-1 rounded-lg border border-purple-jam/30 bg-white px-2 text-xs text-ink outline-none focus:border-barney/50"
+      />
+      <button
+        type="button"
+        disabled={saving || !value.trim()}
+        onClick={handleSave}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-barney text-white disabled:opacity-40"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const HOURS = Array.from({ length: 16 }, (_, index) => index + 7);
@@ -65,7 +132,12 @@ export default function SettingsPage() {
   if (!selectedBrand) return null;
 
   const outreachOn = selectedBrand.unipileStatus === "running";
-  const linkedinHref = linkedInProfileHref(selectedBrand.linkedinPublicId ?? "");
+  const linkedinHref =
+    linkedInProfileHref(selectedBrand.linkedinPublicId ?? "") ||
+    // Fall back to the entity-key URL (sub = ACoAA… format, works as a LinkedIn profile link)
+    (selectedBrand.linkedinSub
+      ? `https://www.linkedin.com/in/${encodeURIComponent(selectedBrand.linkedinSub)}`
+      : "");
   const lastSync = selectedBrand.unipileSyncedAt ?? (outreachOn ? selectedBrand.createdAt : undefined);
   const paused = Boolean(selectedBrand.outreachPaused);
   const testMode = Boolean(selectedBrand.testMode);
@@ -98,11 +170,7 @@ export default function SettingsPage() {
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               ) : (
-                <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-barney/50">
-                  <LinkedInIcon className="h-3.5 w-3.5" />
-                  {t("linkedinProfile")}
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </p>
+                <LinkedInUrlInput brandId={selectedBrand.id} />
               )}
             </div>
           </div>
@@ -184,40 +252,49 @@ export default function SettingsPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-barney" />
             <p className="text-[12px] leading-5 text-barney">{t("pacingWarn")}</p>
           </div>
-          <div className="mt-5 grid min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
-            <Stepper
-              icon={UserPlus}
-              label={t("dailyInvites")}
-              value={pacing.dailyInvites}
-              max={25}
-              suffix={t("perDay")}
-              onChange={(dailyInvites) => setPacing((current) => ({ ...current, dailyInvites }))}
-            />
-            <Stepper
-              icon={MessageCircle}
-              label={t("dailyMessages")}
-              value={pacing.dailyMessages}
-              max={40}
-              suffix={t("perDay")}
-              onChange={(dailyMessages) => setPacing((current) => ({ ...current, dailyMessages }))}
-            />
-            <Stepper
-              icon={Eye}
-              label={t("dailyViews")}
-              value={pacing.dailyViews}
-              max={40}
-              suffix={t("perDay")}
-              onChange={(dailyViews) => setPacing((current) => ({ ...current, dailyViews }))}
-            />
-            <Stepper
-              icon={Mail}
-              label={t("dailyInmails")}
-              value={pacing.dailyInmails}
-              max={15}
-              suffix={t("perDay")}
-              onChange={(dailyInmails) => setPacing((current) => ({ ...current, dailyInmails }))}
-            />
-          </div>
+          {(() => {
+            const today = variedPacing(normalizePacing(pacing), istanbulDateKey(), selectedBrand.id);
+            return (
+              <div className="mt-5 grid min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
+                <Stepper
+                  icon={UserPlus}
+                  label={t("dailyInvites")}
+                  value={today.dailyInvites}
+                  ceiling={pacing.dailyInvites}
+                  max={15}
+                  suffix={t("perDay")}
+                  onChange={(dailyInvites) => setPacing((current) => ({ ...current, dailyInvites }))}
+                />
+                <Stepper
+                  icon={MessageCircle}
+                  label={t("dailyMessages")}
+                  value={today.dailyMessages}
+                  ceiling={pacing.dailyMessages}
+                  max={25}
+                  suffix={t("perDay")}
+                  onChange={(dailyMessages) => setPacing((current) => ({ ...current, dailyMessages }))}
+                />
+                <Stepper
+                  icon={Eye}
+                  label={t("dailyViews")}
+                  value={today.dailyViews}
+                  ceiling={pacing.dailyViews}
+                  max={30}
+                  suffix={t("perDay")}
+                  onChange={(dailyViews) => setPacing((current) => ({ ...current, dailyViews }))}
+                />
+                <Stepper
+                  icon={Mail}
+                  label={t("dailyInmails")}
+                  value={today.dailyInmails}
+                  ceiling={pacing.dailyInmails}
+                  max={10}
+                  suffix={t("perDay")}
+                  onChange={(dailyInmails) => setPacing((current) => ({ ...current, dailyInmails }))}
+                />
+              </div>
+            );
+          })()}
           <div className="mt-auto flex justify-end pt-5">
             <Button
               disabled={savingPacing}
@@ -468,6 +545,7 @@ function Stepper({
   icon: Icon,
   label,
   value,
+  ceiling,
   max,
   suffix,
   onChange,
@@ -475,10 +553,12 @@ function Stepper({
   icon: LucideIcon;
   label: string;
   value: number;
+  ceiling: number;
   max: number;
   suffix: string;
   onChange: (value: number) => void;
 }) {
+  const [editing, setEditing] = useState(false);
   return (
     <div className="flex min-w-0 flex-col items-center text-center">
       <Icon className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
@@ -490,8 +570,10 @@ function Stepper({
           type="number"
           min={1}
           max={max}
-          value={value}
+          value={editing ? ceiling : value}
           aria-label={label}
+          onFocus={() => setEditing(true)}
+          onBlur={() => setEditing(false)}
           onChange={(event) => {
             const next = Number(event.target.value);
             if (!Number.isFinite(next)) return;

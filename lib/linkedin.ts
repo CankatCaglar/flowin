@@ -5,6 +5,7 @@ export type LinkedInProfile = {
   name: string;
   email: string;
   picture: string;
+  vanityName: string;
 };
 
 const AUTHORIZE = "https://www.linkedin.com/oauth/v2/authorization";
@@ -104,17 +105,49 @@ export async function fetchLinkedInProfile(accessToken: string): Promise<LinkedI
     [given, family].filter(Boolean).join(" ") ||
     "LinkedIn";
   const picture = asPicture(data.picture) || asPicture(data.picture_url);
+
+  // Try to fetch the vanity name (public LinkedIn handle) from the REST API.
+  // This silently no-ops if the token doesn't have r_liteprofile access.
+  const vanityName = await fetchVanityName(accessToken);
+
   console.info("[linkedin] userinfo", {
     hasName: Boolean(name),
     hasEmail: typeof data.email === "string" && Boolean(data.email),
     hasPicture: Boolean(picture),
+    hasVanityName: Boolean(vanityName),
   });
   return {
     sub,
     name,
     email: typeof data.email === "string" ? data.email.trim() : "",
     picture,
+    vanityName,
   };
+}
+
+async function fetchVanityName(accessToken: string): Promise<string> {
+  try {
+    const response = await fetch(
+      "https://api.linkedin.com/v2/me?projection=(id,vanityName,publicProfileUrl)",
+      { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+    );
+    if (!response.ok) return "";
+    const data = (await response.json()) as {
+      vanityName?: unknown;
+      publicProfileUrl?: unknown;
+    };
+    if (typeof data.vanityName === "string" && data.vanityName.trim()) {
+      return data.vanityName.trim();
+    }
+    // publicProfileUrl = "https://www.linkedin.com/in/handle" — extract the handle
+    if (typeof data.publicProfileUrl === "string") {
+      const match = /linkedin\.com\/in\/([^/?#]+)/i.exec(data.publicProfileUrl);
+      if (match?.[1]) return decodeURIComponent(match[1]);
+    }
+    return "";
+  } catch {
+    return "";
+  }
 }
 
 function asPicture(value: unknown): string {

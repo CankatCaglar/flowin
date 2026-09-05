@@ -27,11 +27,12 @@ export default function CampaignOverviewPage({
   const series = chartSeries(stats, range);
   const best = bestStatDay(stats);
   const top = topRepliedStep(campaign, leads);
+  const leadCount = leads.filter((lead) => lead.campaignId === campaign.id).length;
 
   return (
     <div className="space-y-6">
       <CampaignKpiCards
-        leadGoal={campaign.leadGoal}
+        leadGoal={leadCount > 0 ? leadCount : campaign.leadGoal}
         delivered={campaign.sentCount}
         replied={campaign.repliedCount}
         success={successRate(campaign.sentCount, campaign.repliedCount)}

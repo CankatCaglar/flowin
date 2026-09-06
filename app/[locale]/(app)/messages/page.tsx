@@ -12,15 +12,26 @@ export default function MessagesPage() {
   const t = useTranslations("messages");
   const { selectedBrand } = useBrand();
   const { now } = useDateRange();
-  const { messages, leads, campaigns, loading } = useBrandData(selectedBrand?.id ?? null);
+  const { messages, leads, campaigns, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
 
   return (
-    <div>
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      </div>
       {loading && messages.length === 0 ? (
         <PageSkeleton rows={6} />
       ) : (
-        <MessagesWorkspace messages={messages} leads={leads} campaigns={campaigns} now={now} />
+        <div className="min-h-0 flex-1">
+          <MessagesWorkspace
+            brandId={selectedBrand?.id ?? ""}
+            messages={messages}
+            leads={leads}
+            campaigns={campaigns}
+            now={now}
+            onSent={refresh}
+          />
+        </div>
       )}
     </div>
   );

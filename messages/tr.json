@@ -381,7 +381,7 @@
   },
   "messages": {
     "title": "Mesajlar",
-    "subtitle": "Yalnızca kampanya akışında gönderilen mesajlar ve gelen yanıtlar.",
+    "subtitle": "Kampanya mesajları, gelen yanıtlar ve buradan yazdığın elle mesajlar.",
     "lead": "Lead",
     "campaign": "Kampanya",
     "allCampaigns": "Tüm kampanyalar",
@@ -393,7 +393,17 @@
     "time": "Zaman",
     "outbound": "Gönderildi",
     "inbound": "Yanıt",
-    "body": "Mesaj"
+    "body": "Mesaj",
+    "composePlaceholder": "Mesaj yaz…",
+    "send": "Gönder",
+    "sending": "Gönderiliyor…",
+    "composeHint": "Seçili markanın LinkedIn hesabından gider. Kampanya akışı durmaz.",
+    "sendError": "Mesaj gönderilemedi.",
+    "sendTestMode": "Test modu açıkken gerçek mesaj gitmez.",
+    "sendPaused": "Bu markada outreach durduğu için mesaj gönderilemez.",
+    "sendSeat": "Önce markanın LinkedIn outreach koltuğunu bağla.",
+    "sendNotConnected": "LinkedIn bu kişiye mesaj atmaya izin vermedi. Henüz bağlı olmayabilir.",
+    "sendMissing": "Bu kişi için LinkedIn profili yok."
   },
   "settings": {
     "title": "Ayarlar",

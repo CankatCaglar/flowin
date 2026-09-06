@@ -204,6 +204,15 @@ export async function importSalesNavLeads(brandId: string, url: string) {
   }>(response);
 }
 
+export async function sendManualMessage(brandId: string, leadId: string, body: string) {
+  const response = await request("/api/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ brandId, leadId, body }),
+  });
+  return hydrateMessageDates(await readJson<OutreachMessage>(response));
+}
+
 export async function updateBrandPacing(brandId: string, pacing: BrandPacing) {
   const response = await request(`/api/brands/${encodeURIComponent(brandId)}`, {
     method: "PATCH",

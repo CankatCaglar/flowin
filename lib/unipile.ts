@@ -394,6 +394,35 @@ export async function startUnipileChat(input: {
   });
 }
 
+export async function sendUnipileChatMessage(input: {
+  accountId: string;
+  chatId?: string;
+  attendeeId: string;
+  text: string;
+}) {
+  if (input.chatId) {
+    try {
+      const sent = await unipileRequest<{ id?: string; chat_id?: string }>(
+        `/api/v1/chats/${encodeURIComponent(input.chatId)}/messages`,
+        {
+          method: "POST",
+          form: { text: input.text },
+        },
+      );
+      return { ...sent, chat_id: sent.chat_id || input.chatId };
+    } catch (error) {
+      if (!(error instanceof UnipileError) || (error.status !== 400 && error.status !== 404)) {
+        throw error;
+      }
+    }
+  }
+  return startUnipileChat({
+    accountId: input.accountId,
+    attendeeId: input.attendeeId,
+    text: input.text,
+  });
+}
+
 export type SalesNavPerson = {
   fullName: string;
   linkedinUrl: string;

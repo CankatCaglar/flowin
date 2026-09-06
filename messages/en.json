@@ -381,7 +381,7 @@
   },
   "messages": {
     "title": "Messages",
-    "subtitle": "Only messages sent in your campaign flow, and replies to those threads.",
+    "subtitle": "Campaign messages, incoming replies, and notes you send from here.",
     "lead": "Lead",
     "campaign": "Campaign",
     "allCampaigns": "All campaigns",
@@ -393,7 +393,17 @@
     "time": "Time",
     "outbound": "Sent",
     "inbound": "Reply",
-    "body": "Message"
+    "body": "Message",
+    "composePlaceholder": "Write a message…",
+    "send": "Send",
+    "sending": "Sending…",
+    "composeHint": "Sends from the selected brand’s LinkedIn seat. The campaign flow keeps running.",
+    "sendError": "The message could not be sent.",
+    "sendTestMode": "Test mode is on, so nothing is sent on LinkedIn.",
+    "sendPaused": "Outreach is paused for this brand, so messages cannot be sent.",
+    "sendSeat": "Connect the brand’s LinkedIn outreach seat first.",
+    "sendNotConnected": "LinkedIn did not allow messaging this person. They may not be connected yet.",
+    "sendMissing": "This person has no LinkedIn profile on file."
   },
   "settings": {
     "title": "Settings",

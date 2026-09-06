@@ -1,9 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Send } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
+import { Button } from "@/components/ui/Button";
 import { SelectMenu } from "@/components/ui/SelectMenu";
+import { useBrand } from "@/contexts/BrandContext";
+import { sendManualMessage } from "@/lib/outreach-api";
 import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, OutreachMessage } from "@/types";
@@ -33,28 +37,42 @@ function groupThreads(messages: OutreachMessage[]) {
 }
 
 export function MessagesWorkspace({
+  brandId,
   messages,
   leads,
   campaigns,
   now,
+  onSent,
 }: {
+  brandId: string;
   messages: OutreachMessage[];
   leads: Lead[];
   campaigns: Campaign[];
   now: Date;
+  onSent?: () => void;
 }) {
   const t = useTranslations("messages");
   const common = useTranslations("common");
   const locale = useLocale();
+  const { selectedBrand } = useBrand();
+  const threadEndRef = useRef<HTMLLIElement | null>(null);
   const [query, setQuery] = useState("");
   const [campaignId, setCampaignId] = useState("all");
   const [filter, setFilter] = useState<"all" | "replies">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [extras, setExtras] = useState<OutreachMessage[]>([]);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   const leadsById = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads]);
+  const visibleMessages = useMemo(() => {
+    const seen = new Set(messages.map((item) => item.id));
+    return [...messages, ...extras.filter((item) => !seen.has(item.id))];
+  }, [extras, messages]);
   const threads = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return groupThreads(messages).filter((thread) => {
+    return groupThreads(visibleMessages).filter((thread) => {
       if (campaignId !== "all" && thread.campaignId !== campaignId) return false;
       if (filter === "replies" && !thread.hasInbound) return false;
       if (
@@ -65,13 +83,51 @@ export function MessagesWorkspace({
       }
       return true;
     });
-  }, [campaignId, filter, messages, query]);
+  }, [campaignId, filter, query, visibleMessages]);
 
   const selected = threads.find((thread) => thread.leadId === selectedId) ?? threads[0] ?? null;
   const selectedLead = selected ? leadsById.get(selected.leadId) : undefined;
+  const draft = selected ? (drafts[selected.leadId] ?? "") : "";
+  const canCompose =
+    Boolean(brandId && selected) &&
+    selectedBrand?.unipileStatus === "running" &&
+    !selectedBrand.testMode &&
+    !selectedBrand.outreachPaused &&
+    !selectedBrand.archived;
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selected?.leadId, selected?.messages.length]);
+
+  const sendErrorMessage = (code: string) => {
+    if (code === "test-mode") return t("sendTestMode");
+    if (code === "outreach-paused") return t("sendPaused");
+    if (code === "seat-disconnected") return t("sendSeat");
+    if (code === "not-connected") return t("sendNotConnected");
+    if (code === "missing-linkedin") return t("sendMissing");
+    return t("sendError");
+  };
+
+  const submitDraft = async () => {
+    if (!selected || sending) return;
+    const body = draft.trim();
+    if (!body) return;
+    setSending(true);
+    setSendError("");
+    try {
+      const message = await sendManualMessage(brandId, selected.leadId, body);
+      setExtras((current) => [...current, message]);
+      setDrafts((current) => ({ ...current, [selected.leadId]: "" }));
+      onSent?.();
+    } catch (error) {
+      setSendError(sendErrorMessage(error instanceof Error ? error.message : "send-failed"));
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
-    <div className="grid min-h-[560px] overflow-hidden rounded-2xl border border-purple-jam/10 bg-white xl:grid-cols-[22rem_minmax(0,1fr)]">
+    <div className="grid h-full min-h-0 overflow-hidden rounded-2xl border border-purple-jam/10 bg-white max-xl:grid-rows-[minmax(12rem,38%)_minmax(0,1fr)] xl:grid-cols-[22rem_minmax(0,1fr)]">
       <section className="flex min-h-0 flex-col border-b border-purple-jam/10 xl:border-b-0 xl:border-r">
         <div className="space-y-3 border-b border-purple-jam/8 p-4">
           <input
@@ -115,7 +171,7 @@ export function MessagesWorkspace({
             ))}
           </div>
         </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto">
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {threads.map((thread) => {
             const lead = leadsById.get(thread.leadId);
             const active = selected?.leadId === thread.leadId;
@@ -168,7 +224,7 @@ export function MessagesWorkspace({
               </p>
               <p className="mt-1 text-xs text-barney">{selected.campaignName}</p>
             </header>
-            <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-5">
+            <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-5">
               {selected.messages.map((message) => {
                 const inbound = message.direction === "inbound";
                 return (
@@ -190,7 +246,55 @@ export function MessagesWorkspace({
                   </li>
                 );
               })}
+              <li ref={threadEndRef} aria-hidden className="h-0" />
             </ol>
+            <form
+              className="shrink-0 border-t border-purple-jam/8 px-5 py-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitDraft();
+              }}
+            >
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={draft}
+                  disabled={sending || !canCompose}
+                  rows={2}
+                  placeholder={t("composePlaceholder")}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setDrafts((current) => ({ ...current, [selected.leadId]: value }));
+                    if (sendError) setSendError("");
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void submitDraft();
+                    }
+                  }}
+                  className="min-h-11 max-h-32 flex-1 resize-none rounded-xl border border-purple-jam/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-barney/40 disabled:bg-canvas disabled:text-muted"
+                />
+                <Button
+                  type="submit"
+                  disabled={sending || !canCompose || !draft.trim()}
+                  className="h-11 shrink-0 px-3"
+                  aria-label={t("send")}
+                >
+                  <Send className="h-4 w-4" />
+                  <span className="hidden sm:inline">{sending ? t("sending") : t("send")}</span>
+                </Button>
+              </div>
+              <p className={cn("mt-2 text-[11px]", sendError ? "text-rose-600" : "text-muted")}>
+                {sendError ||
+                  (!canCompose && selectedBrand?.testMode
+                    ? t("sendTestMode")
+                    : !canCompose && (selectedBrand?.outreachPaused || selectedBrand?.archived)
+                      ? t("sendPaused")
+                      : !canCompose
+                        ? t("sendSeat")
+                        : t("composeHint"))}
+              </p>
+            </form>
           </>
         ) : (
           <p className="m-auto px-6 text-sm text-muted">{common("empty")}</p>

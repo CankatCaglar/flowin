@@ -18,6 +18,7 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { useRouter } from "@/i18n/navigation";
 import { defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { ImportedLead } from "@/lib/lead-import";
+import { partitionAgainstActiveCampaigns } from "@/lib/lead-identity";
 import { createCampaign, importSalesNavLeads } from "@/lib/outreach-api";
 import { cn } from "@/lib/utils";
 import type { CampaignFlowStep } from "@/types";
@@ -39,7 +40,7 @@ export default function NewCampaignPage() {
   const t = useTranslations("campaigns.create");
   const campaignsT = useTranslations("campaigns");
   const { selectedBrand } = useBrand();
-  const { campaigns, refresh } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, refresh } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
   const preferredList = campaigns[0];
   const [name, setName] = useState("");
@@ -67,15 +68,31 @@ export default function NewCampaignPage() {
     if (!listId && preferredList) setListId(preferredList.id);
   }, [listId, preferredList]);
 
+  const occupancy = useMemo(() => {
+    const incoming: ImportedLead[] = usesImported(source)
+      ? imported.leads
+      : source === "existing" && selectedList
+        ? leads
+            .filter((lead) => lead.campaignId === selectedList.id)
+            .map((lead) => ({
+              fullName: lead.fullName,
+              linkedinUrl: lead.linkedinUrl,
+              company: lead.company,
+              position: lead.position,
+              email: lead.email,
+              phone: lead.phone,
+              unipileProviderId: lead.unipileProviderId,
+            }))
+        : [];
+    return partitionAgainstActiveCampaigns(incoming, leads, campaigns);
+  }, [campaigns, imported.leads, leads, selectedList, source]);
+
   const outreachReady = selectedBrand?.unipileStatus === "running";
-  const shownCount = usesImported(source)
-    ? imported.leads.length
-    : source === "existing"
-      ? selectedList?.leadGoal ?? 0
-      : 0;
+  const shownCount = occupancy.kept.length;
+  const skippedCampaigns = [...new Set(occupancy.skipped.map((row) => row.campaignName))];
   const canSubmit =
     Boolean(name.trim()) &&
-    (source === "existing" ? Boolean(selectedList) : usesImported(source) ? imported.leads.length > 0 : false);
+    (source === "existing" ? Boolean(selectedList) && shownCount > 0 : usesImported(source) ? shownCount > 0 : false);
 
   const save = async (asDraft: boolean) => {
     if (!selectedBrand || !name.trim() || !canSubmit) return;
@@ -94,7 +111,7 @@ export default function NewCampaignPage() {
         flow,
         status: asDraft ? "draft" : "active",
         copyFromCampaignId: source === "existing" ? selectedList?.id : undefined,
-        leads: usesImported(source) ? imported.leads : undefined,
+        leads: usesImported(source) ? occupancy.kept : undefined,
       });
       refresh();
       router.push(`/campaigns/${campaign.id}`);
@@ -205,7 +222,9 @@ export default function NewCampaignPage() {
               <LeadUrlPanel
                 brandId={selectedBrand.id}
                 leads={imported.leads}
-                onChange={(leads) => setImported({ leads, fileName: t("profileUrl"), skipped: 0 })}
+                brandLeads={leads}
+                campaigns={campaigns}
+                onChange={(nextLeads) => setImported({ leads: nextLeads, fileName: t("profileUrl"), skipped: 0 })}
               />
             ) : null}
             {source === "salesNav" ? (
@@ -268,6 +287,16 @@ export default function NewCampaignPage() {
                   <p className="text-sm leading-6 text-muted">{t("salesNavNeedOutreach")}</p>
                 )}
               </div>
+            ) : null}
+            {occupancy.skipped.length > 0 ? (
+              <p className="text-sm leading-6 text-amber-800">
+                {shownCount === 0
+                  ? t("duplicateAllBlocked")
+                  : t("duplicateActive", {
+                      count: occupancy.skipped.length,
+                      campaigns: skippedCampaigns.join(", "),
+                    })}
+              </p>
             ) : null}
           </section>
 

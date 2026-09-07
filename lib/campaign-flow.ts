@@ -26,8 +26,8 @@ const STEP_TEMPLATES: Record<
   connectionRequest: {
     title: { tr: "Bağlantı İsteği", en: "Connection Request" },
     body: {
-      tr: "Merhaba {{firstName}} {{lastName}},\n{{company}}’deki çalışmalarınızı gördüm. Benzer ekiplerle büyüme, satış ve verimlilik tarafında çalışıyoruz. Bağlantıda kalmak isterim.",
-      en: "Hi {{firstName}} {{lastName}},\nI came across your work at {{company}}. We work with similar teams on growth, sales and efficiency. I'd like to stay connected.",
+      tr: "",
+      en: "",
     },
   },
   inmail: {
@@ -47,15 +47,15 @@ const STEP_TEMPLATES: Record<
   message1: {
     title: { tr: "Mesaj 1", en: "Message 1" },
     body: {
-      tr: "Merhaba {{firstName}} {{lastName}},\n\nBağlantı için teşekkürler. Kısa bir not bırakmak istedim: Sosyal medya içerikleriniz/paylaşımlarınız neden beklediğiniz performansı göstermiyor, bunu Score AI saniyeler içinde analiz ediyor.\n\nİçeriğinizi 30+ mikro kriterle değerlendiriyor, markanızı anlıyor ve daha iyi sonuçlar için uygulanabilir öneriler sunuyor. Dilerseniz ücretsiz analiz sayfamızdan içeriğinizi yükleyip skorunuzu hemen görebilirsiniz:",
-      en: "Hi {{firstName}} {{lastName}},\n\nThanks for connecting. A quick note: Score AI shows in seconds why your social posts may not be hitting the performance you expected.\n\nIt scores your content against 30+ micro-criteria, understands your brand, and gives practical next steps. If you'd like, upload a post on our free analysis page and see your score right away:",
+      tr: "Merhaba {{firstName}} {{lastName}},\n{{company}}’deki çalışmalarınızı gördüm. Benzer ekiplerle büyüme, satış ve verimlilik tarafında çalışıyoruz. Bağlantıda kalmak isterim.",
+      en: "Hi {{firstName}} {{lastName}},\nI came across your work at {{company}}. We work with similar teams on growth, sales and efficiency. I'd like to stay connected.",
     },
   },
   message2: {
     title: { tr: "Mesaj 2", en: "Message 2" },
     body: {
-      tr: "Merhaba {{firstName}} {{lastName}},\n\nScore AI analizini deneme fırsatınız oldu mu? İçeriğinizi yükleyip 30+ mikro kriterle skorunuzu saniyeler içinde görebilirsiniz. Dilerseniz ücretsiz analiz için bana yazmanız yeterli.",
-      en: "Hi {{firstName}} {{lastName}},\n\nDid you get a chance to try the Score AI analysis? Upload a post and see your score against 30+ micro-criteria in seconds. Just reply if you'd like a free review.",
+      tr: "Merhaba {{firstName}} {{lastName}},\n\nBağlantı için teşekkürler. Kısa bir not bırakmak istedim: Sosyal medya içerikleriniz/paylaşımlarınız neden beklediğiniz performansı göstermiyor, bunu Score AI saniyeler içinde analiz ediyor.\n\nİçeriğinizi 30+ mikro kriterle değerlendiriyor, markanızı anlıyor ve daha iyi sonuçlar için uygulanabilir öneriler sunuyor. Dilerseniz ücretsiz analiz sayfamızdan içeriğinizi yükleyip skorunuzu hemen görebilirsiniz: usescore.net",
+      en: "Hi {{firstName}} {{lastName}},\n\nThanks for connecting. A quick note: Score AI shows in seconds why your social posts may not be hitting the performance you expected.\n\nIt scores your content against 30+ micro-criteria, understands your brand, and gives practical next steps. If you'd like, upload a post on our free analysis page and see your score right away: usescore.net",
     },
   },
   message3: {
@@ -227,4 +227,23 @@ export function flattenFlowSteps(steps: CampaignFlowStep[]) {
   const { trunk, accepted, noResponse, inmailAccepted, inmailNoResponse } =
     splitFlowBranches(steps);
   return [...trunk, ...accepted, ...noResponse, ...inmailAccepted, ...inmailNoResponse];
+}
+
+const FIXED_TEMPLATE_BY_ID: Record<string, keyof typeof STEP_TEMPLATES> = {
+  "step-invite": "connectionRequest",
+  "step-accepted-message-1": "message1",
+  "step-accepted-message-2": "message2",
+  "step-accepted-message-3": "message3",
+};
+
+/** Keeps the default Score steps on the current built-in copy. */
+export function applyFixedFlowCopy(steps: CampaignFlowStep[]) {
+  return steps.map((step) => {
+    const templateKey = FIXED_TEMPLATE_BY_ID[step.id] ?? step.templateKey;
+    return {
+      ...step,
+      templateKey,
+      body: step.kind === "connection" ? "" : step.body,
+    };
+  });
 }

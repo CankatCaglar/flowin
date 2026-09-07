@@ -92,7 +92,10 @@ export async function createCampaign(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return hydrateCampaignDates(await readJson<Campaign>(response));
+  const data = await readJson<
+    Campaign & { skippedDuplicates?: number; skippedCampaigns?: string[] }
+  >(response);
+  return hydrateCampaignDates(data);
 }
 
 export async function updateCampaign(
@@ -152,7 +155,22 @@ export async function createLead(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return hydrateLeadDates(await readJson<Lead>(response));
+  const data = (await response.json().catch(() => null)) as
+    | Lead
+    | { error?: string; campaignName?: string }
+    | null;
+  if (!response.ok) {
+    const error =
+      data && typeof data === "object" && "error" in data && typeof data.error === "string"
+        ? data.error
+        : "request-failed";
+    const extra =
+      error === "duplicate-active" && data && "campaignName" in data && typeof data.campaignName === "string"
+        ? `:${data.campaignName}`
+        : "";
+    throw new Error(`${error}${extra}`);
+  }
+  return hydrateLeadDates(data as Lead);
 }
 
 export async function fetchMessages(brandId: string): Promise<OutreachMessage[]> {

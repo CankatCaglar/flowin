@@ -1,6 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
+import { DuplicateActiveLeadError } from "@/lib/lead-identity";
 import { hydrateLeadAvatars } from "@/lib/lead-avatar";
 import { createLead, fetchLeads } from "@/lib/outreach-data";
 
@@ -65,6 +66,12 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(lead);
   } catch (error) {
+    if (error instanceof DuplicateActiveLeadError) {
+      return NextResponse.json(
+        { error: "duplicate-active", campaignName: error.campaignName, campaignId: error.campaignId },
+        { status: 409 },
+      );
+    }
     if (error instanceof Error && error.message === "not-found") {
       return NextResponse.json({ error: "not-found" }, { status: 404 });
     }

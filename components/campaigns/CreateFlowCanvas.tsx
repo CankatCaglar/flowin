@@ -36,7 +36,7 @@ function wheelPixels(event: WheelEvent) {
 }
 
 function isEditable(step: CampaignFlowStep) {
-  return step.kind !== "profile_view";
+  return step.kind !== "profile_view" && step.kind !== "connection";
 }
 
 function WaitRow({ step }: { step: CampaignFlowStep }) {
@@ -91,7 +91,8 @@ function StepCard({
     </>
   );
   const shell = cn(
-    "relative flex w-[13.5rem] cursor-pointer items-center justify-center rounded-xl border bg-white px-7 py-2.5 shadow-sm transition-colors",
+    "relative flex w-[13.5rem] items-center justify-center rounded-xl border bg-white px-7 py-2.5 shadow-sm transition-colors",
+    editable ? "cursor-pointer" : "cursor-default",
     selected && editable ? "border-barney" : "border-purple-jam/12",
     editable && !selected ? "hover:border-barney/35" : null,
   );

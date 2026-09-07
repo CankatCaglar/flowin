@@ -364,14 +364,15 @@ export async function reportProfileVisit(accountId: string, token: string) {
 export async function sendUnipileInvitation(
   accountId: string,
   providerId: string,
-  message: string,
+  message?: string,
 ) {
+  const note = message?.trim() ?? "";
   return unipileRequest("/api/v1/users/invite", {
     method: "POST",
     body: {
       account_id: accountId,
       provider_id: providerId,
-      message,
+      ...(note ? { message: note } : {}),
     },
   });
 }

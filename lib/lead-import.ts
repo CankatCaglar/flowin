@@ -1,3 +1,6 @@
+import { leadIdentityKeys } from "@/lib/lead-identity";
+import { normalizeLinkedInUrl } from "@/lib/linkedin-profile";
+
 export type ImportedLead = {
   fullName: string;
   linkedinUrl: string;
@@ -51,19 +54,6 @@ function cell(row: Record<string, string>, keys: string[]) {
     if (value) return value;
   }
   return "";
-}
-
-function normalizeLinkedInUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
-  try {
-    const url = new URL(withProtocol);
-    if (!url.hostname.replace(/^www\./, "").includes("linkedin.com")) return "";
-    return url.toString();
-  } catch {
-    return "";
-  }
 }
 
 function mapRow(raw: Record<string, string>): ImportedLead | null {
@@ -159,11 +149,13 @@ export async function parseLeadFile(file: File): Promise<LeadImportResult> {
       skipped += 1;
       continue;
     }
-    const key = lead.linkedinUrl.toLocaleLowerCase();
-    if (seen.has(key)) {
+    const keys = leadIdentityKeys(lead);
+    const key = keys[0] ?? lead.linkedinUrl.toLocaleLowerCase();
+    if (keys.some((item) => seen.has(item)) || seen.has(key)) {
       skipped += 1;
       continue;
     }
+    for (const item of keys) seen.add(item);
     seen.add(key);
     leads.push(lead);
   }

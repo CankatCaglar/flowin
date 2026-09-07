@@ -5,6 +5,8 @@ import { interpolateTemplate, splitPersonName } from "@/lib/linkedin-profile";
 import {
   createMessage,
   fetchCampaign,
+  fetchCampaigns,
+  fetchLeads,
   incrementCampaignCounters,
   incrementDailyStat,
   saveLead,
@@ -35,6 +37,7 @@ import {
   type UnipileProfile,
 } from "@/lib/unipile";
 import { ingestLeadAvatar, isStoredLeadAvatarUrl } from "@/lib/brand-avatar";
+import { findActiveOccupant } from "@/lib/lead-identity";
 import type { Campaign, CampaignFlowStep, Lead } from "@/types";
 
 function templateValues(lead: Lead) {
@@ -230,10 +233,10 @@ async function executeStep(
   }
 
   const providerId = await resolveProviderId(accountId, lead);
-  const body = stepCopy(step, lead);
+  const body = step.kind === "connection" ? "" : stepCopy(step, lead);
 
   if (step.kind === "connection") {
-    await sendUnipileInvitation(accountId, providerId, body);
+    await sendUnipileInvitation(accountId, providerId);
     appendHistory(lead, "connection_sent");
     lead.status = "waiting_reply";
     lead.stage = "connection_request";
@@ -242,16 +245,6 @@ async function executeStep(
     lead.nextStepId = timeout?.id ?? "";
     lead.nextStepAt = timeout ? scheduleAt(timeout, new Date(), schedule) : undefined;
     await applyUsage(lead.brandId, campaign.id, "invites", step.id);
-    await createMessage({
-      brandId: lead.brandId,
-      campaignId: campaign.id,
-      campaignName: campaign.name,
-      leadId: lead.id,
-      leadName: lead.fullName,
-      direction: "outbound",
-      body,
-      sentAt: new Date(),
-    });
     return saveLead(lead);
   }
 
@@ -309,7 +302,10 @@ async function executeStep(
   return saveLead(lead);
 }
 
-export async function runLeadStep(lead: Lead) {
+export async function runLeadStep(
+  lead: Lead,
+  occupancy?: { leads: Lead[]; campaigns: Campaign[] },
+) {
   if (!isRunnable(lead)) return { skipped: true as const };
   const [brand, campaign] = await Promise.all([
     fetchBrand(lead.brandId),
@@ -320,6 +316,16 @@ export async function runLeadStep(lead: Lead) {
     return { skipped: true as const };
   }
   const schedule = normalizeSchedule(brand.schedule);
+  const occupied = occupancy ?? {
+    leads: await fetchLeads(lead.brandId),
+    campaigns: await fetchCampaigns(lead.brandId),
+  };
+  const owner = findActiveOccupant(occupied.leads, occupied.campaigns, lead);
+  if (owner && owner.lead.id !== lead.id) {
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
+    await saveLead(lead);
+    return { deferred: "duplicate-active" as const };
+  }
   if (brand.outreachPaused || brand.archived || brand.testMode) {
     lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
@@ -395,9 +401,18 @@ export async function runDueSequence(limit = 3) {
     failed: 0,
     skipped: 0,
   };
+  const occupancyByBrand = new Map<string, { leads: Lead[]; campaigns: Campaign[] }>();
   for (const lead of due.slice(0, limit)) {
     results.processed += 1;
-    const result = await runLeadStep(lead);
+    let occupancy = occupancyByBrand.get(lead.brandId);
+    if (!occupancy) {
+      occupancy = {
+        leads: await fetchLeads(lead.brandId),
+        campaigns: await fetchCampaigns(lead.brandId),
+      };
+      occupancyByBrand.set(lead.brandId, occupancy);
+    }
+    const result = await runLeadStep(lead, occupancy);
     if ("ok" in result && result.ok) results.ok += 1;
     else if ("deferred" in result) results.deferred += 1;
     else if ("failed" in result) results.failed += 1;

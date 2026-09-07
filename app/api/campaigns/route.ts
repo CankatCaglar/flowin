@@ -6,8 +6,17 @@ import {
   createCampaign,
   createLeads,
   fetchCampaigns,
+  updateCampaign,
 } from "@/lib/outreach-data";
 import type { CampaignFlowStep, CampaignStatus } from "@/types";
+
+function uniqueNames(rows: Array<{ campaignName: string }>) {
+  return [...new Set(rows.map((row) => row.campaignName).filter(Boolean))];
+}
+
+async function applySkippedLeadGoal(campaignId: string, leadGoal: number) {
+  await updateCampaign(campaignId, { leadGoal });
+}
 
 export async function GET(request: Request) {
   if (!(await getAdminSessionEmail())) {
@@ -59,9 +68,17 @@ export async function POST(request: Request) {
       status: (body.status as CampaignStatus | undefined) ?? "draft",
     });
     if (typeof body.copyFromCampaignId === "string" && body.copyFromCampaignId) {
-      await copyCampaignLeads(body.brandId, body.copyFromCampaignId, campaign.id);
-    } else if (Array.isArray(body.leads)) {
-      await createLeads(
+      const copied = await copyCampaignLeads(body.brandId, body.copyFromCampaignId, campaign.id);
+      await applySkippedLeadGoal(campaign.id, copied.created.length);
+      return NextResponse.json({
+        ...campaign,
+        leadGoal: copied.created.length,
+        skippedDuplicates: copied.skipped.length,
+        skippedCampaigns: uniqueNames(copied.skipped),
+      });
+    }
+    if (Array.isArray(body.leads)) {
+      const imported = await createLeads(
         body.brandId,
         campaign.id,
         body.leads.filter(
@@ -78,8 +95,15 @@ export async function POST(request: Request) {
             Boolean(item && typeof item === "object" && "fullName" in item && "linkedinUrl" in item),
         ),
       );
+      await applySkippedLeadGoal(campaign.id, imported.created.length);
+      return NextResponse.json({
+        ...campaign,
+        leadGoal: imported.created.length,
+        skippedDuplicates: imported.skipped.length,
+        skippedCampaigns: uniqueNames(imported.skipped),
+      });
     }
-    return NextResponse.json(campaign);
+    return NextResponse.json({ ...campaign, skippedDuplicates: 0, skippedCampaigns: [] });
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });
   }

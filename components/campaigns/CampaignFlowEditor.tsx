@@ -11,7 +11,7 @@ import type { CampaignFlowStep } from "@/types";
 const LINE = "border-dashed border-purple-jam/25";
 
 function isEditable(step: CampaignFlowStep) {
-  return step.kind !== "profile_view";
+  return step.kind !== "profile_view" && step.kind !== "connection";
 }
 
 function WaitRow({ step }: { step: CampaignFlowStep }) {

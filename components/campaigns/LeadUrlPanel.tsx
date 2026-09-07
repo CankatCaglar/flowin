@@ -5,32 +5,45 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { ImportedLead } from "@/lib/lead-import";
+import { findActiveOccupant, leadsShareIdentity } from "@/lib/lead-identity";
 import { importLeadFromUrl } from "@/lib/outreach-api";
+import type { Campaign, Lead } from "@/types";
 
 export function LeadUrlPanel({
   brandId,
   leads,
+  brandLeads = [],
+  campaigns = [],
   onChange,
 }: {
   brandId: string;
   leads: ImportedLead[];
+  brandLeads?: Lead[];
+  campaigns?: Campaign[];
   onChange: (leads: ImportedLead[]) => void;
 }) {
   const t = useTranslations("campaigns.create");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeCampaign, setActiveCampaign] = useState("");
 
   const add = async () => {
     const next = url.trim();
     if (!next || loading) return;
     setLoading(true);
     setError(null);
+    setActiveCampaign("");
     try {
       const result = await importLeadFromUrl(brandId, next);
-      const key = result.lead.linkedinUrl.toLocaleLowerCase();
-      if (leads.some((lead) => lead.linkedinUrl.toLocaleLowerCase() === key)) {
+      if (leads.some((lead) => leadsShareIdentity(lead, result.lead))) {
         setError("duplicate");
+        return;
+      }
+      const occupant = findActiveOccupant(brandLeads, campaigns, result.lead);
+      if (occupant) {
+        setError("active");
+        setActiveCampaign(occupant.campaign.name);
         return;
       }
       onChange([...leads, { ...result.lead, email: "", phone: "" }]);
@@ -71,9 +84,11 @@ export function LeadUrlPanel({
         <p className="text-sm text-rose-600">
           {error === "duplicate"
             ? t("profileUrlDuplicate")
-            : error === "invalid"
-              ? t("profileUrlInvalid")
-              : t("profileUrlFailed")}
+            : error === "active"
+              ? t("profileUrlActiveDuplicate", { campaign: activeCampaign })
+              : error === "invalid"
+                ? t("profileUrlInvalid")
+                : t("profileUrlFailed")}
         </p>
       ) : null}
       {leads.length > 0 ? (

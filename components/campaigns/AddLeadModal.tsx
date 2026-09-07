@@ -31,6 +31,7 @@ export function AddLeadModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -40,12 +41,14 @@ export function AddLeadModal({
     setPosition("");
     setEmail("");
     setPhone("");
+    setError("");
   }, [open]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!fullName.trim() || !linkedinUrl.trim()) return;
     setSubmitting(true);
+    setError("");
     try {
       await onSubmit({
         fullName: fullName.trim(),
@@ -56,6 +59,14 @@ export function AddLeadModal({
         phone: phone.trim(),
       });
       onClose();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "";
+      if (message.startsWith("duplicate-active")) {
+        const campaign = message.slice("duplicate-active".length).replace(/^:/, "");
+        setError(t("addDuplicate", { campaign: campaign || "—" }));
+      } else {
+        setError(t("addFailed"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -115,6 +126,7 @@ export function AddLeadModal({
             onChange={(event) => setPhone(event.target.value)}
           />
         </div>
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="light" onClick={onClose} disabled={submitting}>
             {common("cancel")}

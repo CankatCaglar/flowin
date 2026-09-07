@@ -58,35 +58,43 @@ export function EditFlowStepModal({
             setDraft({ ...current, title: event.target.value })
           }
         />
-        <div>
-          <p className="mb-2 text-[13px] font-medium text-muted">{t("variables")}</p>
-          <div className="flex flex-wrap gap-2">
-            {FLOW_VARIABLES.map((variable) => (
-              <button
-                key={variable}
-                type="button"
-                className="rounded-full border border-purple-jam/15 bg-canvas px-3 py-1 text-xs font-medium text-ink hover:border-barney/40"
-                onClick={() =>
-                  setDraft({
-                    ...current,
-                    body: `${current.body}${current.body.endsWith(" ") || !current.body ? "" : " "}{{${variable}}}`,
-                  })
-                }
-              >
-                {`{{${variable}}}`}
-              </button>
-            ))}
-          </div>
-        </div>
-        <label className="block space-y-2">
-          <span className="text-[13px] font-medium text-muted">{t("message")}</span>
-          <textarea
-            rows={7}
-            value={current.body}
-            onChange={(event) => setDraft({ ...current, body: event.target.value })}
-            className="w-full rounded-xl border border-purple-jam/15 bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-barney/50"
-          />
-        </label>
+        {current.kind === "connection" ? (
+          <p className="rounded-xl border border-purple-jam/10 bg-canvas px-3 py-2.5 text-sm text-muted">
+            {t("connectionNoNote")}
+          </p>
+        ) : (
+          <>
+            <div>
+              <p className="mb-2 text-[13px] font-medium text-muted">{t("variables")}</p>
+              <div className="flex flex-wrap gap-2">
+                {FLOW_VARIABLES.map((variable) => (
+                  <button
+                    key={variable}
+                    type="button"
+                    className="rounded-full border border-purple-jam/15 bg-canvas px-3 py-1 text-xs font-medium text-ink hover:border-barney/40"
+                    onClick={() =>
+                      setDraft({
+                        ...current,
+                        body: `${current.body}${current.body.endsWith(" ") || !current.body ? "" : " "}{{${variable}}}`,
+                      })
+                    }
+                  >
+                    {`{{${variable}}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="block space-y-2">
+              <span className="text-[13px] font-medium text-muted">{t("message")}</span>
+              <textarea
+                rows={7}
+                value={current.body}
+                onChange={(event) => setDraft({ ...current, body: event.target.value })}
+                className="w-full rounded-xl border border-purple-jam/15 bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-barney/50"
+              />
+            </label>
+          </>
+        )}
         <div className="space-y-2">
           <span className="text-[13px] font-medium text-muted">{t("delay")}</span>
           <p className="rounded-xl border border-purple-jam/10 bg-canvas px-3 py-2.5 text-sm text-muted">

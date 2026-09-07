@@ -8,10 +8,11 @@ import {
   isStoredLeadAvatarUrl,
   leadAvatarUrl,
 } from "@/lib/brand-avatar";
-import { defaultCampaignFlow } from "@/lib/campaign-flow";
+import { applyFixedFlowCopy, defaultCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
 import { companyFromHeadline } from "@/lib/linkedin-company";
+import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "@/lib/lead-identity";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
 import { firstOpenStep, scheduleAt } from "@/lib/sequence";
@@ -47,12 +48,14 @@ function hydrateFlow(input: unknown): CampaignFlowStep[] {
   const stored = Array.isArray(input) ? input : [];
   const branched = stored.some((step) => Boolean((step as CampaignFlowStep).branch));
   const source = (branched ? stored : defaultCampaignFlow()) as CampaignFlowStep[];
-  return source.map((step) => ({
-    ...step,
-    delayDays: Number(step.delayDays ?? 0),
-    delayUnit: (step.delayUnit === "hours" ? "hours" : "days") as FlowDelayUnit,
-    premium: Boolean(step.premium),
-  }));
+  return applyFixedFlowCopy(
+    source.map((step) => ({
+      ...step,
+      delayDays: Number(step.delayDays ?? 0),
+      delayUnit: (step.delayUnit === "hours" ? "hours" : "days") as FlowDelayUnit,
+      premium: Boolean(step.premium),
+    })),
+  );
 }
 
 function hydrateHistory(input: unknown): LeadEvent[] {
@@ -521,6 +524,7 @@ export async function createLead(input: {
   pictureUrl?: string;
   schedule?: boolean;
   deferAvatar?: boolean;
+  skipOccupancyCheck?: boolean;
 }) {
   const campaign = await fetchCampaign(input.campaignId);
   if (!campaign || campaign.brandId !== input.brandId) {
@@ -528,6 +532,13 @@ export async function createLead(input: {
   }
   const addedAt = new Date();
   const linkedinUrl = normalizeLinkedInUrl(input.linkedinUrl) || input.linkedinUrl.trim();
+  if (!input.skipOccupancyCheck) {
+    await assertLeadNotInActiveCampaign({
+      brandId: input.brandId,
+      linkedinUrl,
+      unipileProviderId: input.unipileProviderId,
+    });
+  }
   const schedule = initialSchedule(
     campaign.flow,
     input.schedule ?? isCampaignRunning(campaign.status),
@@ -588,19 +599,31 @@ export async function createLeads(
     pictureUrl?: string;
   }>,
 ) {
+  const occupancy = await loadOccupancy(brandId);
   const created: Lead[] = [];
+  const skipped: Array<{ campaignName: string; campaignId: string }> = [];
+  const seen = new Set<string>();
   for (const row of rows) {
-    created.push(
-      await createLead({
-        brandId,
-        campaignId,
-        ...row,
-        deferAvatar: true,
-      }),
-    );
+    const keys = leadIdentityKeys(row);
+    if (keys.some((key) => seen.has(key))) continue;
+    const occupant = findActiveOccupant(occupancy.leads, occupancy.campaigns, row);
+    if (occupant) {
+      skipped.push({ campaignName: occupant.campaign.name, campaignId: occupant.campaign.id });
+      continue;
+    }
+    for (const key of keys) seen.add(key);
+    const lead = await createLead({
+      brandId,
+      campaignId,
+      ...row,
+      deferAvatar: true,
+      skipOccupancyCheck: true,
+    });
+    created.push(lead);
+    occupancy.leads.push(lead);
   }
   await Promise.all(created.map((lead) => persistRemoteLeadAvatar(lead)));
-  return created;
+  return { created, skipped };
 }
 
 export async function copyCampaignLeads(
@@ -609,8 +632,15 @@ export async function copyCampaignLeads(
   targetCampaignId: string,
 ) {
   const source = await fetchLeadsByCampaign(sourceCampaignId);
+  const occupancy = await loadOccupancy(brandId);
   const created: Lead[] = [];
+  const skipped: Array<{ campaignName: string; campaignId: string }> = [];
   for (const lead of source) {
+    const occupant = findActiveOccupant(occupancy.leads, occupancy.campaigns, lead);
+    if (occupant) {
+      skipped.push({ campaignName: occupant.campaign.name, campaignId: occupant.campaign.id });
+      continue;
+    }
     const next = await createLead({
       brandId,
       campaignId: targetCampaignId,
@@ -622,6 +652,7 @@ export async function copyCampaignLeads(
       phone: lead.phone,
       unipileProviderId: lead.unipileProviderId,
       pictureUrl: isRemoteAvatarUrl(lead.avatarUrl ?? "") ? lead.avatarUrl : "",
+      skipOccupancyCheck: true,
     });
     if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "") && (await copyLeadAvatar(lead.id, next.id))) {
       next.avatarUrl = leadAvatarUrl(next.id);
@@ -632,8 +663,26 @@ export async function copyCampaignLeads(
       });
     }
     created.push(next);
+    occupancy.leads.push(next);
   }
-  return created;
+  return { created, skipped };
+}
+
+async function loadOccupancy(brandId: string) {
+  const [leads, campaigns] = await Promise.all([fetchLeads(brandId), fetchCampaigns(brandId)]);
+  return { leads, campaigns };
+}
+
+async function assertLeadNotInActiveCampaign(identity: {
+  brandId: string;
+  linkedinUrl: string;
+  unipileProviderId?: string;
+}) {
+  const occupancy = await loadOccupancy(identity.brandId);
+  const occupant = findActiveOccupant(occupancy.leads, occupancy.campaigns, identity);
+  if (occupant) {
+    throw new DuplicateActiveLeadError(occupant.campaign.id, occupant.campaign.name);
+  }
 }
 
 export async function saveLead(lead: Lead) {

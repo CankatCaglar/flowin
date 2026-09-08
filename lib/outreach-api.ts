@@ -173,8 +173,9 @@ export async function createLead(input: {
   return hydrateLeadDates(data as Lead);
 }
 
-export async function fetchMessages(brandId: string): Promise<OutreachMessage[]> {
-  const response = await request(`/api/messages?brandId=${encodeURIComponent(brandId)}`);
+export async function fetchMessages(brandId: string, leadId?: string): Promise<OutreachMessage[]> {
+  const query = leadId ? `&leadId=${encodeURIComponent(leadId)}` : "";
+  const response = await request(`/api/messages?brandId=${encodeURIComponent(brandId)}${query}`);
   const rows = await readJson<OutreachMessage[]>(response);
   return rows.map(hydrateMessageDates);
 }
@@ -229,6 +230,14 @@ export async function sendManualMessage(brandId: string, leadId: string, body: s
     body: JSON.stringify({ brandId, leadId, body }),
   });
   return hydrateMessageDates(await readJson<OutreachMessage>(response));
+}
+
+export async function deleteManualMessage(brandId: string, messageId: string) {
+  const response = await request(
+    `/api/messages/${encodeURIComponent(messageId)}?brandId=${encodeURIComponent(brandId)}`,
+    { method: "DELETE" },
+  );
+  return readJson<{ ok: boolean }>(response);
 }
 
 export async function updateBrandPacing(brandId: string, pacing: BrandPacing) {

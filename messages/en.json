@@ -409,7 +409,18 @@
     "sendPaused": "Outreach is paused for this brand, so messages cannot be sent.",
     "sendSeat": "Connect the brand’s LinkedIn outreach seat first.",
     "sendNotConnected": "LinkedIn did not allow messaging this person. They may not be connected yet.",
-    "sendMissing": "This person has no LinkedIn profile on file."
+    "sendMissing": "This person has no LinkedIn profile on file.",
+    "remove": {
+      "action": "Delete",
+      "title": "Delete message",
+      "hint": "Deleting here also removes it from the LinkedIn chat; deleting it on LinkedIn removes it here too. LinkedIn only allows unsending your own message within the first 60 minutes.",
+      "confirm": "Delete on LinkedIn",
+      "pending": "Deleting…",
+      "error": "The message could not be deleted.",
+      "denied": "LinkedIn did not allow this message to be deleted.",
+      "tooOld": "LinkedIn did not allow this message to be deleted. You can only unsend your own message within 60 minutes. If you already deleted it on LinkedIn, reopen the thread and it will disappear here too.",
+      "missing": "That message was not found on LinkedIn. The chat may not be synced yet."
+    }
   },
   "settings": {
     "title": "Settings",

@@ -5,6 +5,7 @@ import {
   findBrandByUnipileAccount,
   setUnipileStatus,
 } from "@/lib/data";
+import { applyRemoteMessageDeleted } from "@/lib/delete-message";
 import {
   fetchCampaign,
   findAwaitingLeads,
@@ -130,6 +131,27 @@ export async function handleUnipileWebhook(body: unknown) {
   const brand = await brandFromAccount(accountId);
   if (!brand) return { ignored: true };
 
+  const deleted =
+    (type.includes("message") && (type.includes("delete") || type.includes("deleted"))) ||
+    type === "message.delete" ||
+    type === "message_deleted";
+  if (deleted) {
+    const nested = asRecord(payload.message);
+    return applyRemoteMessageDeleted({
+      brandId: brand.id,
+      messageId:
+        (typeof data.message_id === "string" && data.message_id) ||
+        (typeof payload.message_id === "string" && payload.message_id) ||
+        (typeof payload.id === "string" && payload.id) ||
+        (typeof nested?.id === "string" && nested.id) ||
+        "",
+      chatId:
+        (typeof data.chat_id === "string" && data.chat_id) ||
+        (typeof payload.chat_id === "string" && payload.chat_id) ||
+        "",
+    });
+  }
+
   const inbound =
     type.includes("message") &&
     (type.includes("received") ||
@@ -144,7 +166,17 @@ export async function handleUnipileWebhook(body: unknown) {
     if (!lead) return { ignored: true };
     const campaign = await fetchCampaign(lead.campaignId);
     if (!campaign) return { ignored: true };
-    await markLeadReplied(lead, campaign, textOf(payload) || textOf(asRecord(payload.message)));
+    await markLeadReplied(lead, campaign, textOf(payload) || textOf(asRecord(payload.message)), {
+      unipileMessageId:
+        (typeof data.message_id === "string" && data.message_id) ||
+        (typeof payload.message_id === "string" && payload.message_id) ||
+        (typeof payload.id === "string" && payload.id) ||
+        "",
+      unipileChatId:
+        (typeof data.chat_id === "string" && data.chat_id) ||
+        (typeof payload.chat_id === "string" && payload.chat_id) ||
+        "",
+    });
     return { replied: lead.id };
   }
 

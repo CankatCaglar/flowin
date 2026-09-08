@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { usePathname } from "@/i18n/navigation";
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,6 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [mobileOpen]);
 
+  const chatLocked = pathname === "/messages";
+
   return (
     <div className="flex h-full overflow-hidden bg-canvas">
       {mobileOpen ? (
@@ -41,7 +44,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-5 lg:p-6">{children}</main>
+        <main
+          className={cn(
+            "min-h-0 min-w-0 flex-1 overflow-x-hidden p-3 sm:p-5 lg:p-6",
+            chatLocked ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

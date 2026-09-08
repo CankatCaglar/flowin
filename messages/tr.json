@@ -409,7 +409,18 @@
     "sendPaused": "Bu markada outreach durduğu için mesaj gönderilemez.",
     "sendSeat": "Önce markanın LinkedIn outreach koltuğunu bağla.",
     "sendNotConnected": "LinkedIn bu kişiye mesaj atmaya izin vermedi. Henüz bağlı olmayabilir.",
-    "sendMissing": "Bu kişi için LinkedIn profili yok."
+    "sendMissing": "Bu kişi için LinkedIn profili yok.",
+    "remove": {
+      "action": "Sil",
+      "title": "Mesajı sil",
+      "hint": "Buradan silince LinkedIn sohbetinden de kalkar; LinkedIn’den silinince burada da kalkar. LinkedIn kendi mesajını yalnızca ilk 60 dakikada silmeye izin verir.",
+      "confirm": "LinkedIn’den sil",
+      "pending": "Siliniyor…",
+      "error": "Mesaj silinemedi.",
+      "denied": "LinkedIn bu mesajı silmeye izin vermedi.",
+      "tooOld": "LinkedIn bu mesajı silmeye izin vermedi. Kendi mesajları yalnızca gönderildikten sonraki 60 dakikada silinebiliyor. LinkedIn’den zaten sildiysen sohbeti yeniden aç, burada da kalkar.",
+      "missing": "LinkedIn’de bu mesaj bulunamadı. Sohbet henüz senkron değil olabilir."
+    }
   },
   "settings": {
     "title": "Ayarlar",

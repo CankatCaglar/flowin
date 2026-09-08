@@ -4,6 +4,7 @@ import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { DuplicateActiveLeadError } from "@/lib/lead-identity";
 import { hydrateLeadAvatars } from "@/lib/lead-avatar";
 import { createLead, fetchLeads } from "@/lib/outreach-data";
+import { recoverFailedInvites } from "@/lib/sequence-runner";
 
 export async function GET(request: Request) {
   if (!(await getAdminSessionEmail())) {
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
   const brandId = new URL(request.url).searchParams.get("brandId")?.trim() ?? "";
   if (!brandId) return NextResponse.json({ error: "invalid" }, { status: 400 });
   try {
+    await recoverFailedInvites(brandId);
     const leads = await fetchLeads(brandId);
     after(() => {
       void hydrateLeadAvatars(leads);

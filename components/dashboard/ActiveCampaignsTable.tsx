@@ -4,12 +4,19 @@ import { ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Link } from "@/i18n/navigation";
+import { countFlowMessages } from "@/lib/metrics";
 import { formatNumber, formatSuccessRate } from "@/lib/utils";
-import type { Campaign, CampaignStatus } from "@/types";
+import type { Campaign, CampaignStatus, Lead } from "@/types";
 
 const VISIBLE_ROWS = 2;
 
-export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
+export function ActiveCampaignsTable({
+  campaigns,
+  leads,
+}: {
+  campaigns: Campaign[];
+  leads: Lead[];
+}) {
   const t = useTranslations("dashboard.table");
   const statusT = useTranslations("status");
   const locale = useLocale();
@@ -32,7 +39,9 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((campaign) => (
+            {rows.map((campaign) => {
+              const sent = countFlowMessages(leads, campaign.id);
+              return (
               <tr key={campaign.id} className="border-t border-purple-jam/8">
                 <td className="px-3 py-3 font-medium text-ink">
                   <Link href={`/campaigns/${campaign.id}`} className="hover:text-barney">
@@ -40,13 +49,13 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
                   </Link>
                 </td>
                 <td className="px-3 py-3 text-center text-muted">
-                  {formatNumber(campaign.sentCount, locale)}
+                  {formatNumber(sent, locale)}
                 </td>
                 <td className="px-3 py-3 text-center text-muted">
                   {formatNumber(campaign.repliedCount, locale)}
                 </td>
                 <td className="px-3 py-3 text-center text-muted">
-                  {formatSuccessRate(campaign.sentCount, campaign.repliedCount, locale)}
+                  {formatSuccessRate(sent, campaign.repliedCount, locale)}
                 </td>
                 <td className="px-3 py-3">
                   <StatusBadge
@@ -55,7 +64,8 @@ export function ActiveCampaignsTable({ campaigns }: { campaigns: Campaign[] }) {
                   />
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

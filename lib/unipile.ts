@@ -36,12 +36,14 @@ export function appOrigin(request?: Request) {
 export class UnipileError extends Error {
   status: number;
   retryable: boolean;
+  type: string;
 
-  constructor(message: string, status = 500, retryable = false) {
+  constructor(message: string, status = 500, retryable = false, type = "") {
     super(message);
     this.name = "UnipileError";
     this.status = status;
     this.retryable = retryable || status === 429 || status >= 500;
+    this.type = type;
   }
 }
 
@@ -100,7 +102,12 @@ async function unipileRequest<T>(
       (typeof data.title === "string" && data.title) ||
       (typeof data.message === "string" && data.message) ||
       `unipile-${response.status}`;
-    throw new UnipileError(detail, response.status, response.status === 429);
+    throw new UnipileError(
+      detail,
+      response.status,
+      response.status === 429,
+      typeof data.type === "string" ? data.type : "",
+    );
   }
   return data;
 }
@@ -383,7 +390,7 @@ export async function startUnipileChat(input: {
   text: string;
   inmail?: boolean;
 }) {
-  return unipileRequest<{ id?: string; chat_id?: string }>("/api/v1/chats", {
+  return unipileRequest<{ id?: string; chat_id?: string; message_id?: string }>("/api/v1/chats", {
     method: "POST",
     form: {
       account_id: input.accountId,
@@ -395,6 +402,188 @@ export async function startUnipileChat(input: {
   });
 }
 
+export function unipileSentIds(sent: { id?: string; chat_id?: string; message_id?: string }) {
+  const chatId = sent.chat_id || "";
+  const messageId =
+    (sent.message_id && sent.message_id !== chatId ? sent.message_id : "") ||
+    (chatId && sent.id && sent.id !== chatId ? sent.id : "");
+  return { chatId: chatId || sent.id || "", messageId };
+}
+
+export async function listUnipileChatMessages(chatId: string) {
+  const items: Array<Record<string, unknown>> = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 20; page += 1) {
+    const data = await unipileRequest<{
+      items?: Array<Record<string, unknown>>;
+      cursor?: string;
+      next_cursor?: string;
+    }>(`/api/v1/chats/${encodeURIComponent(chatId)}/messages`, {
+      query: { limit: "100", cursor },
+    });
+    items.push(...(data.items ?? []));
+    cursor = data.next_cursor || data.cursor || "";
+    if (!cursor || !(data.items?.length)) break;
+  }
+  return items;
+}
+
+export function isUnipileSelfMessage(item: Record<string, unknown>) {
+  const flag = item.is_sender ?? item.isSender;
+  if (flag === true || flag === 1 || flag === "1" || flag === "true") return true;
+  if (flag === false || flag === 0 || flag === "0" || flag === "false") return false;
+  const sender = String(item.sender ?? "").toLowerCase();
+  if (sender === "self" || sender === "me" || sender === "user") return true;
+  return String(item.direction ?? "").toLowerCase() === "outbound";
+}
+
+export function isUnipileReactionItem(item: Record<string, unknown>) {
+  const event = `${item.event ?? ""} ${item.type ?? ""}`.toLowerCase();
+  if (event.includes("reaction")) return true;
+  const text = unipileMessageText(item);
+  if (/reacted\s+\S+\s*$/i.test(text) || /tepki verdi/i.test(text)) return true;
+  if ((item.reaction || item.reactions) && !text) return true;
+  return false;
+}
+
+export function unipileReactionEmojis(item: Record<string, unknown>) {
+  const emojis: string[] = [];
+  if (typeof item.reaction === "string" && item.reaction.trim()) emojis.push(item.reaction.trim());
+  if (Array.isArray(item.reactions)) {
+    for (const row of item.reactions) {
+      if (typeof row === "string" && row.trim()) emojis.push(row.trim());
+      if (row && typeof row === "object") {
+        const rec = row as Record<string, unknown>;
+        const value = rec.emoji ?? rec.value ?? rec.reaction;
+        if (typeof value === "string" && value.trim()) emojis.push(value.trim());
+      }
+    }
+  }
+  const notice = unipileMessageText(item).match(/reacted\s+(\S+)\s*$/i)?.[1];
+  if (notice) emojis.push(notice);
+  return [...new Set(emojis)];
+}
+
+export function unipileReactedMessageId(item: Record<string, unknown>) {
+  const id = item.message_id ?? item.original_id ?? item.quoted_id;
+  return typeof id === "string" ? id : "";
+}
+
+export function unipileItemId(item: Record<string, unknown>) {
+  const id = item.id ?? item.message_id;
+  return typeof id === "string" ? id : "";
+}
+
+export function unipileMessageText(item: Record<string, unknown>) {
+  const nested = item.message && typeof item.message === "object" ? (item.message as Record<string, unknown>) : null;
+  const raw =
+    (typeof item.text === "string" && item.text) ||
+    (typeof item.body === "string" && item.body) ||
+    (typeof nested?.text === "string" && nested.text) ||
+    "";
+  return raw.replace(/\s+/g, " ").trim();
+}
+
+export function unipileMessageTime(item: Record<string, unknown>) {
+  const raw = item.timestamp ?? item.date ?? item.created_at ?? item.sent_at;
+  const date = raw instanceof Date ? raw : raw ? new Date(String(raw)) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+}
+
+export function isUnipileMessageDeleted(item: Record<string, unknown>) {
+  if (item.deleted === true || item.is_deleted === true) return true;
+  const status = String(item.status ?? item.event ?? "").toLowerCase();
+  if (status.includes("delete")) return true;
+  return /^(bu mesaj silindi\.?|this message was deleted\.?|message deleted\.?)$/i.test(
+    unipileMessageText(item),
+  );
+}
+
+export function aliveUnipileMessages(items: Array<Record<string, unknown>>) {
+  return items.filter(
+    (item) =>
+      !isUnipileMessageDeleted(item) &&
+      !isUnipileReactionItem(item) &&
+      unipileItemId(item),
+  );
+}
+
+export function unipileErrorLooksGone(error: unknown) {
+  if (!(error instanceof UnipileError)) return false;
+  if (error.status === 404 || error.status === 410) return true;
+  const blob = `${error.type} ${error.message}`.toLowerCase();
+  return /not found|already deleted|does not exist|no longer|resource_not_found|invalid_resource/.test(
+    blob,
+  );
+}
+
+export function unipileErrorLooksTooOld(error: unknown) {
+  if (!(error instanceof UnipileError)) return false;
+  const blob = `${error.type} ${error.message}`.toLowerCase();
+  return /60|too late|too old|cannot be deleted|can't be deleted|not allowed to delete|unsend/.test(blob);
+}
+
+export async function deleteUnipileChatMessage(chatId: string, messageId: string) {
+  try {
+    await unipileRequest(`/api/v1/messages/${encodeURIComponent(messageId)}`, { method: "DELETE" });
+  } catch (error) {
+    if (unipileErrorLooksGone(error)) return;
+    if (!(error instanceof UnipileError) || (error.status !== 400 && error.status !== 404)) {
+      throw error;
+    }
+    try {
+      await unipileRequest(
+        `/api/v1/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
+        { method: "DELETE" },
+      );
+    } catch (fallback) {
+      if (unipileErrorLooksGone(fallback)) return;
+      throw fallback;
+    }
+  }
+}
+
+function asMessageText(item: Record<string, unknown>) {
+  return unipileMessageText(item);
+}
+
+function asMessageTime(item: Record<string, unknown>) {
+  return unipileMessageTime(item);
+}
+
+export function findUnipileMessageId(
+  items: Array<Record<string, unknown>>,
+  body: string,
+  sentAt?: Date,
+  excludeIds?: Iterable<string>,
+) {
+  const target = body.replace(/\s+/g, " ").trim();
+  if (!target) return "";
+  const skip = new Set([...(excludeIds ?? [])].filter(Boolean));
+  const ours = aliveUnipileMessages(items).filter((item) => {
+    const id = unipileItemId(item);
+    if (id && skip.has(id)) return false;
+    if (!isUnipileSelfMessage(item)) return false;
+    return asMessageText(item).toLocaleLowerCase() === target.toLocaleLowerCase();
+  });
+  if (ours.length === 0) return "";
+  const wanted = sentAt?.getTime() ?? 0;
+  ours.sort(
+    (a, b) => Math.abs(asMessageTime(a) - wanted) - Math.abs(asMessageTime(b) - wanted),
+  );
+  return unipileItemId(ours[0] ?? {});
+}
+
+export function chatHasUnipileMessage(
+  items: Array<Record<string, unknown>>,
+  input: { remoteId?: string; body: string; sentAt?: Date },
+) {
+  const alive = aliveUnipileMessages(items);
+  const remoteId = input.remoteId?.trim() ?? "";
+  if (remoteId && alive.some((item) => unipileItemId(item) === remoteId)) return true;
+  return Boolean(findUnipileMessageId(alive, input.body, input.sentAt));
+}
+
 export async function sendUnipileChatMessage(input: {
   accountId: string;
   chatId?: string;
@@ -403,7 +592,7 @@ export async function sendUnipileChatMessage(input: {
 }) {
   if (input.chatId) {
     try {
-      const sent = await unipileRequest<{ id?: string; chat_id?: string }>(
+      const sent = await unipileRequest<{ id?: string; chat_id?: string; message_id?: string }>(
         `/api/v1/chats/${encodeURIComponent(input.chatId)}/messages`,
         {
           method: "POST",
@@ -506,4 +695,30 @@ export function isFirstDegree(profile: UnipileProfile) {
   if (profile.is_relationship) return true;
   const distance = String(profile.network_distance ?? "").toUpperCase();
   return distance === "DISTANCE_1" || distance === "FIRST_DEGREE" || distance === "1";
+}
+
+function inviteErrorText(error: unknown) {
+  return (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+}
+
+/** LinkedIn already treats this person as a 1st-degree connection. */
+export function isAlreadyConnectedInviteError(error: unknown) {
+  const text = inviteErrorText(error);
+  return (
+    text.includes("already connected") ||
+    text.includes("already in your network") ||
+    text.includes("already a connection") ||
+    (text.includes("cannot invite") && text.includes("connected"))
+  );
+}
+
+/** An invite is already pending — do not send another, just wait. */
+export function isPendingInviteError(error: unknown) {
+  const text = inviteErrorText(error);
+  return (
+    text.includes("already been sent") ||
+    text.includes("invitation pending") ||
+    text.includes("pending invitation") ||
+    text.includes("already invited")
+  );
 }

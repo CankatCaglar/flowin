@@ -39,6 +39,28 @@ export const SEND_EVENT_KINDS: LeadEventKind[] = [
   "inmail_sent",
 ];
 
+export const CONTACT_EVENT_KINDS: LeadEventKind[] = [
+  "profile_viewed",
+  "connection_sent",
+  "accepted",
+  "message_1_sent",
+  "message_2_sent",
+  "message_3_sent",
+  "inmail_sent",
+];
+
+export const FLOW_MESSAGE_EVENT_KINDS: LeadEventKind[] = [
+  "message_1_sent",
+  "message_2_sent",
+  "message_3_sent",
+  "inmail_sent",
+];
+
+export function leadWasContacted(lead: Pick<Lead, "history" | "stage">) {
+  if (lead.history.some((event) => CONTACT_EVENT_KINDS.includes(event.kind))) return true;
+  return lead.stage !== "pending";
+}
+
 export function isLeadEventKind(value: unknown): value is LeadEventKind {
   return LEAD_EVENT_KINDS.includes(value as LeadEventKind);
 }

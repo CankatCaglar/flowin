@@ -178,6 +178,9 @@ export function hydrateMessage(
     body: String(input.body ?? ""),
     sentAt: asDate(input.sentAt),
     unipileMessageId: String(input.unipileMessageId ?? ""),
+    reactions: Array.isArray(input.reactions)
+      ? input.reactions.map((item) => String(item)).filter(Boolean)
+      : [],
   };
 }
 
@@ -435,6 +438,19 @@ export async function fetchDueLeads(now = new Date()) {
     .filter((lead) => lead.status === "queued" || lead.status === "waiting_reply");
 }
 
+export async function fetchFailedLeads() {
+  const snapshot = await requireFirebaseDb().collection("leads").where("status", "==", "failed").get();
+  return snapshot.docs.map((item) =>
+    hydrateLead({
+      id: item.id,
+      ...(item.data() as Partial<Lead>),
+      brandId: String(item.data().brandId ?? ""),
+      campaignId: String(item.data().campaignId ?? ""),
+      fullName: String(item.data().fullName ?? ""),
+    }),
+  );
+}
+
 export async function fetchLead(leadId: string) {
   const snapshot = await requireFirebaseDb().collection("leads").doc(leadId).get();
   if (!snapshot.exists) return null;
@@ -445,6 +461,25 @@ export async function fetchLead(leadId: string) {
     brandId: String(data.brandId ?? ""),
     campaignId: String(data.campaignId ?? ""),
     fullName: String(data.fullName ?? ""),
+  });
+}
+
+export async function findLeadByChatId(brandId: string, chatId: string) {
+  if (!chatId) return null;
+  const snapshot = await requireFirebaseDb()
+    .collection("leads")
+    .where("brandId", "==", brandId)
+    .where("unipileChatId", "==", chatId)
+    .limit(1)
+    .get();
+  const item = snapshot.docs[0];
+  if (!item) return null;
+  return hydrateLead({
+    id: item.id,
+    ...(item.data() as Partial<Lead>),
+    brandId,
+    campaignId: String(item.data().campaignId ?? ""),
+    fullName: String(item.data().fullName ?? ""),
   });
 }
 
@@ -690,6 +725,46 @@ export async function saveLead(lead: Lead) {
   return lead;
 }
 
+export async function fetchMessage(messageId: string) {
+  const snapshot = await requireFirebaseDb().collection("messages").doc(messageId).get();
+  if (!snapshot.exists) return null;
+  return hydrateMessage({
+    id: snapshot.id,
+    ...(snapshot.data() as Partial<OutreachMessage>),
+  });
+}
+
+export async function deleteMessageDoc(messageId: string) {
+  await requireFirebaseDb().collection("messages").doc(messageId).delete();
+}
+
+export async function fetchMessagesForLead(leadId: string) {
+  const snapshot = await requireFirebaseDb().collection("messages").where("leadId", "==", leadId).get();
+  return snapshot.docs.map((item) =>
+    hydrateMessage({
+      id: item.id,
+      ...(item.data() as Partial<OutreachMessage>),
+    }),
+  );
+}
+
+export async function findMessageByUnipileId(brandId: string, unipileMessageId: string) {
+  const id = unipileMessageId.trim();
+  if (!id) return null;
+  const snapshot = await requireFirebaseDb()
+    .collection("messages")
+    .where("brandId", "==", brandId)
+    .where("unipileMessageId", "==", id)
+    .limit(1)
+    .get();
+  const doc = snapshot.docs[0];
+  if (!doc) return null;
+  return hydrateMessage({
+    id: doc.id,
+    ...(doc.data() as Partial<OutreachMessage>),
+  });
+}
+
 export async function fetchMessages(brandId: string): Promise<OutreachMessage[]> {
   const snapshot = await requireFirebaseDb()
     .collection("messages")
@@ -719,8 +794,22 @@ export async function createMessage(input: Omit<OutreachMessage, "id">) {
     body: message.body,
     sentAt: Timestamp.fromDate(message.sentAt),
     unipileMessageId: message.unipileMessageId ?? "",
+    reactions: message.reactions ?? [],
   });
   return message;
+}
+
+export async function patchMessage(
+  messageId: string,
+  patch: Partial<Pick<OutreachMessage, "direction" | "reactions" | "unipileMessageId" | "body">>,
+) {
+  const data: Record<string, unknown> = {};
+  if (patch.direction) data.direction = patch.direction;
+  if (patch.unipileMessageId !== undefined) data.unipileMessageId = patch.unipileMessageId;
+  if (patch.body !== undefined) data.body = patch.body;
+  if (patch.reactions) data.reactions = patch.reactions;
+  if (Object.keys(data).length === 0) return;
+  await requireFirebaseDb().collection("messages").doc(messageId).set(data, { merge: true });
 }
 
 function statDocId(brandId: string, date: string, campaignId?: string) {

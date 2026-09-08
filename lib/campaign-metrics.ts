@@ -4,11 +4,13 @@ import { successRate } from "@/lib/utils";
 import type { Campaign, CampaignFlowStep, DailyStat, Lead, LeadEventKind } from "@/types";
 
 export function bestStatDay(stats: DailyStat[]) {
+  const sentOf = (stat: DailyStat) => Number(stat.messages ?? 0) + Number(stat.inmails ?? 0);
   return [...stats]
-    .filter((stat) => stat.sentCount > 0)
+    .filter((stat) => sentOf(stat) > 0 || stat.sentCount > 0)
     .sort(
       (a, b) =>
-        successRate(b.sentCount, b.repliedCount) - successRate(a.sentCount, a.repliedCount),
+        successRate(sentOf(b) || b.sentCount, b.repliedCount) -
+        successRate(sentOf(a) || a.sentCount, a.repliedCount),
     )[0];
 }
 

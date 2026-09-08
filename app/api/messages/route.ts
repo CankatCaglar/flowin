@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
+import { reconcileLeadChat } from "@/lib/delete-message";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { sendManualLeadMessage } from "@/lib/manual-message";
-import { fetchMessages } from "@/lib/outreach-data";
+import { fetchLead, fetchMessages } from "@/lib/outreach-data";
 import { UnipileError } from "@/lib/unipile";
 
 export async function GET(request: Request) {
@@ -10,8 +11,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const brandId = new URL(request.url).searchParams.get("brandId")?.trim() ?? "";
+  const leadId = new URL(request.url).searchParams.get("leadId")?.trim() ?? "";
   if (!brandId) return NextResponse.json({ error: "invalid" }, { status: 400 });
   try {
+    if (leadId) {
+      try {
+        const lead = await fetchLead(leadId);
+        if (lead?.brandId === brandId) await reconcileLeadChat(lead);
+      } catch (error) {
+        console.error("[messages] linkedin sync failed:", error instanceof Error ? error.message : error);
+      }
+    }
     return NextResponse.json(await fetchMessages(brandId));
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });

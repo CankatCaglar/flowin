@@ -28,11 +28,14 @@ import {
 import {
   companyFromUnipileProfile,
   getUnipileProfile,
+  isAlreadyConnectedInviteError,
   isFirstDegree,
+  isPendingInviteError,
   reportProfileVisit,
   sendUnipileInvitation,
-  startUnipileChat,
-  UnipileError,
+    startUnipileChat,
+    unipileSentIds,
+    UnipileError,
   unipilePictureUrl,
   type UnipileProfile,
 } from "@/lib/unipile";
@@ -138,7 +141,7 @@ function scheduleNext(
 }
 
 export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
-  if (lead.status === "replied" || lead.status === "failed" || lead.status === "flow_completed") {
+  if (lead.status === "replied" || lead.status === "flow_completed") {
     return lead;
   }
   if (lead.history.some((event) => event.kind === "accepted")) return lead;
@@ -147,6 +150,7 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   lead.awaiting = "";
   lead.status = "queued";
   lead.stage = "message_1";
+  lead.failReason = "";
   const next = firstBranchStep(campaign.flow, "accepted");
   if (next) {
     const brand = await fetchBrand(lead.brandId);
@@ -162,7 +166,13 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   return saveLead(lead);
 }
 
-export async function markLeadReplied(lead: Lead, campaign: Campaign, body: string) {
+export async function markLeadReplied(
+  lead: Lead,
+  campaign: Campaign,
+  body: string,
+  ids?: { unipileMessageId?: string; unipileChatId?: string },
+) {
+  if (ids?.unipileChatId) lead.unipileChatId = ids.unipileChatId || lead.unipileChatId;
   if (lead.status === "replied") return lead;
   const at = new Date();
   appendHistory(lead, "replied");
@@ -180,10 +190,31 @@ export async function markLeadReplied(lead: Lead, campaign: Campaign, body: stri
     direction: "inbound",
     body,
     sentAt: at,
+    unipileMessageId: ids?.unipileMessageId ?? "",
   });
   await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
   await incrementCampaignCounters(lead.campaignId, { replied: 1 });
   return saveLead(lead);
+}
+
+async function waitForConnection(
+  lead: Lead,
+  campaign: Campaign,
+  schedule = normalizeSchedule(undefined),
+) {
+  if (!historyHasConnection(lead)) appendHistory(lead, "connection_sent");
+  lead.status = "waiting_reply";
+  lead.stage = "connection_request";
+  lead.awaiting = "connection";
+  lead.failReason = "";
+  const timeout = firstBranchStep(campaign.flow, "no_response");
+  lead.nextStepId = timeout?.id ?? "";
+  lead.nextStepAt = timeout ? scheduleAt(timeout, new Date(), schedule) : undefined;
+  return saveLead(lead);
+}
+
+function historyHasConnection(lead: Lead) {
+  return lead.history.some((event) => event.kind === "connection_sent");
 }
 
 async function executeStep(
@@ -206,9 +237,10 @@ async function executeStep(
         console.error("[unipile] profile visit skipped:", error instanceof Error ? error.message : error);
       }
     }
-    if (lead.awaiting === "connection" && isFirstDegree(profile)) {
+    if (isFirstDegree(profile)) {
       await applyUsage(lead.brandId, campaign.id, "views", step.id);
       appendHistory(lead, "profile_viewed");
+      lead.failReason = "";
       await saveLead(lead);
       return markLeadAccepted(lead, campaign);
     }
@@ -236,16 +268,24 @@ async function executeStep(
   const body = step.kind === "connection" ? "" : stepCopy(step, lead);
 
   if (step.kind === "connection") {
-    await sendUnipileInvitation(accountId, providerId);
-    appendHistory(lead, "connection_sent");
-    lead.status = "waiting_reply";
-    lead.stage = "connection_request";
-    lead.awaiting = "connection";
-    const timeout = firstBranchStep(campaign.flow, "no_response");
-    lead.nextStepId = timeout?.id ?? "";
-    lead.nextStepAt = timeout ? scheduleAt(timeout, new Date(), schedule) : undefined;
+    const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
+    const profile = await getUnipileProfile(accountId, identifier);
+    if (isFirstDegree(profile)) {
+      return markLeadAccepted(lead, campaign);
+    }
+    try {
+      await sendUnipileInvitation(accountId, providerId);
+    } catch (error) {
+      if (isAlreadyConnectedInviteError(error)) {
+        return markLeadAccepted(lead, campaign);
+      }
+      if (isPendingInviteError(error)) {
+        return waitForConnection(lead, campaign, schedule);
+      }
+      throw error;
+    }
     await applyUsage(lead.brandId, campaign.id, "invites", step.id);
-    return saveLead(lead);
+    return waitForConnection(lead, campaign, schedule);
   }
 
   if (step.kind === "message" || step.kind === "inmail") {
@@ -255,7 +295,8 @@ async function executeStep(
       text: body,
       inmail: step.kind === "inmail",
     });
-    lead.unipileChatId = chat.chat_id || chat.id || lead.unipileChatId;
+    const ids = unipileSentIds(chat);
+    lead.unipileChatId = ids.chatId || lead.unipileChatId;
     if (step.kind === "inmail") {
       appendHistory(lead, "inmail_sent");
       lead.awaiting = "inmail";
@@ -294,6 +335,7 @@ async function executeStep(
       direction: "outbound",
       body,
       sentAt: new Date(),
+      unipileMessageId: ids.messageId,
     });
     return saveLead(lead);
   }
@@ -389,7 +431,44 @@ export async function runLeadStep(
   }
 }
 
+async function recoverFailedInvite(lead: Lead) {
+  const [brand, campaign] = await Promise.all([fetchBrand(lead.brandId), fetchCampaign(lead.campaignId)]);
+  if (!brand || !campaign || !isCampaignRunning(campaign.status)) return;
+  if (brand.unipileStatus !== "running" || !brand.unipileAccountId) return;
+  const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
+  if (!identifier) return;
+  const profile = await getUnipileProfile(brand.unipileAccountId, identifier);
+  if (isFirstDegree(profile) || isAlreadyConnectedInviteError(lead.failReason)) {
+    await markLeadAccepted(lead, campaign);
+    return;
+  }
+  if (isPendingInviteError(lead.failReason)) {
+    await waitForConnection(lead, campaign, normalizeSchedule(brand.schedule));
+  }
+}
+
+export async function recoverFailedInvites(brandId?: string) {
+  const { fetchFailedLeads } = await import("@/lib/outreach-data");
+  const recoverable = (await fetchFailedLeads()).filter((lead) => {
+    if (brandId && lead.brandId !== brandId) return false;
+    return isPendingInviteError(lead.failReason) || isAlreadyConnectedInviteError(lead.failReason);
+  });
+  for (const lead of recoverable) {
+    try {
+      await recoverFailedInvite(lead);
+    } catch (error) {
+      console.error(
+        "[sequence] invite recover failed:",
+        lead.id,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+  return recoverable.length;
+}
+
 export async function runDueSequence(limit = 3) {
+  await recoverFailedInvites();
   const { fetchDueLeads } = await import("@/lib/outreach-data");
   const due = (await fetchDueLeads()).sort(
     (a, b) => (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0),

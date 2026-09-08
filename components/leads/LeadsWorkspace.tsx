@@ -271,17 +271,7 @@ export function LeadsWorkspace({
                       <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
-                        {lead.nextStepAt &&
-                        lead.status !== "failed" &&
-                        lead.status !== "replied" &&
-                        lead.status !== "flow_completed" ? (
-                          <span className="text-[10px] text-muted">
-                            {formatLastAction(lead.nextStepAt, now, locale)}
-                          </span>
-                        ) : null}
-                      </div>
+                      <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-center text-muted">
                       {formatLastAction(leadLastActionAt(lead), now, locale)}

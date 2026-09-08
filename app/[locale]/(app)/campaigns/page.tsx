@@ -15,6 +15,7 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
 import { addDays, appToday, startOfDay } from "@/lib/dates";
+import { countContactedLeads, countFlowMessages } from "@/lib/metrics";
 import { cn, formatDateTime, formatNumber, formatSuccessRate, successRate } from "@/lib/utils";
 import type { Campaign, CampaignStatus, Lead } from "@/types";
 
@@ -79,11 +80,13 @@ function compareCampaigns(
   const factor = dir;
   if (key === "name") return a.name.localeCompare(b.name) * factor;
   if (key === "total") return (totalLeads(a, leads) - totalLeads(b, leads)) * factor;
-  if (key === "sent") return (a.sentCount - b.sentCount) * factor;
+  if (key === "sent") return (countContactedLeads(leads, a.id) - countContactedLeads(leads, b.id)) * factor;
   if (key === "replied") return (a.repliedCount - b.repliedCount) * factor;
   if (key === "success") {
     return (
-      (successRate(a.sentCount, a.repliedCount) - successRate(b.sentCount, b.repliedCount)) * factor
+      (successRate(countFlowMessages(leads, a.id), a.repliedCount) -
+        successRate(countFlowMessages(leads, b.id), b.repliedCount)) *
+      factor
     );
   }
   if (key === "status") return (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * factor;
@@ -241,13 +244,17 @@ export default function CampaignsPage() {
                     {formatNumber(totalLeads(campaign, leads), locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
-                    {formatNumber(campaign.sentCount, locale)}
+                    {formatNumber(countContactedLeads(leads, campaign.id), locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
                     {formatNumber(campaign.repliedCount, locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
-                    {formatSuccessRate(campaign.sentCount, campaign.repliedCount, locale)}
+                    {formatSuccessRate(
+                      countFlowMessages(leads, campaign.id),
+                      campaign.repliedCount,
+                      locale,
+                    )}
                   </td>
                   <td className="px-5 py-3 text-center">
                     <StatusBadge status={campaign.status} label={statusT(campaign.status)} />

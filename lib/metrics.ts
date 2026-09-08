@@ -1,6 +1,10 @@
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { eachDateKey, previousRange, toDateKey } from "@/lib/dates";
-import { SEND_EVENT_KINDS } from "@/lib/leads";
+import {
+  FLOW_MESSAGE_EVENT_KINDS,
+  leadWasContacted,
+  SEND_EVENT_KINDS,
+} from "@/lib/leads";
 import { successRate, trendPercent } from "@/lib/utils";
 import type { Campaign, DailyStat, DateRange, Lead, LeadEvent } from "@/types";
 
@@ -10,17 +14,51 @@ const LOW_RESPONSE_MIN_SENT = 50;
 const LOW_RESPONSE_MAX_RATE = 10;
 const BEST_CAMPAIGN_MIN_SENT = 50;
 
-export function sumStats(stats: DailyStat[], range: DateRange) {
-  const keys = new Set(eachDateKey(range));
-  return stats.reduce(
-    (acc, stat) => {
-      if (!keys.has(stat.date)) return acc;
-      acc.sentCount += stat.sentCount;
-      acc.repliedCount += stat.repliedCount;
-      return acc;
-    },
-    { sentCount: 0, repliedCount: 0 },
+export function countContactedLeads(leads: Lead[], campaignId?: string) {
+  return leads.filter(
+    (lead) => (!campaignId || lead.campaignId === campaignId) && leadWasContacted(lead),
+  ).length;
+}
+
+export function countFlowMessages(leads: Lead[], campaignId?: string, range?: DateRange) {
+  const keys = range ? new Set(eachDateKey(range)) : null;
+  return leads.reduce((sum, lead) => {
+    if (campaignId && lead.campaignId !== campaignId) return sum;
+    return (
+      sum +
+      lead.history.filter(
+        (event) =>
+          FLOW_MESSAGE_EVENT_KINDS.includes(event.kind) &&
+          (!keys || keys.has(toDateKey(event.at))),
+      ).length
+    );
+  }, 0);
+}
+
+function flowSentOnDate(leads: Lead[], date: string) {
+  return leads.reduce(
+    (sum, lead) =>
+      sum +
+      lead.history.filter(
+        (event) => FLOW_MESSAGE_EVENT_KINDS.includes(event.kind) && toDateKey(event.at) === date,
+      ).length,
+    0,
   );
+}
+
+export function sumStats(stats: DailyStat[], range: DateRange, leads: Lead[] = []) {
+  const keys = new Set(eachDateKey(range));
+  const repliedCount = stats.reduce((sum, stat) => {
+    if (!keys.has(stat.date)) return sum;
+    return sum + stat.repliedCount;
+  }, 0);
+  const sentCount = leads.length
+    ? countFlowMessages(leads, undefined, range)
+    : stats.reduce((sum, stat) => {
+        if (!keys.has(stat.date)) return sum;
+        return sum + Number(stat.messages ?? 0) + Number(stat.inmails ?? 0);
+      }, 0);
+  return { sentCount, repliedCount };
 }
 
 export type ChartGrain = "day" | "week" | "month";
@@ -32,11 +70,13 @@ export interface ChartPoint {
   successRate: number;
 }
 
-export function chartSeries(stats: DailyStat[], range: DateRange): ChartPoint[] {
+export function chartSeries(stats: DailyStat[], range: DateRange, leads: Lead[] = []): ChartPoint[] {
   const byDate = new Map(stats.map((stat) => [stat.date, stat]));
   return eachDateKey(range).map((date) => {
     const stat = byDate.get(date);
-    const sentCount = stat?.sentCount ?? 0;
+    const sentCount = leads.length
+      ? flowSentOnDate(leads, date)
+      : Number(stat?.messages ?? 0) + Number(stat?.inmails ?? 0);
     const repliedCount = stat?.repliedCount ?? 0;
     return {
       date,
@@ -101,8 +141,8 @@ export function kpiMetrics(
   range: DateRange,
   leads: Lead[] = [],
 ) {
-  const current = sumStats(stats, range);
-  const previous = sumStats(stats, previousRange(range));
+  const current = sumStats(stats, range, leads);
+  const previous = sumStats(stats, previousRange(range), leads);
   const activeCampaigns = campaigns.filter((campaign) => isCampaignRunning(campaign.status)).length;
   const connectionCount = acceptedInRange(leads, range);
   const previousConnections = acceptedInRange(leads, previousRange(range));

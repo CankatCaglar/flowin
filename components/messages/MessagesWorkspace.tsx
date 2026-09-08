@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useBrand } from "@/contexts/BrandContext";
-import { sendManualMessage } from "@/lib/outreach-api";
+import { isReactionNotice, toChatBubbles } from "@/lib/chat-thread";
+import { deleteManualMessage, fetchMessages, sendManualMessage } from "@/lib/outreach-api";
 import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, OutreachMessage } from "@/types";
@@ -22,7 +24,8 @@ function groupThreads(messages: OutreachMessage[]) {
   return [...byLead.values()]
     .map((items) => {
       const sorted = [...items].sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime());
-      const last = sorted[sorted.length - 1];
+      const last =
+        [...sorted].reverse().find((item) => !isReactionNotice(item.body)) ?? sorted[sorted.length - 1];
       return {
         leadId: last.leadId,
         leadName: last.leadName,
@@ -30,7 +33,9 @@ function groupThreads(messages: OutreachMessage[]) {
         campaignName: last.campaignName,
         messages: sorted,
         last,
-        hasInbound: sorted.some((item) => item.direction === "inbound"),
+        hasInbound: sorted.some(
+          (item) => item.direction === "inbound" && !isReactionNotice(item.body),
+        ),
       };
     })
     .sort((a, b) => b.last.sentAt.getTime() - a.last.sentAt.getTime());
@@ -55,6 +60,7 @@ export function MessagesWorkspace({
   const common = useTranslations("common");
   const locale = useLocale();
   const { selectedBrand } = useBrand();
+  const threadScrollRef = useRef<HTMLOListElement | null>(null);
   const threadEndRef = useRef<HTMLLIElement | null>(null);
   const [query, setQuery] = useState("");
   const [campaignId, setCampaignId] = useState("all");
@@ -64,12 +70,18 @@ export function MessagesWorkspace({
   const [extras, setExtras] = useState<OutreachMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<OutreachMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
 
   const leadsById = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads]);
   const visibleMessages = useMemo(() => {
     const seen = new Set(messages.map((item) => item.id));
-    return [...messages, ...extras.filter((item) => !seen.has(item.id))];
-  }, [extras, messages]);
+    const hidden = new Set(hiddenIds);
+    return [...messages, ...extras.filter((item) => !seen.has(item.id))].filter(
+      (item) => !hidden.has(item.id),
+    );
+  }, [extras, hiddenIds, messages]);
   const threads = useMemo(() => {
     const term = query.trim().toLowerCase();
     return groupThreads(visibleMessages).filter((thread) => {
@@ -87,6 +99,10 @@ export function MessagesWorkspace({
 
   const selected = threads.find((thread) => thread.leadId === selectedId) ?? threads[0] ?? null;
   const selectedLead = selected ? leadsById.get(selected.leadId) : undefined;
+  const bubbles = useMemo(
+    () => (selected ? toChatBubbles(selected.messages) : []),
+    [selected],
+  );
   const draft = selected ? (drafts[selected.leadId] ?? "") : "";
   const canCompose =
     Boolean(brandId && selected) &&
@@ -95,9 +111,27 @@ export function MessagesWorkspace({
     !selectedBrand.outreachPaused &&
     !selectedBrand.archived;
 
+  const onSentRef = useRef(onSent);
+  onSentRef.current = onSent;
+
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ block: "nearest" });
-  }, [selected?.leadId, selected?.messages.length]);
+    const scroller = threadScrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTop = scroller.scrollHeight;
+  }, [selected?.leadId, bubbles.length]);
+
+  useEffect(() => {
+    if (!brandId || !selected?.leadId) return;
+    let cancelled = false;
+    void fetchMessages(brandId, selected.leadId)
+      .then(() => {
+        if (!cancelled) onSentRef.current?.();
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [brandId, selected?.leadId]);
 
   const sendErrorMessage = (code: string) => {
     if (code === "test-mode") return t("sendTestMode");
@@ -106,6 +140,34 @@ export function MessagesWorkspace({
     if (code === "not-connected") return t("sendNotConnected");
     if (code === "missing-linkedin") return t("sendMissing");
     return t("sendError");
+  };
+
+  const deleteErrorMessage = (code: string) => {
+    if (code === "linkedin-denied") return t("remove.denied");
+    if (code === "linkedin-missing") return t("remove.missing");
+    if (code === "linkedin-too-old") return t("remove.tooOld");
+    if (code === "test-mode") return t("sendTestMode");
+    if (code === "outreach-paused") return t("sendPaused");
+    if (code === "seat-disconnected") return t("sendSeat");
+    return t("remove.error");
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
+    setSendError("");
+    try {
+      await deleteManualMessage(brandId, pendingDelete.id);
+      setHiddenIds((current) => [...current, pendingDelete.id]);
+      setExtras((current) => current.filter((item) => item.id !== pendingDelete.id));
+      setPendingDelete(null);
+      onSent?.();
+    } catch (error) {
+      setSendError(deleteErrorMessage(error instanceof Error ? error.message : "delete-failed"));
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const submitDraft = async () => {
@@ -212,35 +274,72 @@ export function MessagesWorkspace({
         ) : null}
       </section>
 
-      <section className="flex min-h-0 flex-col">
+      <section className="flex min-h-0 flex-col overflow-hidden">
         {selected ? (
           <>
-            <header className="border-b border-purple-jam/8 px-5 py-4">
-              <h2 className="font-display text-lg font-semibold text-ink">{selected.leadName}</h2>
-              <p className="text-sm text-muted">
-                {selectedLead?.company || selectedLead?.position
-                  ? [selectedLead.position, selectedLead.company].filter(Boolean).join(" · ")
-                  : selected.campaignName}
-              </p>
-              <p className="mt-1 text-xs text-barney">{selected.campaignName}</p>
+            <header className="shrink-0 border-b border-purple-jam/8 px-5 py-4">
+              <div className="flex items-center gap-3">
+                {selectedLead ? (
+                  <LeadAvatar lead={selectedLead} size="md" />
+                ) : (
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-100 font-display text-lg font-semibold text-barney">
+                    {selected.leadName.slice(0, 1)}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <h2 className="font-display text-lg font-semibold text-ink">{selected.leadName}</h2>
+                  <p className="truncate text-sm text-muted">
+                    {selectedLead?.company || selectedLead?.position
+                      ? [selectedLead.position, selectedLead.company].filter(Boolean).join(" · ")
+                      : selected.campaignName}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-barney">{selected.campaignName}</p>
+                </div>
+              </div>
             </header>
-            <ol className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-5">
-              {selected.messages.map((message) => {
+            <ol
+              ref={threadScrollRef}
+              className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-5"
+            >
+              {bubbles.map((message) => {
                 const inbound = message.direction === "inbound";
                 return (
                   <li
                     key={message.id}
-                    className={cn("flex", inbound ? "justify-start" : "justify-end")}
+                    className={cn("group flex items-end gap-1.5", inbound ? "justify-start" : "justify-end")}
                   >
-                    <div
-                      className={cn(
-                        "max-w-[80%] rounded-2xl px-4 py-3 text-sm",
-                        inbound ? "bg-canvas text-ink" : "bg-barney text-white",
-                      )}
-                    >
-                      <p className="whitespace-pre-wrap">{message.body}</p>
-                      <p className={cn("mt-2 text-[11px]", inbound ? "text-muted" : "text-white/70")}>
-                        {t(message.direction)} · {formatLastAction(message.sentAt, now, locale)}
+                    {!inbound ? (
+                      <button
+                        type="button"
+                        aria-label={t("remove.action")}
+                        disabled={!canCompose || deleting}
+                        onClick={() => {
+                          setSendError("");
+                          setPendingDelete(message);
+                        }}
+                        className="mb-5 rounded-lg p-1.5 text-muted opacity-100 transition-opacity hover:bg-canvas hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                    <div className={cn("flex max-w-[78%] flex-col", inbound ? "items-start" : "items-end")}>
+                      <div
+                        className={cn(
+                          "px-3.5 py-2.5 text-sm leading-6",
+                          inbound
+                            ? "rounded-2xl rounded-bl-md bg-canvas text-ink"
+                            : "rounded-2xl rounded-br-md bg-barney text-white",
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap">{message.body}</p>
+                      </div>
+                      {message.reactions.length > 0 ? (
+                        <span className="-mt-2 rounded-full border border-purple-jam/10 bg-white px-1.5 py-0.5 text-sm shadow-sm">
+                          {message.reactions.join(" ")}
+                        </span>
+                      ) : null}
+                      <p className="mt-1 text-[11px] text-muted">
+                        {formatLastAction(message.sentAt, now, locale)}
                       </p>
                     </div>
                   </li>
@@ -249,7 +348,8 @@ export function MessagesWorkspace({
               <li ref={threadEndRef} aria-hidden className="h-0" />
             </ol>
             <form
-              className="shrink-0 border-t border-purple-jam/8 px-5 py-3"
+              className="shrink-0 border-t border-purple-jam/8 bg-white px-5 py-3"
+
               onSubmit={(event) => {
                 event.preventDefault();
                 void submitDraft();
@@ -300,6 +400,33 @@ export function MessagesWorkspace({
           <p className="m-auto px-6 text-sm text-muted">{common("empty")}</p>
         )}
       </section>
+      <Modal
+        open={Boolean(pendingDelete)}
+        title={t("remove.title")}
+        onClose={() => {
+          if (!deleting) setPendingDelete(null);
+        }}
+        variant="light"
+      >
+        <p className="text-sm leading-6 text-muted">{t("remove.hint")}</p>
+        {pendingDelete ? (
+          <p className="mt-3 line-clamp-4 rounded-xl bg-canvas px-3 py-2 text-sm text-ink">
+            {pendingDelete.body}
+          </p>
+        ) : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="light" disabled={deleting} onClick={() => setPendingDelete(null)}>
+            {common("cancel")}
+          </Button>
+          <Button
+            className="bg-rose-600 text-white hover:opacity-90"
+            disabled={deleting}
+            onClick={() => void confirmDelete()}
+          >
+            {deleting ? t("remove.pending") : t("remove.confirm")}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

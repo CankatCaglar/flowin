@@ -23,6 +23,22 @@
         { "fieldPath": "brandId", "order": "ASCENDING" },
         { "fieldPath": "awaiting", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "brandId", "order": "ASCENDING" },
+        { "fieldPath": "unipileChatId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "brandId", "order": "ASCENDING" },
+        { "fieldPath": "unipileMessageId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

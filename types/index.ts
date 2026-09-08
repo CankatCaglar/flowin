@@ -184,6 +184,7 @@ export interface OutreachMessage {
   body: string;
   sentAt: Date;
   unipileMessageId?: string;
+  reactions?: string[];
 }
 
 /** @deprecated Use OutreachMessage */

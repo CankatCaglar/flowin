@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { useRouter } from "@/i18n/navigation";
-import { defaultCampaignFlow } from "@/lib/campaign-flow";
+import { canonicalizeCampaignFlow, defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { ImportedLead } from "@/lib/lead-import";
 import { partitionAgainstActiveCampaigns } from "@/lib/lead-identity";
 import { createCampaign, importSalesNavLeads } from "@/lib/outreach-api";
@@ -108,7 +108,7 @@ export default function NewCampaignPage() {
           ? imported.fileName || name.trim()
           : selectedList?.name ?? name.trim(),
         leadGoal: shownCount,
-        flow,
+        flow: canonicalizeCampaignFlow(flow),
         status: asDraft ? "draft" : "active",
         copyFromCampaignId: source === "existing" ? selectedList?.id : undefined,
         leads: usesImported(source) ? occupancy.kept : undefined,

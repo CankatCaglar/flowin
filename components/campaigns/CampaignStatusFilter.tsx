@@ -85,7 +85,12 @@ export function CampaignStatusFilter({
         <SelectMenu
           id="campaigns-status-filter"
           className="w-full"
-          triggerClassName="h-9 border-barney px-2 text-xs font-medium text-barney sm:h-10 sm:px-3 sm:text-sm"
+          triggerClassName={cn(
+            "h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm",
+            value === "all"
+              ? "border-purple-jam/15 font-medium text-ink"
+              : "border-barney font-medium text-barney",
+          )}
           value={value}
           ariaLabel={t("status")}
           options={options}

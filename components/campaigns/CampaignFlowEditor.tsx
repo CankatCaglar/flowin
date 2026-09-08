@@ -50,12 +50,8 @@ function StepCard({
 
   const content = (
     <>
-      {/* Fixed-width, centred group: every card in a column lines its icon and
-          label up on the same x, instead of centring each label on its own. */}
-      <span className="mx-auto flex w-full min-w-0 max-w-48 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-barney/10 text-barney">
-          <Icon className="h-4 w-4" />
-        </span>
+      <span className="flex w-full items-center justify-center gap-2">
+        <Icon className="h-4 w-4 shrink-0 text-barney" />
         <span className="min-w-0 truncate font-display text-sm font-semibold text-ink">
           {flowStepTitle(step, locale)}
         </span>

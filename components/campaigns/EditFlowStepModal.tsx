@@ -90,19 +90,11 @@ export function EditFlowStepModal({
                 rows={7}
                 value={current.body}
                 onChange={(event) => setDraft({ ...current, body: event.target.value })}
-                className="w-full rounded-xl border border-purple-jam/15 bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-barney/50"
+                className="min-h-36 max-h-56 w-full resize-none overflow-y-auto rounded-xl border border-purple-jam/15 bg-white px-3 py-2.5 text-sm leading-6 text-ink outline-none focus:border-barney/50"
               />
             </label>
           </>
         )}
-        <div className="space-y-2">
-          <span className="text-[13px] font-medium text-muted">{t("delay")}</span>
-          <p className="rounded-xl border border-purple-jam/10 bg-canvas px-3 py-2.5 text-sm text-muted">
-            {current.delayDays <= 0
-              ? t("delayFixedNone")
-              : t("delayFixed", { count: current.delayDays })}
-          </p>
-        </div>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="light" onClick={onClose}>
             {common("cancel")}

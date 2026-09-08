@@ -6,7 +6,7 @@ import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { updateCampaign } from "@/lib/outreach-api";
-import { defaultCampaignFlow } from "@/lib/campaign-flow";
+import { canonicalizeCampaignFlow, defaultCampaignFlow } from "@/lib/campaign-flow";
 import type { CampaignFlowStep } from "@/types";
 
 export default function CampaignFlowPage({
@@ -43,7 +43,9 @@ export default function CampaignFlowPage({
           step={editing}
           onClose={() => setEditing(null)}
           onSave={async (next) => {
-            const flow = steps.map((step) => (step.id === next.id ? next : step));
+            const flow = canonicalizeCampaignFlow(
+              steps.map((step) => (step.id === next.id ? next : step)),
+            );
             setLocalFlow(flow);
             await updateCampaign(campaign.id, { flow });
             refresh();

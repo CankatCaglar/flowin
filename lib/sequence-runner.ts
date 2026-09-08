@@ -21,6 +21,7 @@ import {
   isRunnable,
   messageIndexOnAcceptedPath,
   nextStepInLane,
+  repairLeadFlowCursor,
   scheduleAt,
   stageAfterMessageIndex,
   tomorrowMorning,
@@ -385,8 +386,15 @@ export async function runLeadStep(
     return { deferred: "quiet-hours" as const };
   }
 
+  repairLeadFlowCursor(lead, campaign.flow);
   const step = findStep(campaign.flow, lead.nextStepId);
-  if (!step) return { skipped: true as const };
+  if (!step) {
+    if (lead.nextStepId) {
+      lead.nextStepId = "";
+      await saveLead(lead);
+    }
+    return { skipped: true as const };
+  }
 
   const caps = variedPacing(
     warmupPacing(normalizePacing(brand.pacing), campaign.startDate),

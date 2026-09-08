@@ -8,7 +8,7 @@ import {
   isStoredLeadAvatarUrl,
   leadAvatarUrl,
 } from "@/lib/brand-avatar";
-import { applyFixedFlowCopy, defaultCampaignFlow } from "@/lib/campaign-flow";
+import { canonicalizeCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
 import { companyFromHeadline } from "@/lib/linkedin-company";
@@ -23,7 +23,6 @@ import type {
   CampaignFlowStep,
   CampaignStatus,
   DailyStat,
-  FlowDelayUnit,
   Lead,
   LeadEvent,
   OutreachMessage,
@@ -45,17 +44,7 @@ function asDateOrUndefined(value: unknown) {
 }
 
 function hydrateFlow(input: unknown): CampaignFlowStep[] {
-  const stored = Array.isArray(input) ? input : [];
-  const branched = stored.some((step) => Boolean((step as CampaignFlowStep).branch));
-  const source = (branched ? stored : defaultCampaignFlow()) as CampaignFlowStep[];
-  return applyFixedFlowCopy(
-    source.map((step) => ({
-      ...step,
-      delayDays: Number(step.delayDays ?? 0),
-      delayUnit: (step.delayUnit === "hours" ? "hours" : "days") as FlowDelayUnit,
-      premium: Boolean(step.premium),
-    })),
-  );
+  return canonicalizeCampaignFlow(input);
 }
 
 function hydrateHistory(input: unknown): LeadEvent[] {

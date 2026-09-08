@@ -129,3 +129,32 @@ export function messageIndexOnAcceptedPath(flow: CampaignFlowStep[], stepId: str
 export function isRunnable(lead: Lead) {
   return lead.status === "queued" || lead.status === "waiting_reply";
 }
+
+/**
+ * Old campaigns could point a waiting lead at InMail right after the invite.
+ * Keep the due time; only snap the cursor back onto the fixed sequence.
+ */
+export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
+  if (!isRunnable(lead)) return false;
+  if (lead.awaiting === "connection" && !lead.currentBranch) {
+    const silentView = firstBranchStep(flow, "no_response");
+    if (silentView && lead.nextStepId !== silentView.id) {
+      lead.nextStepId = silentView.id;
+      return true;
+    }
+  }
+  if (lead.nextStepId && !findStep(flow, lead.nextStepId)) {
+    if (lead.awaiting === "inmail") {
+      const silentView = firstBranchStep(flow, "inmail_no_response");
+      lead.nextStepId = silentView?.id ?? "";
+    } else if (lead.currentBranch === "accepted") {
+      lead.nextStepId = firstBranchStep(flow, "accepted")?.id ?? "";
+    } else if (lead.awaiting === "connection") {
+      lead.nextStepId = firstBranchStep(flow, "no_response")?.id ?? "";
+    } else {
+      lead.nextStepId = firstOpenStep(flow)?.id ?? "";
+    }
+    return true;
+  }
+  return false;
+}

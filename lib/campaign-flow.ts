@@ -229,21 +229,46 @@ export function flattenFlowSteps(steps: CampaignFlowStep[]) {
   return [...trunk, ...accepted, ...noResponse, ...inmailAccepted, ...inmailNoResponse];
 }
 
-const FIXED_TEMPLATE_BY_ID: Record<string, keyof typeof STEP_TEMPLATES> = {
-  "step-invite": "connectionRequest",
-  "step-accepted-message-1": "message1",
-  "step-accepted-message-2": "message2",
-  "step-accepted-message-3": "message3",
-};
+function overlayStepCopy(canonical: CampaignFlowStep, stored?: CampaignFlowStep): CampaignFlowStep {
+  if (!stored) return canonical;
+  if (canonical.kind === "connection") {
+    return { ...canonical, body: "" };
+  }
+  if (stored.templateKey) {
+    return { ...canonical, templateKey: stored.templateKey };
+  }
+  return {
+    ...canonical,
+    templateKey: undefined,
+    title: stored.title?.trim() ? stored.title : canonical.title,
+    body: typeof stored.body === "string" ? stored.body : canonical.body,
+  };
+}
 
-/** Keeps the default Score steps on the current built-in copy. */
-export function applyFixedFlowCopy(steps: CampaignFlowStep[]) {
-  return steps.map((step) => {
-    const templateKey = FIXED_TEMPLATE_BY_ID[step.id] ?? step.templateKey;
-    return {
-      ...step,
-      templateKey,
-      body: step.kind === "connection" ? "" : step.body,
-    };
-  });
+/**
+ * Sequence topology and waits are fixed for every campaign.
+ * Campaigns may only replace message / InMail copy.
+ */
+export function canonicalizeCampaignFlow(input: unknown): CampaignFlowStep[] {
+  const stored = Array.isArray(input) ? (input as CampaignFlowStep[]) : [];
+  const used = new Set<number>();
+  const take = (step: CampaignFlowStep) => {
+    const byId = stored.findIndex((item, index) => !used.has(index) && item.id === step.id);
+    if (byId >= 0) {
+      used.add(byId);
+      return stored[byId];
+    }
+    const byKind = stored.findIndex(
+      (item, index) =>
+        !used.has(index) &&
+        item.kind === step.kind &&
+        (item.branch ?? "") === (step.branch ?? ""),
+    );
+    if (byKind >= 0) {
+      used.add(byKind);
+      return stored[byKind];
+    }
+    return undefined;
+  };
+  return defaultCampaignFlow().map((step) => overlayStepCopy(step, take(step)));
 }

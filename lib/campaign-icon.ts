@@ -9,12 +9,12 @@ import {
 } from "lucide-react";
 
 const STYLES: { icon: LucideIcon; className: string }[] = [
-  { icon: Users, className: "bg-violet-100 text-barney" },
-  { icon: ShoppingCart, className: "bg-sky-100 text-sky-600" },
-  { icon: LineChart, className: "bg-orange-100 text-orange-600" },
-  { icon: Briefcase, className: "bg-emerald-100 text-emerald-700" },
-  { icon: Building2, className: "bg-indigo-100 text-indigo-600" },
-  { icon: Target, className: "bg-rose-100 text-rose-600" },
+  { icon: Users, className: "text-barney" },
+  { icon: ShoppingCart, className: "text-sky-600" },
+  { icon: LineChart, className: "text-orange-600" },
+  { icon: Briefcase, className: "text-emerald-700" },
+  { icon: Building2, className: "text-indigo-600" },
+  { icon: Target, className: "text-rose-600" },
 ];
 
 export function campaignIconStyle(id: string) {

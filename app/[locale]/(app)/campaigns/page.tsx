@@ -227,16 +227,9 @@ export default function CampaignsPage() {
                   <td className="px-5 py-3">
                     <Link
                       href={`/campaigns/${campaign.id}`}
-                      className="flex items-center gap-3 font-medium text-ink hover:text-barney"
+                      className="flex items-center gap-2.5 font-medium text-ink hover:text-barney"
                     >
-                      <span
-                        className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                          visual.className,
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </span>
+                      <Icon className={cn("h-4 w-4 shrink-0", visual.className)} />
                       {campaign.name}
                     </Link>
                   </td>

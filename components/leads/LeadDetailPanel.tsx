@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Eye, Mail, MessageCircle, Phone, Send, UserPlus, Users, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -73,9 +74,16 @@ export function LeadDetailPanel({
     failed: t("historyFailed"),
   };
 
-  const inset = `${100 / (Math.max(lead.history.length, 1) * 2)}%`;
   const nextStep = campaign ? findStep(campaign.flow, lead.nextStepId) : null;
   const nextTitle = nextStep ? flowStepTitle(nextStep, locale) : "";
+  const historyRef = useRef<HTMLDivElement>(null);
+  const historyKey = lead.history.map((item) => `${item.kind}-${item.at.toISOString()}`).join("|");
+
+  useLayoutEffect(() => {
+    const node = historyRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [lead.id, historyKey]);
 
   return (
     <aside className="surface-card flex h-full min-h-0 flex-col rounded-2xl p-5">
@@ -154,26 +162,35 @@ export function LeadDetailPanel({
         </div>
       </section>
 
-      <section className="mt-6 flex min-h-0 flex-1 flex-col">
-        <h3 className="shrink-0 font-display text-sm font-semibold text-ink">{t("history")}</h3>
-        <div className="relative mt-2 min-h-0 flex-1 border-t border-purple-jam/10 pt-1">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute left-[15px] border-l border-barney/20"
-            style={{ top: inset, bottom: inset }}
-          />
-          <ol className="flex h-full flex-col">
+      <section className="mt-6 shrink-0">
+        <h3 className="font-display text-sm font-semibold text-ink">{t("history")}</h3>
+        <div className="mt-2 border-t border-purple-jam/10 pt-3">
+          <div
+            ref={historyRef}
+            className="max-h-29 overflow-y-auto overscroll-contain scrollbar-thin"
+          >
+            <div className="relative">
+            {lead.history.length > 1 ? (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-[15px] top-4 bottom-4 border-l border-barney/20"
+              />
+            ) : null}
+            <ol className="space-y-2.5">
             {lead.history.map((item) => {
               const Icon = HISTORY_ICON[item.kind];
               const tone = HISTORY_TONE[item.kind];
               return (
-                <li key={`${item.kind}-${item.at.toISOString()}`} className="relative flex min-h-0 flex-1 items-center gap-3 pl-0">
+                <li
+                  key={`${item.kind}-${item.at.toISOString()}`}
+                  className="relative flex items-center gap-3"
+                >
                   <span
                     className={cn(
-                      "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                      tone === "green" && "bg-emerald-50 text-emerald-600",
-                      tone === "purple" && "bg-violet-50 text-barney",
-                      tone === "red" && "bg-rose-50 text-rose-600",
+                      "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center bg-white",
+                      tone === "green" && "text-emerald-600",
+                      tone === "purple" && "text-barney",
+                      tone === "red" && "text-rose-600",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -189,7 +206,9 @@ export function LeadDetailPanel({
                 </li>
               );
             })}
-          </ol>
+            </ol>
+            </div>
+          </div>
         </div>
       </section>
     </aside>

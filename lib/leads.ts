@@ -130,13 +130,14 @@ export function leadStatusLabelKey(lead: Lead): LeadStatusLabelKey {
   if (lead.status === "failed") return "failed";
   if (lead.status === "replied") return "replied";
   if (lead.status === "flow_completed") return "flow_completed";
+  const accepted = lead.currentBranch === "accepted" || historyHas(lead, "accepted");
   if (lead.status === "waiting_reply") {
-    if (lead.awaiting === "connection") return "waiting_accept";
+    if (lead.awaiting === "connection" && !accepted) return "waiting_accept";
     return "waiting_reply";
   }
+  if (accepted) return "queued_message";
   if (!historyHas(lead, "profile_viewed")) return "queued_view";
   if (!historyHas(lead, "connection_sent")) return "waiting_connection";
-  if (lead.currentBranch === "accepted" || historyHas(lead, "accepted")) return "queued_message";
   return "queued";
 }
 

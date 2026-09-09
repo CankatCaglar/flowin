@@ -12,7 +12,7 @@ import {
   saveLead,
   todayPacingUsage,
 } from "@/lib/outreach-data";
-import { SEND_EVENT_KINDS } from "@/lib/leads";
+import { historyHas, SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { isQuietHours, istanbulDateKey, normalizePacing, normalizeSchedule, variedPacing, warmupPacing } from "@/lib/pacing";
 import {
@@ -124,7 +124,7 @@ function scheduleNext(
   lead: Lead,
   campaign: Campaign,
   current: CampaignFlowStep,
-  branch = lead.currentBranch,
+  branch = current.branch || lead.currentBranch,
   schedule = normalizeSchedule(undefined),
 ) {
   const next = nextStepInLane(campaign.flow, current.id, branch);
@@ -145,7 +145,12 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   if (lead.status === "replied" || lead.status === "flow_completed") {
     return lead;
   }
-  if (lead.history.some((event) => event.kind === "accepted")) return lead;
+  if (historyHas(lead, "accepted")) {
+    lead.currentBranch = "accepted";
+    lead.awaiting = "";
+    if (lead.status === "failed") lead.status = "queued";
+    return saveLead(lead);
+  }
   appendHistory(lead, "accepted");
   lead.currentBranch = "accepted";
   lead.awaiting = "";
@@ -175,6 +180,9 @@ export async function markLeadReplied(
 ) {
   if (ids?.unipileChatId) lead.unipileChatId = ids.unipileChatId || lead.unipileChatId;
   if (lead.status === "replied") return lead;
+  if (lead.awaiting === "inmail") {
+    return queueInmailReply(lead, campaign, body, ids);
+  }
   const at = new Date();
   appendHistory(lead, "replied");
   lead.status = "replied";
@@ -182,6 +190,44 @@ export async function markLeadReplied(
   lead.nextStepId = "";
   lead.nextStepAt = undefined;
   lead.firstReplyReceivedAt = at;
+  await createMessage({
+    brandId: lead.brandId,
+    campaignId: lead.campaignId,
+    campaignName: campaign.name,
+    leadId: lead.id,
+    leadName: lead.fullName,
+    direction: "inbound",
+    body,
+    sentAt: at,
+    unipileMessageId: ids?.unipileMessageId ?? "",
+  });
+  await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
+  await incrementCampaignCounters(lead.campaignId, { replied: 1 });
+  return saveLead(lead);
+}
+
+async function queueInmailReply(
+  lead: Lead,
+  campaign: Campaign,
+  body: string,
+  ids?: { unipileMessageId?: string; unipileChatId?: string },
+) {
+  const at = new Date();
+  if (!historyHas(lead, "replied")) appendHistory(lead, "replied");
+  lead.awaiting = "";
+  lead.currentBranch = "inmail_accepted";
+  lead.status = "queued";
+  lead.firstReplyReceivedAt = lead.firstReplyReceivedAt ?? at;
+  const next = firstBranchStep(campaign.flow, "inmail_accepted");
+  if (next) {
+    const brand = await fetchBrand(lead.brandId);
+    lead.nextStepId = next.id;
+    lead.nextStepAt = scheduleAt(next, new Date(), normalizeSchedule(brand?.schedule));
+  } else {
+    lead.status = "replied";
+    lead.nextStepId = "";
+    lead.nextStepAt = undefined;
+  }
   await createMessage({
     brandId: lead.brandId,
     campaignId: lead.campaignId,
@@ -225,31 +271,43 @@ async function executeStep(
   accountId: string,
   schedule = normalizeSchedule(undefined),
 ) {
+  if (historyHas(lead, "accepted")) {
+    lead.currentBranch = "accepted";
+  } else if (step.branch) {
+    lead.currentBranch = step.branch;
+  }
+
   if (step.kind === "profile_view" || step.kind === "connection_check") {
-    const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
-    const profile = await getUnipileProfile(accountId, identifier);
-    lead.unipileProviderId = profile.provider_id || lead.unipileProviderId;
-    if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
-    await applyProfilePhoto(lead, profile);
-    if (profile.notify_visit_token) {
-      try {
-        await reportProfileVisit(accountId, profile.notify_visit_token);
-      } catch (error) {
-        console.error("[unipile] profile visit skipped:", error instanceof Error ? error.message : error);
+    const last = lead.history[lead.history.length - 1];
+    const repeatView = last?.kind === "profile_viewed" && lead.nextStepId === step.id;
+    if (!repeatView) {
+      const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
+      const profile = await getUnipileProfile(accountId, identifier);
+      lead.unipileProviderId = profile.provider_id || lead.unipileProviderId;
+      if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
+      await applyProfilePhoto(lead, profile);
+      if (profile.notify_visit_token) {
+        try {
+          await reportProfileVisit(accountId, profile.notify_visit_token);
+        } catch (error) {
+          console.error("[unipile] profile visit skipped:", error instanceof Error ? error.message : error);
+        }
       }
-    }
-    if (isFirstDegree(profile)) {
-      await applyUsage(lead.brandId, campaign.id, "views", step.id);
+      const alreadyAccepted =
+        lead.currentBranch === "accepted" || historyHas(lead, "accepted");
+      if (isFirstDegree(profile) && !alreadyAccepted) {
+        await applyUsage(lead.brandId, campaign.id, "views", step.id);
+        appendHistory(lead, "profile_viewed");
+        lead.failReason = "";
+        await saveLead(lead);
+        return markLeadAccepted(lead, campaign);
+      }
       appendHistory(lead, "profile_viewed");
-      lead.failReason = "";
-      await saveLead(lead);
-      return markLeadAccepted(lead, campaign);
+      if (!lead.currentBranch && !lead.awaiting) {
+        lead.stage = "profile_viewed";
+      }
+      await applyUsage(lead.brandId, campaign.id, "views", step.id);
     }
-    appendHistory(lead, "profile_viewed");
-    if (!lead.currentBranch && !lead.awaiting) {
-      lead.stage = "profile_viewed";
-    }
-    await applyUsage(lead.brandId, campaign.id, "views", step.id);
     if (lead.awaiting === "connection" && !lead.currentBranch) {
       lead.currentBranch = "no_response";
       const next = firstBranchStep(campaign.flow, "no_response");

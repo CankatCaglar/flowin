@@ -1,3 +1,4 @@
+import { historyHas } from "@/lib/leads";
 import { splitFlowBranches } from "@/lib/campaign-flow";
 import {
   addIstanbulDateKey,
@@ -36,7 +37,7 @@ export function nextStepInLane(
 ) {
   const lane = stepsInLane(flow, branch);
   const index = lane.findIndex((step) => step.id === currentId);
-  if (index < 0) return lane[0] ?? null;
+  if (index < 0) return null;
   return lane[index + 1] ?? null;
 }
 
@@ -130,12 +131,43 @@ export function isRunnable(lead: Lead) {
   return lead.status === "queued" || lead.status === "waiting_reply";
 }
 
+export function resumeAcceptedStep(lead: Lead, flow: CampaignFlowStep[]) {
+  const lane = stepsInLane(flow, "accepted");
+  const messages = lane.filter((step) => step.kind === "message");
+  if (historyHas(lead, "message_3_sent")) return null;
+  if (historyHas(lead, "message_2_sent") && messages[1]) {
+    return nextStepInLane(flow, messages[1].id, "accepted");
+  }
+  if (historyHas(lead, "message_1_sent") && messages[0]) {
+    return nextStepInLane(flow, messages[0].id, "accepted");
+  }
+  return lane[0] ?? null;
+}
+
 /**
  * Old campaigns could point a waiting lead at InMail right after the invite.
  * Keep the due time; only snap the cursor back onto the fixed sequence.
  */
 export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
   if (!isRunnable(lead)) return false;
+  if (historyHas(lead, "accepted") || lead.currentBranch === "accepted") {
+    let changed = false;
+    if (lead.awaiting === "connection") {
+      lead.awaiting = "";
+      changed = true;
+    }
+    if (lead.currentBranch !== "accepted") {
+      lead.currentBranch = "accepted";
+      changed = true;
+    }
+    const step = findStep(flow, lead.nextStepId);
+    if (!step || step.branch !== "accepted") {
+      const next = resumeAcceptedStep(lead, flow);
+      lead.nextStepId = next?.id ?? "";
+      changed = true;
+    }
+    return changed;
+  }
   if (lead.awaiting === "connection" && !lead.currentBranch) {
     const silentView = firstBranchStep(flow, "no_response");
     if (silentView && lead.nextStepId !== silentView.id) {

@@ -179,8 +179,6 @@ export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
     if (lead.awaiting === "inmail") {
       const silentView = firstBranchStep(flow, "inmail_no_response");
       lead.nextStepId = silentView?.id ?? "";
-    } else if (lead.currentBranch === "accepted") {
-      lead.nextStepId = firstBranchStep(flow, "accepted")?.id ?? "";
     } else if (lead.awaiting === "connection") {
       lead.nextStepId = firstBranchStep(flow, "no_response")?.id ?? "";
     } else {

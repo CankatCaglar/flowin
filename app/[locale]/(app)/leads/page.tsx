@@ -46,12 +46,13 @@ function LeadsContent() {
     <div>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <LeadsWorkspace
-        key={`${initialStatus}-${initialCampaignId}`}
+        key={`${initialStatus}-${initialCampaignId}-${searchParams.get("awaiting") ?? ""}`}
         leads={leads}
         campaigns={campaigns}
         showCampaign
         initialCampaignId={initialCampaignId}
         initialStatus={initialStatus}
+        replyWaitOnly={searchParams.get("awaiting") === "reply"}
       />
     </div>
   );

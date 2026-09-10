@@ -4,18 +4,20 @@ import { ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Link } from "@/i18n/navigation";
-import { countFlowMessages } from "@/lib/metrics";
+import { countFlowMessages, effectiveRepliedCount } from "@/lib/metrics";
 import { formatNumber, formatSuccessRate } from "@/lib/utils";
-import type { Campaign, CampaignStatus, Lead } from "@/types";
+import type { Campaign, CampaignStatus, Lead, OutreachMessage } from "@/types";
 
 const VISIBLE_ROWS = 2;
 
 export function ActiveCampaignsTable({
   campaigns,
   leads,
+  messages = [],
 }: {
   campaigns: Campaign[];
   leads: Lead[];
+  messages?: OutreachMessage[];
 }) {
   const t = useTranslations("dashboard.table");
   const statusT = useTranslations("status");
@@ -41,6 +43,7 @@ export function ActiveCampaignsTable({
           <tbody>
             {rows.map((campaign) => {
               const sent = countFlowMessages(leads, campaign.id);
+              const replied = effectiveRepliedCount(campaign, messages);
               return (
               <tr key={campaign.id} className="border-t border-purple-jam/8">
                 <td className="px-3 py-3 font-medium text-ink">
@@ -52,10 +55,10 @@ export function ActiveCampaignsTable({
                   {formatNumber(sent, locale)}
                 </td>
                 <td className="px-3 py-3 text-center text-muted">
-                  {formatNumber(campaign.repliedCount, locale)}
+                  {formatNumber(replied, locale)}
                 </td>
                 <td className="px-3 py-3 text-center text-muted">
-                  {formatSuccessRate(sent, campaign.repliedCount, locale)}
+                  {formatSuccessRate(sent, replied, locale)}
                 </td>
                 <td className="px-3 py-3">
                   <StatusBadge

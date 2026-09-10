@@ -4,6 +4,7 @@ import { reconcileLeadChat } from "@/lib/delete-message";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { sendManualLeadMessage } from "@/lib/manual-message";
 import { fetchLead, fetchMessages } from "@/lib/outreach-data";
+import { backfillRepliesFromMessages } from "@/lib/reply-backfill";
 import { UnipileError } from "@/lib/unipile";
 
 export async function GET(request: Request) {
@@ -22,7 +23,13 @@ export async function GET(request: Request) {
         console.error("[messages] linkedin sync failed:", error instanceof Error ? error.message : error);
       }
     }
-    return NextResponse.json(await fetchMessages(brandId));
+    const messages = await fetchMessages(brandId);
+    try {
+      await backfillRepliesFromMessages(brandId, messages);
+    } catch (error) {
+      console.error("[messages] reply backfill failed:", error instanceof Error ? error.message : error);
+    }
+    return NextResponse.json(messages);
   } catch (error) {
     return NextResponse.json(firebasePayload(error), { status: firebaseStatus(error) });
   }

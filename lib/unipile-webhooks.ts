@@ -6,13 +6,16 @@ import {
   setUnipileStatus,
 } from "@/lib/data";
 import { applyRemoteMessageDeleted } from "@/lib/delete-message";
+import { isReactionNotice } from "@/lib/chat-thread";
 import {
   fetchCampaign,
   findAwaitingLeads,
+  findLeadByChatId,
   findLeadByProvider,
   findLeadByPublicId,
 } from "@/lib/outreach-data";
 import { markLeadAccepted, markLeadReplied } from "@/lib/sequence-runner";
+import { unipileReactionEmojis } from "@/lib/unipile";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -88,6 +91,14 @@ async function findLeadFromIds(brandId: string, ids: string[]) {
   return null;
 }
 
+function chatIdOf(data: Record<string, unknown>, payload: Record<string, unknown>) {
+  return (
+    (typeof data.chat_id === "string" && data.chat_id) ||
+    (typeof payload.chat_id === "string" && payload.chat_id) ||
+    ""
+  );
+}
+
 export async function handleUnipileWebhook(body: unknown) {
   const data = asRecord(body);
   if (!data) return { ignored: true };
@@ -158,24 +169,31 @@ export async function handleUnipileWebhook(body: unknown) {
       payload.is_sender === false ||
       payload.sender === "attendee" ||
       String(payload.direction ?? "") === "inbound");
+  const reactionEvent = type.includes("reaction");
 
-  if (inbound || type === "new_message" || type === "message_received") {
+  if (inbound || reactionEvent || type === "new_message" || type === "message_received") {
     const isSender = payload.is_sender === true || payload.sender === "self";
     if (isSender) return { ignored: true };
-    const lead = await findLeadFromIds(brand.id, attendeeIds(payload));
+    const chatId = chatIdOf(data, payload);
+    const lead =
+      (await findLeadFromIds(brand.id, attendeeIds(payload))) ??
+      (await findLeadByChatId(brand.id, chatId));
     if (!lead) return { ignored: true };
     const campaign = await fetchCampaign(lead.campaignId);
     if (!campaign) return { ignored: true };
-    await markLeadReplied(lead, campaign, textOf(payload) || textOf(asRecord(payload.message)), {
+    const body =
+      textOf(payload) ||
+      textOf(asRecord(payload.message)) ||
+      unipileReactionEmojis(payload)[0] ||
+      "";
+    await markLeadReplied(lead, campaign, body || "👏", {
       unipileMessageId:
         (typeof data.message_id === "string" && data.message_id) ||
         (typeof payload.message_id === "string" && payload.message_id) ||
         (typeof payload.id === "string" && payload.id) ||
         "",
-      unipileChatId:
-        (typeof data.chat_id === "string" && data.chat_id) ||
-        (typeof payload.chat_id === "string" && payload.chat_id) ||
-        "",
+      unipileChatId: chatId,
+      skipInbox: reactionEvent || isReactionNotice(body),
     });
     return { replied: lead.id };
   }

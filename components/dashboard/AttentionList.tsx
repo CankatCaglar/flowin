@@ -53,7 +53,7 @@ export function AttentionList({
     },
     {
       id: "followUp",
-      href: "/leads?status=queued",
+      href: "/leads?status=waiting_reply&awaiting=reply",
       label: t("followUp"),
       hint: t("followUpHint", { count: followUpCount }),
       icon: UserRound,

@@ -176,7 +176,7 @@ export async function markLeadReplied(
   lead: Lead,
   campaign: Campaign,
   body: string,
-  ids?: { unipileMessageId?: string; unipileChatId?: string },
+  ids?: { unipileMessageId?: string; unipileChatId?: string; skipInbox?: boolean },
 ) {
   if (ids?.unipileChatId) lead.unipileChatId = ids.unipileChatId || lead.unipileChatId;
   if (lead.status === "replied") return lead;
@@ -190,17 +190,19 @@ export async function markLeadReplied(
   lead.nextStepId = "";
   lead.nextStepAt = undefined;
   lead.firstReplyReceivedAt = at;
-  await createMessage({
-    brandId: lead.brandId,
-    campaignId: lead.campaignId,
-    campaignName: campaign.name,
-    leadId: lead.id,
-    leadName: lead.fullName,
-    direction: "inbound",
-    body,
-    sentAt: at,
-    unipileMessageId: ids?.unipileMessageId ?? "",
-  });
+  if (!ids?.skipInbox) {
+    await createMessage({
+      brandId: lead.brandId,
+      campaignId: lead.campaignId,
+      campaignName: campaign.name,
+      leadId: lead.id,
+      leadName: lead.fullName,
+      direction: "inbound",
+      body,
+      sentAt: at,
+      unipileMessageId: ids?.unipileMessageId ?? "",
+    });
+  }
   await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
   await incrementCampaignCounters(lead.campaignId, { replied: 1 });
   return saveLead(lead);
@@ -210,7 +212,7 @@ async function queueInmailReply(
   lead: Lead,
   campaign: Campaign,
   body: string,
-  ids?: { unipileMessageId?: string; unipileChatId?: string },
+  ids?: { unipileMessageId?: string; unipileChatId?: string; skipInbox?: boolean },
 ) {
   const at = new Date();
   if (!historyHas(lead, "replied")) appendHistory(lead, "replied");
@@ -228,17 +230,19 @@ async function queueInmailReply(
     lead.nextStepId = "";
     lead.nextStepAt = undefined;
   }
-  await createMessage({
-    brandId: lead.brandId,
-    campaignId: lead.campaignId,
-    campaignName: campaign.name,
-    leadId: lead.id,
-    leadName: lead.fullName,
-    direction: "inbound",
-    body,
-    sentAt: at,
-    unipileMessageId: ids?.unipileMessageId ?? "",
-  });
+  if (!ids?.skipInbox) {
+    await createMessage({
+      brandId: lead.brandId,
+      campaignId: lead.campaignId,
+      campaignName: campaign.name,
+      leadId: lead.id,
+      leadName: lead.fullName,
+      direction: "inbound",
+      body,
+      sentAt: at,
+      unipileMessageId: ids?.unipileMessageId ?? "",
+    });
+  }
   await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
   await incrementCampaignCounters(lead.campaignId, { replied: 1 });
   return saveLead(lead);

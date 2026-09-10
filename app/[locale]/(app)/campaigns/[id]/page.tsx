@@ -9,7 +9,13 @@ import { useBrand } from "@/contexts/BrandContext";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { bestStatDay, campaignReplyDays, topRepliedStep } from "@/lib/campaign-metrics";
-import { chartSeries, countContactedLeads, countFlowMessages } from "@/lib/metrics";
+import {
+  chartSeries,
+  countContactedLeads,
+  countFlowMessages,
+  effectiveRepliedCount,
+  repliedLeadIds,
+} from "@/lib/metrics";
 import { successRate } from "@/lib/utils";
 
 export default function CampaignOverviewPage({
@@ -20,16 +26,18 @@ export default function CampaignOverviewPage({
   const { id } = use(params);
   const { selectedBrand } = useBrand();
   const { range } = useDateRange();
-  const { campaigns, leads, stats } = useBrandData(selectedBrand?.id ?? null, id);
+  const { campaigns, leads, stats, messages } = useBrandData(selectedBrand?.id ?? null, id);
   const campaign = campaigns.find((item) => item.id === id);
   if (!campaign) return null;
 
   const campaignLeads = leads.filter((lead) => lead.campaignId === campaign.id);
+  const campaignMessages = messages.filter((message) => message.campaignId === campaign.id);
   const contacted = countContactedLeads(campaignLeads, campaign.id);
   const flowSent = countFlowMessages(campaignLeads, campaign.id);
-  const series = chartSeries(stats, range, campaignLeads);
-  const best = bestStatDay(stats);
-  const top = topRepliedStep(campaign, leads);
+  const replied = effectiveRepliedCount(campaign, campaignMessages);
+  const series = chartSeries(stats, range, campaignLeads, campaignMessages);
+  const best = bestStatDay(stats, campaignMessages, campaign.id);
+  const top = topRepliedStep(campaign, leads, campaignMessages);
   const leadCount = campaignLeads.length;
 
   return (
@@ -37,8 +45,8 @@ export default function CampaignOverviewPage({
       <CampaignKpiCards
         leadGoal={leadCount > 0 ? leadCount : campaign.leadGoal}
         delivered={contacted}
-        replied={campaign.repliedCount}
-        success={successRate(flowSent, campaign.repliedCount)}
+        replied={replied}
+        success={successRate(flowSent, replied)}
         hasSends={flowSent > 0}
       />
       <div className="grid items-stretch gap-6 xl:grid-cols-3">
@@ -49,10 +57,20 @@ export default function CampaignOverviewPage({
       </div>
       <CampaignHighlights
         bestDayKey={best?.date}
-        bestDayRate={best ? successRate(Number(best.messages ?? 0) + Number(best.inmails ?? 0) || best.sentCount, best.repliedCount) : undefined}
+        bestDayRate={
+          best
+            ? successRate(
+                Number(best.messages ?? 0) + Number(best.inmails ?? 0) || best.sentCount,
+                Math.max(
+                  best.repliedCount,
+                  repliedLeadIds(campaignMessages, campaign.id, undefined, best.date).size,
+                ),
+              )
+            : undefined
+        }
         topStep={top?.step}
         topStepRate={top?.rate}
-        averageReplyDays={campaignReplyDays(leads, campaign.id)}
+        averageReplyDays={campaignReplyDays(leads, campaign.id, campaignMessages)}
       />
     </div>
   );

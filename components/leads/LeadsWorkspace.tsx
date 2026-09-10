@@ -12,7 +12,14 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
-import { exportLeadsCsv, leadLastActionAt, leadStatusLabelKey, LEAD_STAGES, LEAD_STATUSES } from "@/lib/leads";
+import {
+  exportLeadsCsv,
+  isWaitingForLeadReply,
+  leadLastActionAt,
+  leadStatusLabelKey,
+  LEAD_STAGES,
+  LEAD_STATUSES,
+} from "@/lib/leads";
 import { displayLeadCompany } from "@/lib/linkedin-company";
 import { EMPTY_METRIC, formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -26,6 +33,7 @@ export function LeadsWorkspace({
   showCampaign = false,
   initialCampaignId = "all",
   initialStatus = "all",
+  replyWaitOnly = false,
   onAddLead,
 }: {
   leads: Lead[];
@@ -33,6 +41,7 @@ export function LeadsWorkspace({
   showCampaign?: boolean;
   initialCampaignId?: string;
   initialStatus?: LeadStatus | "all";
+  replyWaitOnly?: boolean;
   onAddLead?: (input: {
     fullName: string;
     linkedinUrl: string;
@@ -76,6 +85,7 @@ export function LeadsWorkspace({
       if (showCampaign && campaignId !== "all" && lead.campaignId !== campaignId) return false;
       if (stage !== "all" && lead.stage !== stage) return false;
       if (status !== "all" && lead.status !== status) return false;
+      if (replyWaitOnly && status === "waiting_reply" && !isWaitingForLeadReply(lead)) return false;
       if (
         term &&
         !`${lead.fullName} ${displayLeadCompany(lead)} ${lead.position}`.toLowerCase().includes(term)
@@ -84,7 +94,7 @@ export function LeadsWorkspace({
       }
       return true;
     });
-  }, [campaignId, leads, query, showCampaign, stage, status]);
+  }, [campaignId, leads, query, replyWaitOnly, showCampaign, stage, status]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);

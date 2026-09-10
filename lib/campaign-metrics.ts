@@ -1,17 +1,24 @@
 import { flowStepCounts } from "@/lib/campaign-flow";
-import { averageReplyDays, lastSendBeforeReply } from "@/lib/metrics";
+import { averageReplyDays, lastSendBeforeReply, repliedLeadIds } from "@/lib/metrics";
 import { successRate } from "@/lib/utils";
-import type { Campaign, CampaignFlowStep, DailyStat, Lead, LeadEventKind } from "@/types";
+import type { Campaign, CampaignFlowStep, DailyStat, Lead, LeadEventKind, OutreachMessage } from "@/types";
 
-export function bestStatDay(stats: DailyStat[]) {
+export function bestStatDay(
+  stats: DailyStat[],
+  messages: OutreachMessage[] = [],
+  campaignId?: string,
+) {
   const sentOf = (stat: DailyStat) => Number(stat.messages ?? 0) + Number(stat.inmails ?? 0);
   return [...stats]
     .filter((stat) => sentOf(stat) > 0 || stat.sentCount > 0)
-    .sort(
-      (a, b) =>
-        successRate(sentOf(b) || b.sentCount, b.repliedCount) -
-        successRate(sentOf(a) || a.sentCount, a.repliedCount),
-    )[0];
+    .sort((a, b) => {
+      const aReplied = Math.max(a.repliedCount, repliedLeadIds(messages, campaignId, undefined, a.date).size);
+      const bReplied = Math.max(b.repliedCount, repliedLeadIds(messages, campaignId, undefined, b.date).size);
+      return (
+        successRate(sentOf(b) || b.sentCount, bReplied) -
+        successRate(sentOf(a) || a.sentCount, aReplied)
+      );
+    })[0];
 }
 
 function stepForSendKind(flow: CampaignFlowStep[], kind: LeadEventKind) {
@@ -30,11 +37,14 @@ function stepForSendKind(flow: CampaignFlowStep[], kind: LeadEventKind) {
   return undefined;
 }
 
-export function topRepliedStep(campaign: Campaign, leads: Lead[]) {
+export function topRepliedStep(campaign: Campaign, leads: Lead[], messages: OutreachMessage[] = []) {
   const counts = new Map<string, number>();
   for (const lead of leads) {
     if (lead.campaignId !== campaign.id) continue;
-    const send = lastSendBeforeReply(lead);
+    const inbound = messages
+      .filter((message) => message.leadId === lead.id && message.direction === "inbound")
+      .sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime())[0];
+    const send = lastSendBeforeReply(lead, inbound?.sentAt);
     if (!send) continue;
     const step = stepForSendKind(campaign.flow, send.kind);
     if (!step) continue;
@@ -60,6 +70,13 @@ export function topRepliedStep(campaign: Campaign, leads: Lead[]) {
   };
 }
 
-export function campaignReplyDays(leads: Lead[], campaignId: string) {
-  return averageReplyDays(leads.filter((lead) => lead.campaignId === campaignId));
+export function campaignReplyDays(
+  leads: Lead[],
+  campaignId: string,
+  messages: OutreachMessage[] = [],
+) {
+  return averageReplyDays(
+    leads.filter((lead) => lead.campaignId === campaignId),
+    messages,
+  );
 }

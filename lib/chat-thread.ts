@@ -5,6 +5,14 @@ export function isReactionNotice(body: string) {
   return /reacted\s+\S+$/i.test(text) || /tepki verdi/i.test(text);
 }
 
+export function messageIsLeadReply(
+  message: Pick<OutreachMessage, "direction" | "body" | "reactions">,
+) {
+  if ((message.reactions?.length ?? 0) > 0) return true;
+  if (message.direction !== "inbound") return false;
+  return Boolean(message.body.trim());
+}
+
 export function reactionEmojiFromNotice(body: string) {
   return body.trim().match(/reacted\s+(\S+)\s*$/i)?.[1] ?? "";
 }

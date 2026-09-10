@@ -3,30 +3,36 @@
 import { ChevronRight, Clock3, MessageCircle, Trophy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { countFlowMessages, effectiveRepliedCount } from "@/lib/metrics";
 import { EMPTY_METRIC, formatDecimal, formatNumber, formatPercent, successRate } from "@/lib/utils";
-import type { Campaign } from "@/types";
+import type { Campaign, Lead, OutreachMessage } from "@/types";
 
 export function FeaturedInsights({
   best,
   mostReplied,
   averageReplyDays,
+  leads = [],
+  messages = [],
 }: {
   best?: Campaign;
   mostReplied?: Campaign;
   averageReplyDays: number | null;
+  leads?: Lead[];
+  messages?: OutreachMessage[];
 }) {
   const t = useTranslations("dashboard.insights");
   const common = useTranslations("common");
   const locale = useLocale();
+  const bestSent = best ? countFlowMessages(leads, best.id) || best.sentCount : 0;
+  const bestReplied = best ? effectiveRepliedCount(best, messages) : 0;
+  const mostReplies = mostReplied ? effectiveRepliedCount(mostReplied, messages) : 0;
 
   const items = [
     {
       href: "/campaigns",
       title: t("bestCampaign"),
       subtitle: best?.name ?? t("empty"),
-      value: best
-        ? formatPercent(successRate(best.sentCount, best.repliedCount), locale)
-        : EMPTY_METRIC,
+      value: best ? formatPercent(successRate(bestSent, bestReplied), locale) : EMPTY_METRIC,
       valueLabel: t("successLabel"),
       icon: Trophy,
       iconClass: "text-barney",
@@ -35,7 +41,7 @@ export function FeaturedInsights({
       href: "/campaigns",
       title: t("mostReplies"),
       subtitle: mostReplied?.name ?? t("empty"),
-      value: mostReplied ? formatNumber(mostReplied.repliedCount, locale) : EMPTY_METRIC,
+      value: mostReplied ? formatNumber(mostReplies, locale) : EMPTY_METRIC,
       valueLabel: t("repliesLabel"),
       icon: MessageCircle,
       iconClass: "text-emerald-600",
@@ -43,7 +49,7 @@ export function FeaturedInsights({
     {
       href: "/messages",
       title: t("avgReply"),
-      subtitle: averageReplyDays == null ? t("empty") : undefined,
+      subtitle: averageReplyDays == null ? t("emptyNoReplies") : undefined,
       value:
         averageReplyDays == null ? EMPTY_METRIC : formatDecimal(averageReplyDays, locale),
       valueLabel: averageReplyDays == null ? undefined : common("days"),

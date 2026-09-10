@@ -18,7 +18,7 @@
   },
   "auth": {
     "role": "Yönetici",
-    "signOut": "Çıkış yap",
+    "signOut": "Çıkış Yap",
     "invalidCredentials": "E-posta veya şifre hatalı.",
     "required": "Bu alan zorunludur."
   },
@@ -117,7 +117,7 @@
       "receivedReplies": "Alınan Yanıt",
       "newConnections": "Yeni Bağlantılar",
       "successRate": "Başarı Oranı",
-      "successRateHint": "Yanıt / gönderilen mesaj.",
+      "successRateHint": "Yanıt / Gönderilen Mesaj",
       "vsLastPeriod": "{value} geçen döneme göre.",
       "vsLastPeriodHint": "geçen döneme göre."
     },
@@ -147,8 +147,8 @@
       "expiringHint": "{count} kampanyanın süresi yaklaşıyor",
       "lowResponse": "Düşük Yanıtlı Kampanya",
       "lowResponseHint": "{count} düşük yanıtlı kampanya var",
-      "followUp": "Cevap Bekleyen Leadler",
-      "followUpHint": "{count} lead takip mesajı bekliyor"
+      "followUp": "Yanıt Bekleyen Leadler",
+      "followUpHint": "{count} leadin mesaj yanıtı bekleniyor"
     },
     "insights": {
       "title": "Öne Çıkanlar",
@@ -159,7 +159,8 @@
       "repliesLabel": "Yanıt",
       "successLabel": "Başarı Oranı",
       "durationLabel": "Ortalama süre",
-      "empty": "Bu dönem için yeterli veri yok."
+      "empty": "Bu dönem için yeterli veri yok.",
+      "emptyNoReplies": "Henüz yanıt yok."
     }
   },
   "status": {
@@ -171,7 +172,7 @@
     "queued": "Sırada",
     "queued_view": "Sırada · Profil Görüntüleme",
     "waiting_connection": "Beklemede · Bağlantı İsteği",
-    "waiting_accept": "Yanıt Bekliyor · Connection",
+    "waiting_accept": "Yanıt Bekliyor · Bağlantı İsteği",
     "queued_message": "Sırada · Mesaj",
     "waiting_reply": "Yanıt Bekliyor",
     "replied": "Yanıtlandı",
@@ -250,11 +251,11 @@
       "historyAdded": "Lead eklendi",
       "historyViewed": "Profil görüntülendi",
       "historyInmail": "InMail gönderildi",
-      "historySent": "Connection request gönderildi",
-      "historyAccepted": "Kabul edildi",
-      "historyMessage": "Message 1 gönderildi",
-      "historyMessage2": "Message 2 gönderildi",
-      "historyMessage3": "Message 3 gönderildi",
+      "historySent": "Bağlantı isteği gönderildi",
+      "historyAccepted": "Bağlantı isteği kabul edildi",
+      "historyMessage": "Mesaj 1 gönderildi",
+      "historyMessage2": "Mesaj 2 gönderildi",
+      "historyMessage3": "Mesaj 3 gönderildi",
       "historyReply": "Yanıt alındı",
       "historyFailed": "İletim başarısız",
       "nextStep": "Sonraki adım",

@@ -1,5 +1,5 @@
 import "server-only";
-import { isReactionNotice } from "@/lib/chat-thread";
+import { isReactionNotice, messageIsLeadReply } from "@/lib/chat-thread";
 import { fetchBrand } from "@/lib/data";
 import {
   createMessage,
@@ -29,6 +29,7 @@ import {
   unipileReactionEmojis,
   UnipileError,
 } from "@/lib/unipile";
+import { markLeadReplied } from "@/lib/sequence-runner";
 import type { Lead, OutreachMessage } from "@/types";
 
 const LINKEDIN_UNSEND_MS = 60 * 60 * 1000;
@@ -242,6 +243,15 @@ export async function reconcileLeadChat(lead: Lead) {
     if (next.join() === (parent.reactions ?? []).join()) continue;
     await patchMessage(parent.id, { reactions: next });
     parent.reactions = next;
+  }
+
+  remaining = await fetchMessagesForLead(lead.id);
+  if (campaign && remaining.some(messageIsLeadReply)) {
+    const sample =
+      remaining.find((item) => item.direction === "inbound")?.body ??
+      remaining.find((item) => (item.reactions?.length ?? 0) > 0)?.reactions?.[0] ??
+      "";
+    await markLeadReplied(lead, campaign, sample || "👏", { skipInbox: true });
   }
 
   return gone;

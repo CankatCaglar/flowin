@@ -126,6 +126,14 @@ export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">
   return "pending";
 }
 
+export function isWaitingForLeadReply(lead: Pick<Lead, "status" | "awaiting" | "history">) {
+  if (lead.status !== "waiting_reply") return false;
+  if (lead.awaiting === "connection") return false;
+  return lead.history.some((event) =>
+    ["message_1_sent", "message_2_sent", "message_3_sent", "inmail_sent"].includes(event.kind),
+  );
+}
+
 export function leadStatusLabelKey(lead: Lead): LeadStatusLabelKey {
   if (lead.status === "failed") return "failed";
   if (lead.status === "replied") return "replied";

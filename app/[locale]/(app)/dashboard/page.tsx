@@ -19,18 +19,19 @@ import {
   mostRepliedCampaign,
   failedLeads,
 } from "@/lib/metrics";
+import { isWaitingForLeadReply } from "@/lib/leads";
 
 export default function DashboardPage() {
   const { selectedBrand } = useBrand();
   const { range, now } = useDateRange();
-  const { campaigns, leads, stats, loading } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, stats, messages, loading } = useBrandData(selectedBrand?.id ?? null);
 
   if (loading && campaigns.length === 0) {
     return <PageSkeleton />;
   }
 
-  const kpis = kpiMetrics(campaigns, stats, range, leads);
-  const series = chartSeries(stats, range, leads);
+  const kpis = kpiMetrics(campaigns, stats, range, leads, messages);
+  const series = chartSeries(stats, range, leads, messages);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
@@ -43,7 +44,7 @@ export default function DashboardPage() {
           failedCount={failedLeads(leads).length}
           expiringCount={expiringCampaigns(campaigns, now).length}
           lowResponseCount={lowResponseCampaigns(campaigns).length}
-          followUpCount={leads.filter((lead) => lead.status === "queued").length}
+          followUpCount={leads.filter(isWaitingForLeadReply).length}
           showFailed={selectedBrand?.alerts?.sendFailed !== false}
           showExpiring={selectedBrand?.alerts?.lowLeads !== false}
           showLowResponse={selectedBrand?.alerts?.lowLeads !== false}
@@ -51,12 +52,14 @@ export default function DashboardPage() {
       </div>
       <div className="grid min-w-0 items-stretch gap-4 sm:gap-6 xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
-          <ActiveCampaignsTable campaigns={campaigns} leads={leads} />
+          <ActiveCampaignsTable campaigns={campaigns} leads={leads} messages={messages} />
         </div>
         <FeaturedInsights
-          best={bestCampaign(campaigns)}
-          mostReplied={mostRepliedCampaign(campaigns)}
-          averageReplyDays={averageReplyDays(leads)}
+          best={bestCampaign(campaigns, leads, messages)}
+          mostReplied={mostRepliedCampaign(campaigns, messages, leads)}
+          averageReplyDays={averageReplyDays(leads, messages)}
+          leads={leads}
+          messages={messages}
         />
       </div>
     </div>

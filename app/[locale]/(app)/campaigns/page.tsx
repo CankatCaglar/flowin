@@ -15,9 +15,9 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
 import { addDays, appToday, startOfDay } from "@/lib/dates";
-import { countContactedLeads, countFlowMessages } from "@/lib/metrics";
+import { countContactedLeads, countFlowMessages, effectiveRepliedCount } from "@/lib/metrics";
 import { cn, formatDateTime, formatNumber, formatSuccessRate, successRate } from "@/lib/utils";
-import type { Campaign, CampaignStatus, Lead } from "@/types";
+import type { Campaign, CampaignStatus, Lead, OutreachMessage } from "@/types";
 
 const PAGE_SIZE = 6;
 const FILTERS: Array<"all" | CampaignStatus> = [
@@ -76,16 +76,19 @@ function compareCampaigns(
   key: SortKey,
   dir: 1 | -1,
   leads: Lead[],
+  messages: OutreachMessage[] = [],
 ) {
   const factor = dir;
   if (key === "name") return a.name.localeCompare(b.name) * factor;
   if (key === "total") return (totalLeads(a, leads) - totalLeads(b, leads)) * factor;
   if (key === "sent") return (countContactedLeads(leads, a.id) - countContactedLeads(leads, b.id)) * factor;
-  if (key === "replied") return (a.repliedCount - b.repliedCount) * factor;
+  if (key === "replied") {
+    return (effectiveRepliedCount(a, messages) - effectiveRepliedCount(b, messages)) * factor;
+  }
   if (key === "success") {
     return (
-      (successRate(countFlowMessages(leads, a.id), a.repliedCount) -
-        successRate(countFlowMessages(leads, b.id), b.repliedCount)) *
+      (successRate(countFlowMessages(leads, a.id), effectiveRepliedCount(a, messages)) -
+        successRate(countFlowMessages(leads, b.id), effectiveRepliedCount(b, messages))) *
       factor
     );
   }
@@ -99,7 +102,7 @@ export default function CampaignsPage() {
   const statusT = useTranslations("status");
   const locale = useLocale();
   const { selectedBrand } = useBrand();
-  const { campaigns, leads, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, messages, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
@@ -116,8 +119,8 @@ export default function CampaignsPage() {
       if (term && !campaign.name.toLowerCase().includes(term)) return false;
       return true;
     });
-    return [...rows].sort((a, b) => compareCampaigns(a, b, sortKey, sortDir, leads));
-  }, [campaigns, dateFilter, filter, leads, query, sortDir, sortKey]);
+    return [...rows].sort((a, b) => compareCampaigns(a, b, sortKey, sortDir, leads, messages));
+  }, [campaigns, dateFilter, filter, leads, messages, query, sortDir, sortKey]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -240,12 +243,12 @@ export default function CampaignsPage() {
                     {formatNumber(countContactedLeads(leads, campaign.id), locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
-                    {formatNumber(campaign.repliedCount, locale)}
+                    {formatNumber(effectiveRepliedCount(campaign, messages), locale)}
                   </td>
                   <td className="px-5 py-3 text-center text-muted">
                     {formatSuccessRate(
                       countFlowMessages(leads, campaign.id),
-                      campaign.repliedCount,
+                      effectiveRepliedCount(campaign, messages),
                       locale,
                     )}
                   </td>

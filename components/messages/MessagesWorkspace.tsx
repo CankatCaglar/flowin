@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useBrand } from "@/contexts/BrandContext";
-import { isReactionNotice, toChatBubbles } from "@/lib/chat-thread";
+import { isReactionNotice, messageIsLeadReply, toChatBubbles } from "@/lib/chat-thread";
 import { deleteManualMessage, fetchMessages, sendManualMessage } from "@/lib/outreach-api";
 import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -33,9 +33,7 @@ function groupThreads(messages: OutreachMessage[]) {
         campaignName: last.campaignName,
         messages: sorted,
         last,
-        hasInbound: sorted.some(
-          (item) => item.direction === "inbound" && !isReactionNotice(item.body),
-        ),
+        hasInbound: sorted.some(messageIsLeadReply),
       };
     })
     .sort((a, b) => b.last.sentAt.getTime() - a.last.sentAt.getTime());

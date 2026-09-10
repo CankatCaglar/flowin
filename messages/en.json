@@ -147,8 +147,8 @@
       "expiringHint": "{count} campaigns are ending soon",
       "lowResponse": "Low-response Campaign",
       "lowResponseHint": "{count} campaigns have a low reply rate",
-      "followUp": "Leads awaiting a reply",
-      "followUpHint": "{count} leads are waiting for a follow-up"
+      "followUp": "Leads waiting for a reply",
+      "followUpHint": "{count} leads have not replied to a message yet"
     },
     "insights": {
       "title": "Featured Insights",
@@ -159,7 +159,8 @@
       "repliesLabel": "Replies",
       "successLabel": "Success Rate",
       "durationLabel": "Average time",
-      "empty": "Not enough data for this period."
+      "empty": "Not enough data for this period.",
+      "emptyNoReplies": "No replies yet."
     }
   },
   "status": {
@@ -251,7 +252,7 @@
       "historyViewed": "Profile viewed",
       "historyInmail": "InMail sent",
       "historySent": "Connection request sent",
-      "historyAccepted": "Accepted",
+      "historyAccepted": "Connection request accepted",
       "historyMessage": "Message 1 sent",
       "historyMessage2": "Message 2 sent",
       "historyMessage3": "Message 3 sent",

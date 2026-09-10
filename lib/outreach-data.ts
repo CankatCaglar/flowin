@@ -11,6 +11,7 @@ import {
 import { canonicalizeCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
+import { countFlowMessages } from "@/lib/metrics";
 import { companyFromHeadline } from "@/lib/linkedin-company";
 import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "@/lib/lead-identity";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
@@ -886,8 +887,8 @@ export async function todayPacingUsage(brandId: string) {
   };
 }
 
-export function brandCardStatsFromCampaigns(campaigns: Campaign[]) {
-  const sent = campaigns.reduce((sum, campaign) => sum + campaign.sentCount, 0);
+export function brandCardStatsFromCampaigns(campaigns: Campaign[], leads: Lead[] = []) {
+  const sent = leads.length ? countFlowMessages(leads) : campaigns.reduce((sum, campaign) => sum + campaign.sentCount, 0);
   const replied = campaigns.reduce((sum, campaign) => sum + campaign.repliedCount, 0);
   return {
     activeCampaigns: campaigns.filter(
@@ -898,9 +899,13 @@ export function brandCardStatsFromCampaigns(campaigns: Campaign[]) {
 }
 
 export async function fetchBrandSummaries() {
-  const snapshot = await requireFirebaseDb().collection("campaigns").get();
+  const db = requireFirebaseDb();
+  const [campaignSnap, leadSnap] = await Promise.all([
+    db.collection("campaigns").get(),
+    db.collection("leads").get(),
+  ]);
   const byBrand = new Map<string, Campaign[]>();
-  for (const item of snapshot.docs) {
+  for (const item of campaignSnap.docs) {
     const data = item.data();
     const brandId = String(data.brandId ?? "");
     if (!brandId) continue;
@@ -914,9 +919,19 @@ export async function fetchBrandSummaries() {
     list.push(campaign);
     byBrand.set(brandId, list);
   }
+  const leadsByBrand = new Map<string, Lead[]>();
+  for (const item of leadSnap.docs) {
+    const row = leadFromDoc(item);
+    const brandId = row.lead.brandId || String(item.data().brandId ?? "");
+    if (!brandId) continue;
+    row.lead.brandId = brandId;
+    const list = leadsByBrand.get(brandId) ?? [];
+    list.push(row.lead);
+    leadsByBrand.set(brandId, list);
+  }
   const summaries: Record<string, { activeCampaigns: number; successRate: number }> = {};
   for (const [brandId, campaigns] of byBrand) {
-    summaries[brandId] = brandCardStatsFromCampaigns(campaigns);
+    summaries[brandId] = brandCardStatsFromCampaigns(campaigns, leadsByBrand.get(brandId) ?? []);
   }
   return summaries;
 }

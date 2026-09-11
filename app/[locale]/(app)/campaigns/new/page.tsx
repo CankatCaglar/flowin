@@ -59,6 +59,7 @@ export default function NewCampaignPage() {
   const [editing, setEditing] = useState<CampaignFlowStep | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const selectedList = useMemo(
     () => campaigns.find((campaign) => campaign.id === listId) ?? preferredList,
@@ -98,6 +99,7 @@ export default function NewCampaignPage() {
   const save = async (asDraft: boolean) => {
     if (!selectedBrand || !name.trim() || !canSubmit) return;
     setSubmitting(true);
+    setSaveError(false);
     try {
       const createdAt = new Date();
       const campaign = await createCampaign({
@@ -116,6 +118,8 @@ export default function NewCampaignPage() {
       });
       refresh();
       router.push(`/campaigns/${campaign.id}`);
+    } catch {
+      setSaveError(true);
     } finally {
       setSubmitting(false);
     }
@@ -320,6 +324,7 @@ export default function NewCampaignPage() {
             </div>
           </section>
 
+          {saveError ? <p className="text-sm text-rose-600">{t("saveFailed")}</p> : null}
           <div className="flex shrink-0 flex-wrap justify-end gap-2 pt-2">
             <Button
               type="button"

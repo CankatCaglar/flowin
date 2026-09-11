@@ -237,12 +237,13 @@ function overlayStepCopy(canonical: CampaignFlowStep, stored?: CampaignFlowStep)
   if (stored.templateKey) {
     return { ...canonical, templateKey: stored.templateKey };
   }
-  return {
+  const next = {
     ...canonical,
-    templateKey: undefined,
     title: stored.title?.trim() ? stored.title : canonical.title,
     body: typeof stored.body === "string" ? stored.body : canonical.body,
   };
+  delete next.templateKey;
+  return next;
 }
 
 /**

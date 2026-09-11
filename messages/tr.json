@@ -332,6 +332,7 @@
       "selectedLeads": "Toplam Seçili Lead",
       "createdOn": "Oluşturulma: {date}",
       "messages": "Mesajlar & Flow",
+      "saveFailed": "Kampanya kaydedilemedi. Tekrar deneyin.",
       "saveDraft": "Taslak Kaydet",
       "submit": "Kampanyayı Oluştur",
       "audiencePlaceholder": "Hedef kitle",

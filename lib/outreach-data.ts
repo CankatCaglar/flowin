@@ -174,6 +174,23 @@ export function hydrateMessage(
   };
 }
 
+function flowForFirestore(steps: Campaign["flow"]) {
+  return steps.map((step) => {
+    const next: Record<string, unknown> = {
+      id: step.id,
+      kind: step.kind,
+      title: step.title,
+      body: step.body,
+      delayDays: step.delayDays,
+      delayUnit: step.delayUnit,
+    };
+    if (step.premium) next.premium = true;
+    if (step.branch) next.branch = step.branch;
+    if (step.templateKey) next.templateKey = step.templateKey;
+    return next;
+  });
+}
+
 function campaignPayload(campaign: Campaign) {
   return {
     brandId: campaign.brandId,
@@ -186,7 +203,7 @@ function campaignPayload(campaign: Campaign) {
     createdAt: Timestamp.fromDate(campaign.createdAt),
     targetAudience: campaign.targetAudience,
     leadGoal: campaign.leadGoal,
-    flow: campaign.flow,
+    flow: flowForFirestore(campaign.flow),
     stepCounts: campaign.stepCounts ?? {},
   };
 }

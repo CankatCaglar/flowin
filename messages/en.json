@@ -332,6 +332,7 @@
       "selectedLeads": "Total Selected Leads",
       "createdOn": "Created: {date}",
       "messages": "Messages & Flow",
+      "saveFailed": "The campaign could not be saved. Try again.",
       "saveDraft": "Save Draft",
       "submit": "Create Campaign",
       "audiencePlaceholder": "Target audience",

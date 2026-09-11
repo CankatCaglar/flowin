@@ -60,7 +60,7 @@ export function BrandDataProvider({ children }: { children: React.ReactNode }) {
       setLeads((current) => {
         const next = current.map((lead) => {
           if (lead.campaignId !== campaignId || isLeadFlowTerminal(lead)) return lead;
-          return { ...lead, nextStepId: "", nextStepAt: undefined, awaiting: "" };
+          return { ...lead, nextStepId: "", nextStepAt: undefined, awaiting: "" as const };
         });
         if (brandId) {
           const existing = peekBrandBundle(brandId);

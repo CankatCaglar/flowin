@@ -85,6 +85,13 @@ export function flowStepBody(step: CampaignFlowStep, locale: string) {
   return template ? template.body[templateLocale(locale)] : step.body;
 }
 
+/** Exact text the sequence runner sends, before {{variable}} interpolation. */
+export function campaignStepCopy(step: CampaignFlowStep, locale = "tr") {
+  if (step.kind === "connection") return "";
+  if (step.templateKey) return flowStepBody(step, locale);
+  return step.body.trim() ? step.body : flowStepBody(step, locale);
+}
+
 function templateStep(
   id: string,
   templateKey: keyof typeof STEP_TEMPLATES,

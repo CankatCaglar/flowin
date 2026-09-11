@@ -3,7 +3,7 @@ import { getAdminSessionEmail } from "@/lib/admin-session";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { DuplicateActiveLeadError } from "@/lib/lead-identity";
 import { hydrateLeadAvatars } from "@/lib/lead-avatar";
-import { createLead, fetchLeads } from "@/lib/outreach-data";
+import { closeScheduledLeadsOnCompletedCampaigns, createLead, fetchLeads } from "@/lib/outreach-data";
 import { recoverFailedInvites } from "@/lib/sequence-runner";
 
 export async function GET(request: Request) {
@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     const leads = await fetchLeads(brandId);
     after(() => {
       void hydrateLeadAvatars(leads);
+      void closeScheduledLeadsOnCompletedCampaigns(brandId);
     });
     return NextResponse.json(leads);
   } catch (error) {

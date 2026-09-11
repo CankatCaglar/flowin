@@ -2,7 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useBrand } from "@/contexts/BrandContext";
-import { peekBrandBundle, putBrandBundle, warmBrandBundle } from "@/lib/brand-data-cache";
+import {
+  invalidateBrandBundle,
+  peekBrandBundle,
+  putBrandBundle,
+  warmBrandBundle,
+} from "@/lib/brand-data-cache";
+import { isLeadFlowTerminal } from "@/lib/leads";
 import { hydrateLeadAvatars, leadNeedsAvatarHydration } from "@/lib/outreach-api";
 import { readSelectedBrandId } from "@/lib/storage";
 import type { Campaign, DailyStat, Lead, OutreachMessage } from "@/types";
@@ -14,6 +20,7 @@ type BrandDataValue = {
   messages: OutreachMessage[];
   loading: boolean;
   refresh: () => void;
+  patchCampaign: (campaignId: string, patch: Partial<Campaign>) => void;
 };
 
 const BrandDataContext = createContext<BrandDataValue | null>(null);
@@ -33,7 +40,36 @@ export function BrandDataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(Boolean(brandId) && !cached);
   const [refreshKey, setRefreshKey] = useState(0);
   const loadedFor = useRef<string | null>(cached && brandId ? brandId : null);
-  const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
+  const refresh = useCallback(() => {
+    if (brandId) invalidateBrandBundle(brandId);
+    setRefreshKey((value) => value + 1);
+  }, [brandId]);
+
+  const patchCampaign = useCallback((campaignId: string, patch: Partial<Campaign>) => {
+    setCampaigns((current) => {
+      const next = current.map((campaign) =>
+        campaign.id === campaignId ? { ...campaign, ...patch } : campaign,
+      );
+      if (brandId) {
+        const existing = peekBrandBundle(brandId);
+        if (existing) putBrandBundle(brandId, { ...existing, campaigns: next });
+      }
+      return next;
+    });
+    if (patch.status === "completed") {
+      setLeads((current) => {
+        const next = current.map((lead) => {
+          if (lead.campaignId !== campaignId || isLeadFlowTerminal(lead)) return lead;
+          return { ...lead, nextStepId: "", nextStepAt: undefined, awaiting: "" };
+        });
+        if (brandId) {
+          const existing = peekBrandBundle(brandId);
+          if (existing) putBrandBundle(brandId, { ...existing, leads: next });
+        }
+        return next;
+      });
+    }
+  }, [brandId]);
 
   useEffect(() => {
     if (!brandId) {
@@ -112,8 +148,8 @@ export function BrandDataProvider({ children }: { children: React.ReactNode }) {
   }, [brandId, refreshKey]);
 
   const value = useMemo(
-    () => ({ campaigns, leads, stats, messages, loading, refresh }),
-    [campaigns, leads, stats, messages, loading, refresh],
+    () => ({ campaigns, leads, stats, messages, loading, refresh, patchCampaign }),
+    [campaigns, leads, stats, messages, loading, refresh, patchCampaign],
   );
 
   return <BrandDataContext.Provider value={value}>{children}</BrandDataContext.Provider>;

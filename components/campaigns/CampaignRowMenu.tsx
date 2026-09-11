@@ -3,9 +3,14 @@
 import { useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
+import {
+  CampaignStatusConfirm,
+  type CampaignStatusAction,
+} from "@/components/campaigns/CampaignStatusConfirm";
 import { AnchoredMenu, selectOptionClass } from "@/components/ui/SelectMenu";
 import { useMenu } from "@/contexts/MenuContext";
 import { useDismissable } from "@/hooks/useDismissable";
+import { useSharedBrandData } from "@/contexts/BrandDataContext";
 import { useRouter } from "@/i18n/navigation";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { updateCampaign } from "@/lib/outreach-api";
@@ -23,7 +28,9 @@ export function CampaignRowMenu({
   const { open, toggle, close } = useMenu(`campaign-row-${campaign.id}`);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { patchCampaign, refresh } = useSharedBrandData();
   const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState<CampaignStatusAction | null>(null);
   useDismissable([rootRef, panelRef], open, close);
 
   const go = (href: string) => {
@@ -33,12 +40,17 @@ export function CampaignRowMenu({
 
   const setStatus = async (status: CampaignStatus) => {
     if (saving) return;
+    const previous = campaign.status;
     setSaving(true);
     close();
+    patchCampaign(campaign.id, { status });
     try {
-      await updateCampaign(campaign.id, { status });
+      const next = await updateCampaign(campaign.id, { status });
+      patchCampaign(campaign.id, { status: next.status });
       onChanged?.();
     } catch {
+      patchCampaign(campaign.id, { status: previous });
+      refresh();
       onChanged?.();
     } finally {
       setSaving(false);
@@ -71,21 +83,52 @@ export function CampaignRowMenu({
           {t("tabs.flow")}
         </button>
         {isCampaignRunning(campaign.status) ? (
-          <button type="button" className={selectOptionClass(false)} onClick={() => void setStatus("paused")}>
+          <button
+            type="button"
+            className={selectOptionClass(false)}
+            onClick={() => {
+              close();
+              setPending("paused");
+            }}
+          >
             {t("pauseCampaign")}
           </button>
         ) : null}
         {campaign.status === "paused" || campaign.status === "draft" ? (
-          <button type="button" className={selectOptionClass(false)} onClick={() => void setStatus("active")}>
+          <button
+            type="button"
+            className={selectOptionClass(false)}
+            onClick={() => {
+              close();
+              setPending("active");
+            }}
+          >
             {t("resumeCampaign")}
           </button>
         ) : null}
         {campaign.status !== "completed" ? (
-          <button type="button" className={selectOptionClass(false)} onClick={() => void setStatus("completed")}>
+          <button
+            type="button"
+            className={selectOptionClass(false)}
+            onClick={() => {
+              close();
+              setPending("completed");
+            }}
+          >
             {t("completeCampaign")}
           </button>
         ) : null}
       </AnchoredMenu>
+      <CampaignStatusConfirm
+        action={pending}
+        campaignName={campaign.name}
+        saving={saving}
+        onClose={() => setPending(null)}
+        onConfirm={(status) => {
+          setPending(null);
+          void setStatus(status);
+        }}
+      />
     </div>
   );
 }

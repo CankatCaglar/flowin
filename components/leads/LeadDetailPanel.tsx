@@ -8,7 +8,7 @@ import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { flowStepTitle } from "@/lib/campaign-flow";
-import { leadStatusLabelKey } from "@/lib/leads";
+import { isLeadFlowTerminal, leadStatusLabelKey } from "@/lib/leads";
 import { displayLeadCompany } from "@/lib/linkedin-company";
 import { findStep } from "@/lib/sequence";
 import { EMPTY_METRIC, cn, formatDateTime } from "@/lib/utils";
@@ -74,7 +74,8 @@ export function LeadDetailPanel({
     failed: t("historyFailed"),
   };
 
-  const nextStep = campaign ? findStep(campaign.flow, lead.nextStepId) : null;
+  const campaignEnded = campaign?.status === "completed" && !isLeadFlowTerminal(lead);
+  const nextStep = campaign && !campaignEnded ? findStep(campaign.flow, lead.nextStepId) : null;
   const nextTitle = nextStep ? flowStepTitle(nextStep, locale) : "";
   const historyRef = useRef<HTMLDivElement>(null);
   const historyKey = lead.history.map((item) => `${item.kind}-${item.at.toISOString()}`).join("|");
@@ -95,8 +96,14 @@ export function LeadDetailPanel({
           <p className="text-sm text-muted">{displayLeadCompany(lead) || EMPTY_METRIC}</p>
           {campaignName ? <p className="text-sm text-muted">{campaignName}</p> : null}
           <div className="mt-2 flex flex-wrap gap-2">
-            <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
-            <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
+            <StageBadge
+              stage={campaignEnded ? "pending" : lead.stage}
+              label={campaignEnded ? stageT("campaign_ended") : stageT(lead.stage)}
+            />
+            <StatusBadge
+              status={campaignEnded ? "completed" : lead.status}
+              label={statusT(leadStatusLabelKey(lead, campaign?.status))}
+            />
           </div>
         </div>
         <button
@@ -109,7 +116,7 @@ export function LeadDetailPanel({
         </button>
       </div>
 
-      {lead.failReason || nextTitle || lead.nextStepAt ? (
+      {lead.failReason || nextTitle || (lead.nextStepAt && !campaignEnded) ? (
         <section className="mt-5 shrink-0 rounded-xl border border-purple-jam/10 bg-canvas px-3 py-3">
           {lead.failReason ? (
             <p className="text-sm text-rose-700">
@@ -123,7 +130,7 @@ export function LeadDetailPanel({
               {nextTitle}
             </p>
           ) : null}
-          {lead.nextStepAt && lead.status !== "failed" && lead.status !== "replied" ? (
+          {lead.nextStepAt && !campaignEnded && lead.status !== "failed" && lead.status !== "replied" ? (
             <p className="mt-1 text-sm text-muted">
               {t("scheduledFor")}: {formatDateTime(lead.nextStepAt, locale)}
             </p>

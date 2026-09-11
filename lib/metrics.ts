@@ -10,8 +10,7 @@ import { successRate, trendPercent } from "@/lib/utils";
 import type { Campaign, DailyStat, DateRange, Lead, LeadEvent, OutreachMessage } from "@/types";
 
 const UNRESPONSIVE_DAYS = 7;
-const EXPIRING_DAYS = 3;
-const LOW_RESPONSE_MIN_SENT = 50;
+const LOW_RESPONSE_MIN_SENT = 5;
 const LOW_RESPONSE_MAX_RATE = 10;
 
 export function repliedLeadIds(
@@ -214,21 +213,29 @@ export function unresponsiveLeads(leads: Lead[], now: Date) {
   return leads.filter((lead) => isUnresponsiveLead(lead, now));
 }
 
-export function expiringCampaigns(campaigns: Campaign[], now: Date) {
-  const limit = EXPIRING_DAYS * 86_400_000;
+export function leadFinishedProcess(lead: Lead) {
+  return lead.status === "replied" || lead.status === "flow_completed";
+}
+
+export function expiringCampaigns(campaigns: Campaign[], leads: Lead[] = []) {
   return campaigns.filter((campaign) => {
     if (campaign.status === "draft" || campaign.status === "completed" || campaign.status === "paused") {
       return false;
     }
-    const remaining = campaign.endDate.getTime() - now.getTime();
-    return remaining >= 0 && remaining <= limit;
+    return leads.some((lead) => lead.campaignId === campaign.id && leadFinishedProcess(lead));
   });
 }
 
-export function lowResponseCampaigns(campaigns: Campaign[]) {
+export function lowResponseCampaigns(
+  campaigns: Campaign[],
+  leads: Lead[] = [],
+  messages: OutreachMessage[] = [],
+) {
   return campaigns.filter((campaign) => {
-    if (campaign.sentCount < LOW_RESPONSE_MIN_SENT) return false;
-    return successRate(campaign.sentCount, campaign.repliedCount) < LOW_RESPONSE_MAX_RATE;
+    if (campaign.status === "draft" || campaign.status === "completed") return false;
+    const sent = countFlowMessages(leads, campaign.id);
+    if (sent < LOW_RESPONSE_MIN_SENT) return false;
+    return successRate(sent, effectiveRepliedCount(campaign, messages)) < LOW_RESPONSE_MAX_RATE;
   });
 }
 

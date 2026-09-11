@@ -1,5 +1,5 @@
 import "server-only";
-import { flowStepBody } from "@/lib/campaign-flow";
+import { campaignStepCopy } from "@/lib/campaign-flow";
 import { fetchBrand } from "@/lib/data";
 import { interpolateTemplate, splitPersonName } from "@/lib/linkedin-profile";
 import {
@@ -9,6 +9,7 @@ import {
   fetchLeads,
   incrementCampaignCounters,
   incrementDailyStat,
+  findMessageByUnipileId,
   saveLead,
   todayPacingUsage,
 } from "@/lib/outreach-data";
@@ -55,8 +56,7 @@ function templateValues(lead: Lead) {
 }
 
 function stepCopy(step: CampaignFlowStep, lead: Lead) {
-  const raw = step.templateKey ? flowStepBody(step, "tr") : step.body || flowStepBody(step, "tr");
-  return interpolateTemplate(raw, templateValues(lead));
+  return interpolateTemplate(campaignStepCopy(step, "tr"), templateValues(lead));
 }
 
 async function applyProfilePhoto(lead: Lead, profile: unknown) {
@@ -172,6 +172,30 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   return saveLead(lead);
 }
 
+async function storeInboundReply(
+  lead: Lead,
+  campaign: Campaign,
+  body: string,
+  ids?: { unipileMessageId?: string; skipInbox?: boolean },
+) {
+  if (ids?.skipInbox) return;
+  const text = body.trim();
+  if (!text) return;
+  const remoteId = ids?.unipileMessageId?.trim() ?? "";
+  if (remoteId && (await findMessageByUnipileId(lead.brandId, remoteId))) return;
+  await createMessage({
+    brandId: lead.brandId,
+    campaignId: lead.campaignId,
+    campaignName: campaign.name,
+    leadId: lead.id,
+    leadName: lead.fullName,
+    direction: "inbound",
+    body: text,
+    sentAt: new Date(),
+    unipileMessageId: remoteId,
+  });
+}
+
 export async function markLeadReplied(
   lead: Lead,
   campaign: Campaign,
@@ -179,7 +203,10 @@ export async function markLeadReplied(
   ids?: { unipileMessageId?: string; unipileChatId?: string; skipInbox?: boolean },
 ) {
   if (ids?.unipileChatId) lead.unipileChatId = ids.unipileChatId || lead.unipileChatId;
-  if (lead.status === "replied") return lead;
+  if (lead.status === "replied") {
+    await storeInboundReply(lead, campaign, body, ids);
+    return saveLead(lead);
+  }
   if (lead.awaiting === "inmail") {
     return queueInmailReply(lead, campaign, body, ids);
   }
@@ -190,19 +217,7 @@ export async function markLeadReplied(
   lead.nextStepId = "";
   lead.nextStepAt = undefined;
   lead.firstReplyReceivedAt = at;
-  if (!ids?.skipInbox) {
-    await createMessage({
-      brandId: lead.brandId,
-      campaignId: lead.campaignId,
-      campaignName: campaign.name,
-      leadId: lead.id,
-      leadName: lead.fullName,
-      direction: "inbound",
-      body,
-      sentAt: at,
-      unipileMessageId: ids?.unipileMessageId ?? "",
-    });
-  }
+  await storeInboundReply(lead, campaign, body, ids);
   await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
   await incrementCampaignCounters(lead.campaignId, { replied: 1 });
   return saveLead(lead);

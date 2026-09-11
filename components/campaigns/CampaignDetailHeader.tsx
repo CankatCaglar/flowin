@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  CampaignStatusConfirm,
+  type CampaignStatusAction,
+} from "@/components/campaigns/CampaignStatusConfirm";
 import { StatusBadge } from "@/components/ui/Badge";
 import { BackLink } from "@/components/ui/BackLink";
 import { Button } from "@/components/ui/Button";
 import { Link, usePathname } from "@/i18n/navigation";
+import { useSharedBrandData } from "@/contexts/BrandDataContext";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { updateCampaign } from "@/lib/outreach-api";
 import { cn } from "@/lib/utils";
@@ -22,7 +27,9 @@ export function CampaignDetailHeader({
   const list = useTranslations("campaigns");
   const statusT = useTranslations("status");
   const pathname = usePathname();
+  const { patchCampaign, refresh } = useSharedBrandData();
   const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState<CampaignStatusAction | null>(null);
   const base = `/campaigns/${campaign.id}`;
   const tabs = [
     { href: base, key: "overview" as const, exact: true },
@@ -32,10 +39,16 @@ export function CampaignDetailHeader({
 
   const setStatus = async (status: CampaignStatus) => {
     if (saving) return;
+    const previous = campaign.status;
     setSaving(true);
+    patchCampaign(campaign.id, { status });
     try {
-      await updateCampaign(campaign.id, { status });
+      const next = await updateCampaign(campaign.id, { status });
+      patchCampaign(campaign.id, { status: next.status });
       onChanged?.();
+    } catch {
+      patchCampaign(campaign.id, { status: previous });
+      refresh();
     } finally {
       setSaving(false);
     }
@@ -49,17 +62,17 @@ export function CampaignDetailHeader({
         <StatusBadge status={campaign.status} label={statusT(campaign.status)} />
         <div className="ml-auto flex flex-wrap gap-2">
           {isCampaignRunning(campaign.status) ? (
-            <Button variant="brand" disabled={saving} onClick={() => void setStatus("paused")}>
+            <Button variant="brand" disabled={saving} onClick={() => setPending("paused")}>
               {list("pauseCampaign")}
             </Button>
           ) : null}
-          {campaign.status === "paused" || campaign.status === "draft" || campaign.status === "completed" ? (
-            <Button disabled={saving} onClick={() => void setStatus("active")}>
+          {campaign.status === "paused" || campaign.status === "draft" ? (
+            <Button disabled={saving} onClick={() => setPending("active")}>
               {list("resumeCampaign")}
             </Button>
           ) : null}
           {campaign.status !== "completed" ? (
-            <Button variant="brand" disabled={saving} onClick={() => void setStatus("completed")}>
+            <Button variant="brand" disabled={saving} onClick={() => setPending("completed")}>
               {list("completeCampaign")}
             </Button>
           ) : null}
@@ -86,6 +99,16 @@ export function CampaignDetailHeader({
           );
         })}
       </nav>
+      <CampaignStatusConfirm
+        action={pending}
+        campaignName={campaign.name}
+        saving={saving}
+        onClose={() => setPending(null)}
+        onConfirm={(status) => {
+          setPending(null);
+          void setStatus(status);
+        }}
+      />
     </div>
   );
 }

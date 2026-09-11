@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useBrand } from "@/contexts/BrandContext";
-import { isReactionNotice, messageIsLeadReply, toChatBubbles } from "@/lib/chat-thread";
+import { isReactionNotice, leadNeedsOurReply, messageIsLeadReply, toChatBubbles } from "@/lib/chat-thread";
 import { deleteManualMessage, fetchMessages, sendManualMessage } from "@/lib/outreach-api";
 import { formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,8 @@ export function MessagesWorkspace({
   campaigns,
   now,
   onSent,
+  initialCampaignId = "all",
+  initialFilter = "all",
 }: {
   brandId: string;
   messages: OutreachMessage[];
@@ -53,6 +55,8 @@ export function MessagesWorkspace({
   campaigns: Campaign[];
   now: Date;
   onSent?: () => void;
+  initialCampaignId?: string;
+  initialFilter?: "all" | "replies" | "ours";
 }) {
   const t = useTranslations("messages");
   const common = useTranslations("common");
@@ -61,8 +65,8 @@ export function MessagesWorkspace({
   const threadScrollRef = useRef<HTMLOListElement | null>(null);
   const threadEndRef = useRef<HTMLLIElement | null>(null);
   const [query, setQuery] = useState("");
-  const [campaignId, setCampaignId] = useState("all");
-  const [filter, setFilter] = useState<"all" | "replies">("all");
+  const [campaignId, setCampaignId] = useState(initialCampaignId);
+  const [filter, setFilter] = useState<"all" | "replies" | "ours">(initialFilter);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [extras, setExtras] = useState<OutreachMessage[]>([]);
@@ -85,6 +89,7 @@ export function MessagesWorkspace({
     return groupThreads(visibleMessages).filter((thread) => {
       if (campaignId !== "all" && thread.campaignId !== campaignId) return false;
       if (filter === "replies" && !thread.hasInbound) return false;
+      if (filter === "ours" && !leadNeedsOurReply({ id: thread.leadId }, thread.messages)) return false;
       if (
         term &&
         !`${thread.leadName} ${thread.campaignName} ${thread.last.body}`.toLowerCase().includes(term)
@@ -208,11 +213,12 @@ export function MessagesWorkspace({
             ]}
             onChange={setCampaignId}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(
               [
                 ["all", t("filterAll")],
                 ["replies", t("filterReplies")],
+                ["ours", t("filterOurs")],
               ] as const
             ).map(([value, label]) => (
               <button

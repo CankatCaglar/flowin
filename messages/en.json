@@ -143,12 +143,12 @@
       "unresponsiveHint": "{count} unresponsive leads need follow-up",
       "failed": "Unprocessable Leads",
       "failedHint": "{count} leads could not be processed because of an error",
-      "expiring": "Campaigns running out of leads",
-      "expiringHint": "{count} campaigns are ending soon",
-      "lowResponse": "Low-response Campaign",
-      "lowResponseHint": "{count} campaigns have a low reply rate",
+      "expiring": "Campaigns with finished leads",
+      "expiringHint": "{count} campaigns have a lead that finished the flow",
+      "lowResponse": "Low-response campaign",
+      "lowResponseHint": "{count} campaigns have a reply rate below 10%",
       "followUp": "Leads waiting for a reply",
-      "followUpHint": "{count} leads have not replied to a message yet"
+      "followUpHint": "{count} leads replied and still need a response"
     },
     "insights": {
       "title": "Featured Insights",
@@ -177,10 +177,12 @@
     "waiting_reply": "Waiting for Reply",
     "replied": "Replied",
     "failed": "Delivery Failed",
-    "flow_completed": "Flow Completed"
+    "flow_completed": "Flow Completed",
+    "campaign_ended": "Campaign ended"
   },
   "stage": {
     "pending": "Pending",
+    "campaign_ended": "Campaign ended",
     "connection_request": "Connection Request",
     "profile_viewed": "Profile Viewed",
     "message_1": "Message 1",
@@ -211,6 +213,17 @@
     "pauseCampaign": "Pause",
     "resumeCampaign": "Resume",
     "completeCampaign": "End campaign",
+    "confirm": {
+      "pauseTitle": "Pause this campaign?",
+      "pauseBody": "“{name}” will stop sending. Leads stay on their current step. Resume continues from there, not from the start.",
+      "pauseAction": "Pause",
+      "resumeTitle": "Resume this campaign?",
+      "resumeBody": "“{name}” will continue from where it stopped. Steps already sent are not repeated.",
+      "resumeAction": "Resume",
+      "completeTitle": "End this campaign?",
+      "completeBody": "“{name}” will close and no new outreach will be sent. An ended campaign cannot be started again.",
+      "completeAction": "End campaign"
+    },
     "notFound": "Campaign not found.",
     "backToList": "Back to campaigns",
     "tabs": {
@@ -397,6 +410,7 @@
     "search": "Search a person or message...",
     "filterAll": "All",
     "filterReplies": "New replies",
+    "filterOurs": "Needs reply",
     "empty": "No campaign messages yet. They appear here after a connection, message or InMail goes out, and when someone replies.",
     "direction": "Direction",
     "time": "Time",

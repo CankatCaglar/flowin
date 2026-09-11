@@ -1,4 +1,4 @@
-import type { OutreachMessage } from "@/types";
+import type { Lead, OutreachMessage } from "@/types";
 
 export function isReactionNotice(body: string) {
   const text = body.replace(/\s+/g, " ").trim();
@@ -47,4 +47,11 @@ export function toChatBubbles(messages: OutreachMessage[]): ChatBubble[] {
   }
 
   return bubbles;
+}
+
+export function leadNeedsOurReply(lead: Pick<Lead, "id">, messages: OutreachMessage[]) {
+  const bubbles = toChatBubbles(messages.filter((message) => message.leadId === lead.id));
+  if (!bubbles.some((item) => item.direction === "outbound")) return false;
+  const last = bubbles[bubbles.length - 1];
+  return Boolean(last && last.direction === "inbound" && last.body.trim());
 }

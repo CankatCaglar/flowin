@@ -30,5 +30,6 @@ export function useBrandData(brandId: string | null, campaignId?: string) {
     messages: shared.messages,
     loading: shared.loading,
     refresh: shared.refresh,
+    patchCampaign: shared.patchCampaign,
   };
 }

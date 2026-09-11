@@ -8,11 +8,14 @@ import {
 import { applyRemoteMessageDeleted } from "@/lib/delete-message";
 import { isReactionNotice } from "@/lib/chat-thread";
 import {
+  createMessage,
   fetchCampaign,
   findAwaitingLeads,
   findLeadByChatId,
   findLeadByProvider,
   findLeadByPublicId,
+  findMessageByUnipileId,
+  saveLead,
 } from "@/lib/outreach-data";
 import { markLeadAccepted, markLeadReplied } from "@/lib/sequence-runner";
 import { unipileReactionEmojis } from "@/lib/unipile";
@@ -99,6 +102,65 @@ function chatIdOf(data: Record<string, unknown>, payload: Record<string, unknown
   );
 }
 
+function messageIdOf(data: Record<string, unknown>, payload: Record<string, unknown>) {
+  return (
+    (typeof data.message_id === "string" && data.message_id) ||
+    (typeof payload.message_id === "string" && payload.message_id) ||
+    (typeof payload.id === "string" && payload.id) ||
+    ""
+  );
+}
+
+function sentAtOf(data: Record<string, unknown>, payload: Record<string, unknown>) {
+  const raw = payload.timestamp ?? payload.date ?? data.timestamp ?? data.date;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    return new Date(raw < 1e12 ? raw * 1000 : raw);
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return new Date(numeric < 1e12 ? numeric * 1000 : numeric);
+    }
+    const parsed = Date.parse(raw);
+    if (!Number.isNaN(parsed)) return new Date(parsed);
+  }
+  return new Date();
+}
+
+async function recordBrandOutbound(
+  brandId: string,
+  data: Record<string, unknown>,
+  payload: Record<string, unknown>,
+) {
+  const body = textOf(payload) || textOf(asRecord(payload.message));
+  if (!body.trim() || isReactionNotice(body)) return false;
+  const chatId = chatIdOf(data, payload);
+  const lead =
+    (await findLeadFromIds(brandId, attendeeIds(payload))) ?? (await findLeadByChatId(brandId, chatId));
+  if (!lead) return false;
+  const unipileMessageId = messageIdOf(data, payload);
+  if (unipileMessageId && (await findMessageByUnipileId(brandId, unipileMessageId))) {
+    return true;
+  }
+  const campaign = await fetchCampaign(lead.campaignId);
+  if (chatId && chatId !== lead.unipileChatId) {
+    lead.unipileChatId = chatId;
+    await saveLead(lead);
+  }
+  await createMessage({
+    brandId: lead.brandId,
+    campaignId: lead.campaignId,
+    campaignName: campaign?.name ?? "",
+    leadId: lead.id,
+    leadName: lead.fullName,
+    direction: "outbound",
+    body,
+    sentAt: sentAtOf(data, payload),
+    unipileMessageId,
+  });
+  return true;
+}
+
 export async function handleUnipileWebhook(body: unknown) {
   const data = asRecord(body);
   if (!data) return { ignored: true };
@@ -163,17 +225,16 @@ export async function handleUnipileWebhook(body: unknown) {
     });
   }
 
-  const inbound =
-    type.includes("message") &&
-    (type.includes("received") ||
-      payload.is_sender === false ||
-      payload.sender === "attendee" ||
-      String(payload.direction ?? "") === "inbound");
+  const messageEvent =
+    type.includes("message") || type.includes("reaction") || type === "new_message";
   const reactionEvent = type.includes("reaction");
+  const isSender = payload.is_sender === true || payload.sender === "self";
 
-  if (inbound || reactionEvent || type === "new_message" || type === "message_received") {
-    const isSender = payload.is_sender === true || payload.sender === "self";
-    if (isSender) return { ignored: true };
+  if (messageEvent) {
+    if (isSender && !reactionEvent) {
+      const stored = await recordBrandOutbound(brand.id, data, payload);
+      return stored ? { outbound: true } : { ignored: true };
+    }
     const chatId = chatIdOf(data, payload);
     const lead =
       (await findLeadFromIds(brand.id, attendeeIds(payload))) ??
@@ -187,11 +248,7 @@ export async function handleUnipileWebhook(body: unknown) {
       unipileReactionEmojis(payload)[0] ||
       "";
     await markLeadReplied(lead, campaign, body || "👏", {
-      unipileMessageId:
-        (typeof data.message_id === "string" && data.message_id) ||
-        (typeof payload.message_id === "string" && payload.message_id) ||
-        (typeof payload.id === "string" && payload.id) ||
-        "",
+      unipileMessageId: messageIdOf(data, payload),
       unipileChatId: chatId,
       skipInbox: reactionEvent || isReactionNotice(body),
     });

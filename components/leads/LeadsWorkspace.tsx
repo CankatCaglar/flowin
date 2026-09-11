@@ -14,22 +14,24 @@ import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
 import {
   exportLeadsCsv,
-  isWaitingForLeadReply,
   leadLastActionAt,
+  isLeadFlowTerminal,
   leadStatusLabelKey,
   LEAD_STAGES,
   LEAD_STATUSES,
 } from "@/lib/leads";
+import { leadNeedsOurReply } from "@/lib/chat-thread";
 import { displayLeadCompany } from "@/lib/linkedin-company";
 import { EMPTY_METRIC, formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { Campaign, Lead, LeadStage, LeadStatus } from "@/types";
+import type { Campaign, Lead, LeadStage, LeadStatus, OutreachMessage } from "@/types";
 
 const PAGE_SIZE = 7;
 
 export function LeadsWorkspace({
   leads,
   campaigns,
+  messages = [],
   showCampaign = false,
   initialCampaignId = "all",
   initialStatus = "all",
@@ -38,6 +40,7 @@ export function LeadsWorkspace({
 }: {
   leads: Lead[];
   campaigns: Campaign[];
+  messages?: OutreachMessage[];
   showCampaign?: boolean;
   initialCampaignId?: string;
   initialStatus?: LeadStatus | "all";
@@ -70,6 +73,10 @@ export function LeadsWorkspace({
     () => new Map(campaigns.map((campaign) => [campaign.id, campaign.name])),
     [campaigns],
   );
+  const campaignById = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, campaign])),
+    [campaigns],
+  );
 
   const campaignOptions = useMemo(
     () =>
@@ -82,10 +89,12 @@ export function LeadsWorkspace({
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     return leads.filter((lead) => {
+      const ended =
+        campaignById.get(lead.campaignId)?.status === "completed" && !isLeadFlowTerminal(lead);
       if (showCampaign && campaignId !== "all" && lead.campaignId !== campaignId) return false;
-      if (stage !== "all" && lead.stage !== stage) return false;
-      if (status !== "all" && lead.status !== status) return false;
-      if (replyWaitOnly && status === "waiting_reply" && !isWaitingForLeadReply(lead)) return false;
+      if (stage !== "all" && (ended ? "flow_completed" : lead.stage) !== stage) return false;
+      if (status !== "all" && (ended ? "flow_completed" : lead.status) !== status) return false;
+      if (replyWaitOnly && !leadNeedsOurReply(lead, messages)) return false;
       if (
         term &&
         !`${lead.fullName} ${displayLeadCompany(lead)} ${lead.position}`.toLowerCase().includes(term)
@@ -94,7 +103,7 @@ export function LeadsWorkspace({
       }
       return true;
     });
-  }, [campaignId, leads, query, replyWaitOnly, showCampaign, stage, status]);
+  }, [campaignById, campaignId, leads, messages, query, replyWaitOnly, showCampaign, stage, status]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -181,7 +190,8 @@ export function LeadsWorkspace({
               exportLeadsCsv(filtered, {
                 campaignNames,
                 stageLabel: (item) => stageT(item),
-                statusLabel: (_status, lead) => statusT(leadStatusLabelKey(lead)),
+                statusLabel: (_status, lead) =>
+                  statusT(leadStatusLabelKey(lead, campaignById.get(lead.campaignId)?.status)),
                 lastAction: (lead) => formatLastAction(leadLastActionAt(lead), now, locale),
               })
             }
@@ -233,6 +243,8 @@ export function LeadsWorkspace({
                   );
                 }
                 const active = selected?.id === lead.id;
+                const campaignStatus = campaignById.get(lead.campaignId)?.status;
+                const campaignEnded = campaignStatus === "completed" && !isLeadFlowTerminal(lead);
                 return (
                   <tr
                     key={lead.id}
@@ -278,10 +290,16 @@ export function LeadsWorkspace({
                       </td>
                     ) : null}
                     <td className="px-3 py-2 text-center">
-                      <StageBadge stage={lead.stage} label={stageT(lead.stage)} />
+                      <StageBadge
+                        stage={campaignEnded ? "pending" : lead.stage}
+                        label={campaignEnded ? stageT("campaign_ended") : stageT(lead.stage)}
+                      />
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <StatusBadge status={lead.status} label={statusT(leadStatusLabelKey(lead))} />
+                      <StatusBadge
+                        status={campaignEnded ? "completed" : lead.status}
+                        label={statusT(leadStatusLabelKey(lead, campaignStatus))}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-center text-muted">
                       {formatLastAction(leadLastActionAt(lead), now, locale)}

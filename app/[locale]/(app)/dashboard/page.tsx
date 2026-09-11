@@ -19,11 +19,11 @@ import {
   mostRepliedCampaign,
   failedLeads,
 } from "@/lib/metrics";
-import { isWaitingForLeadReply } from "@/lib/leads";
+import { leadNeedsOurReply } from "@/lib/chat-thread";
 
 export default function DashboardPage() {
   const { selectedBrand } = useBrand();
-  const { range, now } = useDateRange();
+  const { range } = useDateRange();
   const { campaigns, leads, stats, messages, loading } = useBrandData(selectedBrand?.id ?? null);
 
   if (loading && campaigns.length === 0) {
@@ -32,6 +32,14 @@ export default function DashboardPage() {
 
   const kpis = kpiMetrics(campaigns, stats, range, leads, messages);
   const series = chartSeries(stats, range, leads, messages);
+  const failed = failedLeads(leads);
+  const depleted = expiringCampaigns(campaigns, leads);
+  const weak = lowResponseCampaigns(campaigns, leads, messages);
+  const waiting = leads.filter((lead) => leadNeedsOurReply(lead, messages));
+  const singleCampaignId = (rows: { campaignId: string }[]) => {
+    const ids = [...new Set(rows.map((row) => row.campaignId))];
+    return ids.length === 1 ? ids[0] : undefined;
+  };
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
@@ -41,10 +49,12 @@ export default function DashboardPage() {
           <PerformanceChart data={series} />
         </div>
         <AttentionList
-          failedCount={failedLeads(leads).length}
-          expiringCount={expiringCampaigns(campaigns, now).length}
-          lowResponseCount={lowResponseCampaigns(campaigns).length}
-          followUpCount={leads.filter(isWaitingForLeadReply).length}
+          failedCount={failed.length}
+          failedCampaignId={singleCampaignId(failed)}
+          depletedCampaigns={depleted}
+          lowResponseCampaigns={weak}
+          followUpCount={waiting.length}
+          followUpCampaignId={singleCampaignId(waiting)}
           showFailed={selectedBrand?.alerts?.sendFailed !== false}
           showExpiring={selectedBrand?.alerts?.lowLeads !== false}
           showLowResponse={selectedBrand?.alerts?.lowLeads !== false}

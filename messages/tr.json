@@ -143,12 +143,12 @@
       "unresponsiveHint": "{count} adet yanıtsız lead bulunuyor",
       "failed": "İşlenemeyen Leadler",
       "failedHint": "{count} lead hata nedeniyle işlenemedi",
-      "expiring": "Lead'i tükenen kampanyalar",
-      "expiringHint": "{count} kampanyanın süresi yaklaşıyor",
+      "expiring": "Lead'i Tükenen Kampanyalar",
+      "expiringHint": "{count} kampanyada süreç tamamlanan lead var",
       "lowResponse": "Düşük Yanıtlı Kampanya",
-      "lowResponseHint": "{count} düşük yanıtlı kampanya var",
+      "lowResponseHint": "{count} kampanyanın yanıt oranı %10'un altında",
       "followUp": "Yanıt Bekleyen Leadler",
-      "followUpHint": "{count} leadin mesaj yanıtı bekleniyor"
+      "followUpHint": "{count} lead cevap verdi, henüz dönüş yapılmadı"
     },
     "insights": {
       "title": "Öne Çıkanlar",
@@ -177,10 +177,12 @@
     "waiting_reply": "Yanıt Bekliyor",
     "replied": "Yanıtlandı",
     "failed": "İletim Başarısız",
-    "flow_completed": "Akış Tamamlandı"
+    "flow_completed": "Akış Tamamlandı",
+    "campaign_ended": "Kampanya Bitti"
   },
   "stage": {
     "pending": "Sırada",
+    "campaign_ended": "Kampanya Bitti",
     "connection_request": "Bağlantı İsteği",
     "profile_viewed": "Profil Görüntülendi",
     "message_1": "Mesaj 1",
@@ -211,6 +213,17 @@
     "pauseCampaign": "Duraklat",
     "resumeCampaign": "Devam ettir",
     "completeCampaign": "Kampanyayı bitir",
+    "confirm": {
+      "pauseTitle": "Kampanyayı duraklat?",
+      "pauseBody": "“{name}” durur. Lead’ler kaldığı adımda bekler. Devam ettirince baştan değil, aynı yerden sürer.",
+      "pauseAction": "Duraklat",
+      "resumeTitle": "Kampanyayı devam ettir?",
+      "resumeBody": "“{name}” kaldığı yerden devam eder. Gönderilen adımlar tekrarlanmaz.",
+      "resumeAction": "Devam ettir",
+      "completeTitle": "Kampanyayı bitir?",
+      "completeBody": "“{name}” kapanır ve yeni gönderim olmaz. Bitirilen kampanya tekrar çalıştırılmaz.",
+      "completeAction": "Kampanyayı bitir"
+    },
     "notFound": "Kampanya bulunamadı.",
     "backToList": "Kampanyalara dön",
     "tabs": {
@@ -397,6 +410,7 @@
     "search": "Kişi veya mesaj ara...",
     "filterAll": "Tümü",
     "filterReplies": "Yeni yanıtlar",
+    "filterOurs": "Cevap bekleyen",
     "empty": "Henüz kampanya mesajı yok. Connection, mesaj veya InMail gidince ve yanıt gelince burada görünür.",
     "direction": "Yön",
     "time": "Zaman",

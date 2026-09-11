@@ -1,5 +1,5 @@
 import { displayLeadCompany } from "@/lib/linkedin-company";
-import type { Lead, LeadEvent, LeadEventKind, LeadStage, LeadStatus } from "@/types";
+import type { CampaignStatus, Lead, LeadEvent, LeadEventKind, LeadStage, LeadStatus } from "@/types";
 
 export const LEAD_STAGES: LeadStage[] = [
   "pending",
@@ -16,7 +16,8 @@ export type LeadStatusLabelKey =
   | "queued_view"
   | "waiting_connection"
   | "waiting_accept"
-  | "queued_message";
+  | "queued_message"
+  | "campaign_ended";
 
 export const LEAD_EVENT_KINDS: LeadEventKind[] = [
   "added",
@@ -126,18 +127,15 @@ export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">
   return "pending";
 }
 
-export function isWaitingForLeadReply(lead: Pick<Lead, "status" | "awaiting" | "history">) {
-  if (lead.status !== "waiting_reply") return false;
-  if (lead.awaiting === "connection") return false;
-  return lead.history.some((event) =>
-    ["message_1_sent", "message_2_sent", "message_3_sent", "inmail_sent"].includes(event.kind),
-  );
+export function isLeadFlowTerminal(lead: Pick<Lead, "status">) {
+  return lead.status === "failed" || lead.status === "replied" || lead.status === "flow_completed";
 }
 
-export function leadStatusLabelKey(lead: Lead): LeadStatusLabelKey {
+export function leadStatusLabelKey(lead: Lead, campaignStatus?: CampaignStatus): LeadStatusLabelKey {
   if (lead.status === "failed") return "failed";
   if (lead.status === "replied") return "replied";
   if (lead.status === "flow_completed") return "flow_completed";
+  if (campaignStatus === "completed") return "campaign_ended";
   const accepted = lead.currentBranch === "accepted" || historyHas(lead, "accepted");
   if (lead.status === "waiting_reply") {
     if (lead.awaiting === "connection" && !accepted) return "waiting_accept";

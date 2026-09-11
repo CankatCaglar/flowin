@@ -34,8 +34,10 @@ function LeadsContent() {
   const t = useTranslations("leads");
   const searchParams = useSearchParams();
   const { selectedBrand } = useBrand();
-  const { campaigns, leads } = useBrandData(selectedBrand?.id ?? null);
-  const initialStatus = resolveStatus(searchParams);
+  const { campaigns, leads, messages } = useBrandData(selectedBrand?.id ?? null);
+  const awaitingOurs =
+    searchParams.get("awaiting") === "ours" || searchParams.get("awaiting") === "reply";
+  const initialStatus = awaitingOurs ? "all" : resolveStatus(searchParams);
   const campaignParam = searchParams.get("campaign");
   const initialCampaignId =
     campaignParam && campaigns.some((campaign) => campaign.id === campaignParam)
@@ -49,10 +51,11 @@ function LeadsContent() {
         key={`${initialStatus}-${initialCampaignId}-${searchParams.get("awaiting") ?? ""}`}
         leads={leads}
         campaigns={campaigns}
+        messages={messages}
         showCampaign
         initialCampaignId={initialCampaignId}
         initialStatus={initialStatus}
-        replyWaitOnly={searchParams.get("awaiting") === "reply"}
+        replyWaitOnly={awaitingOurs}
       />
     </div>
   );

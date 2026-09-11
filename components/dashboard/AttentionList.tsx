@@ -3,20 +3,35 @@
 import { AlertTriangle, ChevronRight, Clock, TriangleAlert, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import type { Campaign } from "@/types";
+
+function campaignPath(campaigns: Campaign[], suffix = "") {
+  if (campaigns.length !== 1) return "/campaigns";
+  return `/campaigns/${campaigns[0].id}${suffix}`;
+}
+
+function leadsPath(status: string, extra = "", campaignId?: string) {
+  const campaign = campaignId ? `&campaign=${encodeURIComponent(campaignId)}` : "";
+  return `/leads?status=${status}${extra}${campaign}`;
+}
 
 export function AttentionList({
   failedCount,
-  expiringCount,
-  lowResponseCount,
+  failedCampaignId,
+  depletedCampaigns = [],
+  lowResponseCampaigns = [],
   followUpCount,
+  followUpCampaignId,
   showFailed = true,
   showExpiring = true,
   showLowResponse = true,
 }: {
   failedCount: number;
-  expiringCount: number;
-  lowResponseCount: number;
+  failedCampaignId?: string;
+  depletedCampaigns?: Campaign[];
+  lowResponseCampaigns?: Campaign[];
   followUpCount: number;
+  followUpCampaignId?: string;
   showFailed?: boolean;
   showExpiring?: boolean;
   showLowResponse?: boolean;
@@ -26,7 +41,7 @@ export function AttentionList({
   const items = [
     {
       id: "failed",
-      href: "/leads?status=failed",
+      href: leadsPath("failed", "", failedCampaignId),
       label: t("failed"),
       hint: t("failedHint", { count: failedCount }),
       icon: TriangleAlert,
@@ -35,25 +50,25 @@ export function AttentionList({
     },
     {
       id: "expiring",
-      href: "/campaigns",
+      href: campaignPath(depletedCampaigns, "/leads"),
       label: t("expiring"),
-      hint: t("expiringHint", { count: expiringCount }),
+      hint: t("expiringHint", { count: depletedCampaigns.length }),
       icon: Clock,
       iconClass: "text-rose-600",
       visible: showExpiring,
     },
     {
       id: "lowResponse",
-      href: "/campaigns",
+      href: campaignPath(lowResponseCampaigns),
       label: t("lowResponse"),
-      hint: t("lowResponseHint", { count: lowResponseCount }),
+      hint: t("lowResponseHint", { count: lowResponseCampaigns.length }),
       icon: AlertTriangle,
       iconClass: "text-barney",
       visible: showLowResponse,
     },
     {
       id: "followUp",
-      href: "/leads?status=waiting_reply&awaiting=reply",
+      href: `/messages?awaiting=ours${followUpCampaignId ? `&campaign=${encodeURIComponent(followUpCampaignId)}` : ""}`,
       label: t("followUp"),
       hint: t("followUpHint", { count: followUpCount }),
       icon: UserRound,

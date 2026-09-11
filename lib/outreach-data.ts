@@ -10,7 +10,14 @@ import {
 } from "@/lib/brand-avatar";
 import { canonicalizeCampaignFlow } from "@/lib/campaign-flow";
 import { requireFirebaseDb } from "@/lib/firebase";
-import { asLeadStage, asLeadStatus, deriveLeadStage, isLeadEventKind, lastOutboundAt } from "@/lib/leads";
+import {
+  asLeadStage,
+  asLeadStatus,
+  deriveLeadStage,
+  isLeadEventKind,
+  isLeadFlowTerminal,
+  lastOutboundAt,
+} from "@/lib/leads";
 import { countFlowMessages } from "@/lib/metrics";
 import { companyFromHeadline } from "@/lib/linkedin-company";
 import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "@/lib/lead-identity";
@@ -347,6 +354,9 @@ export async function updateCampaign(
     name: typeof clean.name === "string" ? clean.name : current.name,
   });
   await ref.update(campaignPayload(next));
+  if (next.status === "completed" && current.status !== "completed") {
+    await closeOpenLeadsForCompletedCampaign(campaignId);
+  }
   const becameActive = isCampaignRunning(next.status) && !isCampaignRunning(current.status);
   if (becameActive) {
     const leads = await fetchLeadsByCampaign(campaignId);
@@ -425,6 +435,31 @@ export async function fetchLeadsByCampaign(campaignId: string) {
     },
   );
   return mapped.map((row) => row.lead);
+}
+
+async function closeOpenLeadsForCompletedCampaign(campaignId: string) {
+  const leads = await fetchLeadsByCampaign(campaignId);
+  for (const lead of leads) {
+    if (isLeadFlowTerminal(lead)) continue;
+    if (!lead.nextStepId && !lead.nextStepAt && !lead.awaiting) continue;
+    lead.nextStepId = "";
+    lead.nextStepAt = undefined;
+    lead.awaiting = "";
+    await saveLead(lead);
+  }
+}
+
+export async function closeScheduledLeadsOnCompletedCampaigns(brandId: string) {
+  const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
+  const completed = new Set(campaigns.filter((campaign) => campaign.status === "completed").map((campaign) => campaign.id));
+  for (const lead of leads) {
+    if (!completed.has(lead.campaignId) || isLeadFlowTerminal(lead)) continue;
+    if (!lead.nextStepId && !lead.nextStepAt && !lead.awaiting) continue;
+    lead.nextStepId = "";
+    lead.nextStepAt = undefined;
+    lead.awaiting = "";
+    await saveLead(lead);
+  }
 }
 
 export async function fetchDueLeads(now = new Date()) {

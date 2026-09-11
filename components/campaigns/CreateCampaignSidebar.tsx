@@ -51,9 +51,7 @@ export function CreateCampaignSidebar({
             const Icon = item.icon;
             return (
               <li key={item.label} className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-canvas text-muted">
-                  <Icon className="h-4 w-4" />
-                </span>
+                <Icon className="h-4 w-4 shrink-0 text-muted" />
                 <span className="min-w-0 flex-1 text-sm text-muted">{item.label}</span>
                 <span className="font-display text-sm font-semibold text-ink">{item.value}</span>
               </li>

@@ -43,3 +43,8 @@ export function warmBrandBundle(brandId: string) {
 export function putBrandBundle(brandId: string, bundle: BrandBundle) {
   cache.set(brandId, bundle);
 }
+
+export function invalidateBrandBundle(brandId: string) {
+  cache.delete(brandId);
+  inflight.delete(brandId);
+}

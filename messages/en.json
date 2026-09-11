@@ -342,6 +342,7 @@
       "importTypes": "CSV, XLSX, or XLS",
       "importReading": "Reading file…",
       "importReady": "{count} leads ready",
+      "importScroll": "Scroll to review everyone",
       "importSkipped": "{count} rows skipped",
       "importEmpty": "No valid rows. The file needs name and LinkedIn URL columns.",
       "importInvalid": "That file could not be read. Try CSV or Excel.",

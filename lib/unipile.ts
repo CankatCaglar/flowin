@@ -663,30 +663,69 @@ function asPerson(item: Record<string, unknown>): SalesNavPerson | null {
   };
 }
 
+const SALES_NAV_PAGE = 100;
+const SALES_NAV_MAX = 2500;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function salesNavCursor(data: Record<string, unknown>, previous?: string) {
+  const paging = asRecord(data.paging);
+  const values = [data.cursor, data.next_cursor, paging?.cursor, paging?.next_cursor];
+  for (const value of values) {
+    if (typeof value === "string" && value.trim() && value !== previous) return value;
+  }
+  return "";
+}
+
+function salesNavPersonKey(person: SalesNavPerson) {
+  return (
+    person.providerId.trim() ||
+    person.publicId.trim().toLowerCase() ||
+    person.linkedinUrl.trim().toLowerCase() ||
+    `${person.fullName}|${person.company}`.toLowerCase()
+  );
+}
+
 export async function importSalesNavigatorLeads(accountId: string, searchUrl: string) {
   const leads: SalesNavPerson[] = [];
+  const seen = new Set<string>();
   let cursor: string | undefined;
-  for (let page = 0; page < 4 && leads.length < 100; page += 1) {
+  for (let page = 0; page < SALES_NAV_MAX / SALES_NAV_PAGE && leads.length < SALES_NAV_MAX; page += 1) {
     const data = await unipileRequest<{
       items?: Record<string, unknown>[];
       cursor?: string;
+      next_cursor?: string;
+      paging?: Record<string, unknown>;
     }>("/api/v1/linkedin/search", {
       method: "POST",
-      body: {
+      query: {
         account_id: accountId,
+        limit: String(SALES_NAV_PAGE),
+        cursor,
+      },
+      body: {
         api: "sales_navigator",
         category: "people",
         url: searchUrl,
-        cursor,
+        ...(cursor ? { cursor } : {}),
       },
     });
-    for (const item of data.items ?? []) {
+    const items = data.items ?? [];
+    if (items.length === 0) break;
+    for (const item of items) {
       const person = asPerson(item);
-      if (person) leads.push(person);
-      if (leads.length >= 100) break;
+      if (!person) continue;
+      const key = salesNavPersonKey(person);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      leads.push(person);
+      if (leads.length >= SALES_NAV_MAX) break;
     }
-    if (!data.cursor || data.cursor === cursor) break;
-    cursor = data.cursor;
+    const next = salesNavCursor(data, cursor);
+    if (!next || next === cursor) break;
+    cursor = next;
   }
   return leads;
 }

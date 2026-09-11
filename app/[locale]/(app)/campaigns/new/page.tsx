@@ -7,6 +7,7 @@ import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { CreateCampaignSidebar } from "@/components/campaigns/CreateCampaignSidebar";
 import { CreateFlowCanvas } from "@/components/campaigns/CreateFlowCanvas";
 import { EditFlowStepModal } from "@/components/campaigns/EditFlowStepModal";
+import { ImportedLeadPreview } from "@/components/campaigns/ImportedLeadPreview";
 import { LeadImportPanel } from "@/components/campaigns/LeadImportPanel";
 import { LeadListPicker } from "@/components/campaigns/LeadListPicker";
 import { LeadUrlPanel } from "@/components/campaigns/LeadUrlPanel";
@@ -275,7 +276,7 @@ export default function NewCampaignPage() {
                       {salesLoading ? t("salesNavLoading") : t("salesNavImport")}
                     </Button>
                     {imported.leads.length > 0 ? (
-                      <p className="text-sm text-ink">{t("importReady", { count: imported.leads.length })}</p>
+                      <ImportedLeadPreview leads={imported.leads} fileName={imported.fileName} />
                     ) : null}
                     {salesError ? (
                       <p className="text-sm text-rose-600">

@@ -342,6 +342,7 @@
       "importTypes": "CSV, XLSX veya XLS",
       "importReading": "Dosya okunuyor…",
       "importReady": "{count} lead hazır",
+      "importScroll": "Kaydırarak tümünü görün",
       "importSkipped": "{count} satır atlandı",
       "importEmpty": "Geçerli satır bulunamadı. Sütunlarda ad ve LinkedIn URL olmalı.",
       "importInvalid": "Bu dosya okunamadı. CSV veya Excel deneyin.",

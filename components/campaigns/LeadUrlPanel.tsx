@@ -92,7 +92,7 @@ export function LeadUrlPanel({
         </p>
       ) : null}
       {leads.length > 0 ? (
-        <ul className="divide-y divide-purple-jam/10 overflow-hidden rounded-xl border border-purple-jam/15 bg-white">
+        <ul className="max-h-72 divide-y divide-purple-jam/10 overflow-y-auto overscroll-contain rounded-xl border border-purple-jam/15 bg-white">
           {leads.map((lead) => (
             <li key={lead.linkedinUrl} className="flex items-center justify-between gap-3 px-3 py-2.5">
               <div className="min-w-0">

@@ -102,7 +102,7 @@ export function LeadsWorkspace({
         return false;
       }
       return true;
-    });
+    }).sort((a, b) => leadLastActionAt(b).getTime() - leadLastActionAt(a).getTime());
   }, [campaignById, campaignId, leads, messages, query, replyWaitOnly, showCampaign, stage, status]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

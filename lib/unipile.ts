@@ -731,7 +731,6 @@ export async function importSalesNavigatorLeads(accountId: string, searchUrl: st
 }
 
 export function isFirstDegree(profile: UnipileProfile) {
-  if (profile.is_relationship) return true;
   const distance = String(profile.network_distance ?? "").toUpperCase();
   return distance === "DISTANCE_1" || distance === "FIRST_DEGREE" || distance === "1";
 }

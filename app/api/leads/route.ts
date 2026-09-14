@@ -3,8 +3,14 @@ import { getAdminSessionEmail } from "@/lib/admin-session";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { DuplicateActiveLeadError } from "@/lib/lead-identity";
 import { hydrateLeadAvatars } from "@/lib/lead-avatar";
-import { closeScheduledLeadsOnCompletedCampaigns, createLead, fetchLeads } from "@/lib/outreach-data";
-import { recoverFailedInvites } from "@/lib/sequence-runner";
+import {
+  closeScheduledLeadsOnCompletedCampaigns,
+  createLead,
+  ensureRunningLeadSchedules,
+  fetchLeads,
+  repairBrandLeadCursors,
+} from "@/lib/outreach-data";
+import { recoverFailedInvites, runDueSequence } from "@/lib/sequence-runner";
 
 export async function GET(request: Request) {
   if (!(await getAdminSessionEmail())) {
@@ -18,6 +24,9 @@ export async function GET(request: Request) {
     after(() => {
       void hydrateLeadAvatars(leads);
       void closeScheduledLeadsOnCompletedCampaigns(brandId);
+      void repairBrandLeadCursors(brandId)
+        .then(() => ensureRunningLeadSchedules(brandId))
+        .then(() => runDueSequence(12, brandId));
     });
     return NextResponse.json(leads);
   } catch (error) {

@@ -10,7 +10,7 @@ import {
 } from "@/lib/brand-avatar";
 import { brandSlug, looksLikeAutoId } from "@/lib/brand-id";
 import { requireFirebaseDb } from "@/lib/firebase";
-import { deleteOutreachForBrand, fetchBrandSummaries } from "@/lib/outreach-data";
+import { deleteOutreachForBrand, fetchBrandSummaries, pullLeadsIntoWorkingHours } from "@/lib/outreach-data";
 import {
   DEFAULT_PACING,
   DEFAULT_SCHEDULE,
@@ -459,6 +459,9 @@ export async function updateBrand(
       ...fields,
       ...(input.disconnectOutreach ? { unipileSyncedAt: FieldValue.delete() } : {}),
     });
+  }
+  if (input.schedule) {
+    await pullLeadsIntoWorkingHours(nextId, schedule);
   }
   return hydrateBrandRecord({
     id: nextId,

@@ -314,7 +314,7 @@ async function executeStep(
       }
       const alreadyAccepted =
         lead.currentBranch === "accepted" || historyHas(lead, "accepted");
-      if (isFirstDegree(profile) && !alreadyAccepted) {
+      if (alreadyAccepted && isFirstDegree(profile)) {
         await applyUsage(lead.brandId, campaign.id, "views", step.id);
         appendHistory(lead, "profile_viewed");
         lead.failReason = "";
@@ -346,15 +346,11 @@ async function executeStep(
   const body = step.kind === "connection" ? "" : stepCopy(step, lead);
 
   if (step.kind === "connection") {
-    const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
-    const profile = await getUnipileProfile(accountId, identifier);
-    if (isFirstDegree(profile)) {
-      return markLeadAccepted(lead, campaign);
-    }
     try {
       await sendUnipileInvitation(accountId, providerId);
     } catch (error) {
       if (isAlreadyConnectedInviteError(error)) {
+        if (!historyHasConnection(lead)) appendHistory(lead, "connection_sent");
         return markLeadAccepted(lead, campaign);
       }
       if (isPendingInviteError(error)) {
@@ -520,10 +516,7 @@ async function recoverFailedInvite(lead: Lead) {
   const [brand, campaign] = await Promise.all([fetchBrand(lead.brandId), fetchCampaign(lead.campaignId)]);
   if (!brand || !campaign || !isCampaignRunning(campaign.status)) return;
   if (brand.unipileStatus !== "running" || !brand.unipileAccountId) return;
-  const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
-  if (!identifier) return;
-  const profile = await getUnipileProfile(brand.unipileAccountId, identifier);
-  if (isFirstDegree(profile) || isAlreadyConnectedInviteError(lead.failReason)) {
+  if (isAlreadyConnectedInviteError(lead.failReason)) {
     await markLeadAccepted(lead, campaign);
     return;
   }
@@ -552,12 +545,12 @@ export async function recoverFailedInvites(brandId?: string) {
   return recoverable.length;
 }
 
-export async function runDueSequence(limit = 3) {
-  await recoverFailedInvites();
+export async function runDueSequence(limit = 50, brandId?: string) {
+  await recoverFailedInvites(brandId);
   const { fetchDueLeads } = await import("@/lib/outreach-data");
-  const due = (await fetchDueLeads()).sort(
-    (a, b) => (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0),
-  );
+  const due = (await fetchDueLeads())
+    .filter((lead) => !brandId || lead.brandId === brandId)
+    .sort((a, b) => (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0));
   const results = {
     processed: 0,
     ok: 0,

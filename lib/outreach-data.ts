@@ -14,6 +14,7 @@ import {
   asLeadStage,
   asLeadStatus,
   deriveLeadStage,
+  historyHas,
   isLeadEventKind,
   isLeadFlowTerminal,
   lastOutboundAt,
@@ -23,10 +24,12 @@ import { companyFromHeadline } from "@/lib/linkedin-company";
 import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "@/lib/lead-identity";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
-import { firstOpenStep, scheduleAt } from "@/lib/sequence";
+import { firstOpenStep, isRunnable, repairLeadFlowCursor, scheduleAt } from "@/lib/sequence";
+import { isQuietHours, normalizeSchedule } from "@/lib/pacing";
 import { hydrateCampaignDates } from "@/lib/storage";
 import { toDateKey } from "@/lib/dates";
 import type {
+  BrandSchedule,
   Campaign,
   CampaignFlowStep,
   CampaignStatus,
@@ -362,7 +365,7 @@ export async function updateCampaign(
     const leads = await fetchLeadsByCampaign(campaignId);
     for (const lead of leads) {
       if (lead.status !== "queued" || lead.nextStepAt) continue;
-      const schedule = initialSchedule(next.flow, true);
+      const schedule = initialSchedule(next.flow, true, await brandSchedule(next.brandId));
       lead.nextStepId = schedule.nextStepId;
       lead.nextStepAt = schedule.nextStepAt;
       await saveLead(lead);
@@ -580,12 +583,69 @@ export async function findAwaitingLeads(brandId: string, awaiting: "connection" 
   );
 }
 
-function initialSchedule(flow: CampaignFlowStep[], active: boolean) {
+function initialSchedule(
+  flow: CampaignFlowStep[],
+  active: boolean,
+  hours?: BrandSchedule,
+) {
   const first = firstOpenStep(flow);
   if (!first || !active) {
     return { nextStepId: first?.id ?? "", nextStepAt: undefined as Date | undefined };
   }
-  return { nextStepId: first.id, nextStepAt: scheduleAt(first) };
+  return { nextStepId: first.id, nextStepAt: scheduleAt(first, new Date(), hours) };
+}
+
+async function brandSchedule(brandId: string) {
+  const snapshot = await requireFirebaseDb().collection("brands").doc(brandId).get();
+  return normalizeSchedule(snapshot.data()?.schedule);
+}
+
+export async function repairBrandLeadCursors(brandId: string) {
+  const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
+  const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
+  for (const lead of leads) {
+    const campaign = byId.get(lead.campaignId);
+    if (!campaign) continue;
+    if (repairLeadFlowCursor(lead, campaign.flow)) await saveLead(lead);
+  }
+}
+
+export async function ensureRunningLeadSchedules(brandId: string) {
+  const schedule = await brandSchedule(brandId);
+  const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
+  const running = new Set(
+    campaigns.filter((campaign) => isCampaignRunning(campaign.status)).map((campaign) => campaign.id),
+  );
+  const now = new Date();
+  for (const lead of leads) {
+    if (!running.has(lead.campaignId) || !isRunnable(lead) || lead.nextStepAt) continue;
+    const campaign = campaigns.find((item) => item.id === lead.campaignId);
+    const first = firstOpenStep(campaign?.flow ?? []);
+    if (!first) continue;
+    lead.nextStepId = lead.nextStepId || first.id;
+    lead.nextStepAt = scheduleAt(first, now, schedule);
+    await saveLead(lead);
+  }
+}
+
+export async function pullLeadsIntoWorkingHours(brandId: string, hours?: BrandSchedule) {
+  const schedule = hours ?? (await brandSchedule(brandId));
+  const now = new Date();
+  if (isQuietHours(now, schedule)) return;
+  const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
+  const running = new Set(
+    campaigns.filter((campaign) => isCampaignRunning(campaign.status)).map((campaign) => campaign.id),
+  );
+  for (const lead of leads) {
+    if (!running.has(lead.campaignId) || !isRunnable(lead)) continue;
+    if (historyHas(lead, "profile_viewed") || historyHas(lead, "connection_sent")) continue;
+    const campaign = campaigns.find((item) => item.id === lead.campaignId);
+    const first = firstOpenStep(campaign?.flow ?? []);
+    if (!first) continue;
+    lead.nextStepId = first.id;
+    lead.nextStepAt = scheduleAt(first, now, schedule);
+    await saveLead(lead);
+  }
 }
 
 export async function createLead(input: {
@@ -619,6 +679,7 @@ export async function createLead(input: {
   const schedule = initialSchedule(
     campaign.flow,
     input.schedule ?? isCampaignRunning(campaign.status),
+    await brandSchedule(input.brandId),
   );
   const db = requireFirebaseDb();
   const ref = db.collection("leads").doc();

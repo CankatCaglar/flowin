@@ -10,7 +10,6 @@ import { isReactionNotice } from "@/lib/chat-thread";
 import {
   createMessage,
   fetchCampaign,
-  findAwaitingLeads,
   findLeadByChatId,
   findLeadByProvider,
   findLeadByPublicId,
@@ -260,19 +259,13 @@ export async function handleUnipileWebhook(body: unknown) {
     (type.includes("accept") || type.includes("relation") || type.includes("connected"));
   if (accepted || type.includes("new_relation") || type.includes("relation.created")) {
     const lead = await findLeadFromIds(brand.id, attendeeIds(payload));
-    const target = lead ?? (await firstAwaiting(brand.id, "connection"));
-    if (!target) return { ignored: true };
-    const campaign = await fetchCampaign(target.campaignId);
+    if (!lead) return { ignored: true };
+    const campaign = await fetchCampaign(lead.campaignId);
     if (!campaign) return { ignored: true };
-    await markLeadAccepted(target, campaign);
-    return { accepted: target.id };
+    await markLeadAccepted(lead, campaign);
+    return { accepted: lead.id };
   }
 
   return { ignored: true };
-}
-
-async function firstAwaiting(brandId: string, kind: "connection" | "inmail") {
-  const leads = await findAwaitingLeads(brandId, kind);
-  return leads[0] ?? null;
 }
 

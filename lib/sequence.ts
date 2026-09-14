@@ -150,6 +150,22 @@ export function resumeAcceptedStep(lead: Lead, flow: CampaignFlowStep[]) {
  */
 export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
   if (!isRunnable(lead)) return false;
+  if (
+    historyHas(lead, "accepted") &&
+    !historyHas(lead, "connection_sent") &&
+    !historyHas(lead, "message_1_sent") &&
+    !historyHas(lead, "inmail_sent")
+  ) {
+    lead.history = lead.history.filter((event) => event.kind !== "accepted");
+    lead.currentBranch = "";
+    lead.awaiting = "";
+    lead.status = "queued";
+    lead.stage = historyHas(lead, "profile_viewed") ? "profile_viewed" : "pending";
+    const invite = stepsInLane(flow, "").find((step) => step.kind === "connection");
+    lead.nextStepId = invite?.id ?? firstOpenStep(flow)?.id ?? lead.nextStepId;
+    lead.nextStepAt = new Date();
+    return true;
+  }
   if (historyHas(lead, "accepted") || lead.currentBranch === "accepted") {
     let changed = false;
     if (lead.awaiting === "connection") {

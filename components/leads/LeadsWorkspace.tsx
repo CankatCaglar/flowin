@@ -26,7 +26,7 @@ import { EMPTY_METRIC, formatLastAction } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Campaign, Lead, LeadStage, LeadStatus, OutreachMessage } from "@/types";
 
-const PAGE_SIZE = 7;
+const PAGE_SIZE = 10;
 
 export function LeadsWorkspace({
   leads,
@@ -124,10 +124,12 @@ export function LeadsWorkspace({
     <div
       className={cn(
         "grid items-stretch gap-4 sm:gap-6",
-        selected ? "xl:grid-cols-[minmax(0,1fr)_26rem]" : "grid-cols-1",
+        selected
+          ? "xl:grid-cols-[minmax(0,1fr)_26rem] xl:grid-rows-[minmax(32rem,auto)] xl:items-stretch"
+          : "grid-cols-1",
       )}
     >
-      <div className="surface-card flex min-h-0 flex-col overflow-hidden rounded-2xl">
+      <div className="surface-card flex min-h-0 h-full flex-col overflow-hidden rounded-2xl">
         <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-purple-jam/8 p-3 [scrollbar-width:none] sm:gap-3 sm:p-4 [&::-webkit-scrollbar]:hidden">
           <label className="relative min-w-36 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -329,12 +331,14 @@ export function LeadsWorkspace({
         </div>
       </div>
       {selected ? (
-        <LeadDetailPanel
-          lead={selected}
-          campaign={campaigns.find((item) => item.id === selected.campaignId)}
-          campaignName={campaignNames.get(selected.campaignId)}
-          onClose={() => setSelectedId(null)}
-        />
+        <div className="min-h-0 xl:h-0 xl:min-h-full">
+          <LeadDetailPanel
+            lead={selected}
+            campaign={campaigns.find((item) => item.id === selected.campaignId)}
+            campaignName={campaignNames.get(selected.campaignId)}
+            onClose={() => setSelectedId(null)}
+          />
+        </div>
       ) : null}
       {onAddLead ? (
         <AddLeadModal

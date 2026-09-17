@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type WheelEvent } from "react";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, Eye, Mail, MessageCircle, Phone, Send, UserPlus, Users, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -86,8 +86,22 @@ export function LeadDetailPanel({
     node.scrollTop = node.scrollHeight;
   }, [lead.id, historyKey]);
 
+  const onHistoryWheel = (event: WheelEvent<HTMLDivElement>) => {
+    const node = event.currentTarget;
+    const maxScroll = node.scrollHeight - node.clientHeight;
+    if (maxScroll > 1) {
+      const atTop = node.scrollTop <= 0 && event.deltaY < 0;
+      const atBottom = node.scrollTop >= maxScroll - 1 && event.deltaY > 0;
+      if (!atTop && !atBottom) return;
+    }
+    const page = node.closest("main");
+    if (!page) return;
+    page.scrollTop += event.deltaY;
+    event.preventDefault();
+  };
+
   return (
-    <aside className="surface-card flex h-full min-h-0 flex-col rounded-2xl p-5">
+    <aside className="surface-card flex h-full min-h-0 flex-col overflow-clip rounded-2xl p-5">
       <div className="flex items-start gap-3">
         <LeadAvatar lead={lead} size="md" />
         <div className="min-w-0 flex-1">
@@ -169,13 +183,22 @@ export function LeadDetailPanel({
         </div>
       </section>
 
-      <section className="mt-6 shrink-0">
-        <h3 className="font-display text-sm font-semibold text-ink">{t("history")}</h3>
-        <div className="mt-2 border-t border-purple-jam/10 pt-3">
-          <div
-            ref={historyRef}
-            className="max-h-29 overflow-y-auto overscroll-contain scrollbar-thin"
-          >
+      <section
+        className="mt-6 flex min-h-0 flex-1 flex-col"
+        onWheel={(event) => {
+          if (event.target !== event.currentTarget) return;
+          const page = event.currentTarget.closest("main");
+          if (!page) return;
+          page.scrollTop += event.deltaY;
+          event.preventDefault();
+        }}
+      >
+        <h3 className="shrink-0 font-display text-sm font-semibold text-ink">{t("history")}</h3>
+        <div
+          className="mt-2 min-h-0 overflow-y-auto border-t border-purple-jam/10 pt-3 [scrollbar-width:thin]"
+          ref={historyRef}
+          onWheel={onHistoryWheel}
+        >
             <div className="relative">
             {lead.history.length > 1 ? (
               <span
@@ -215,7 +238,6 @@ export function LeadDetailPanel({
             })}
             </ol>
             </div>
-          </div>
         </div>
       </section>
     </aside>

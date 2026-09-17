@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -20,20 +20,51 @@ export function EditFlowStepModal({
   const t = useTranslations("campaigns.flow");
   const common = useTranslations("common");
   const locale = useLocale();
+  const initialBody = step ? flowStepBody(step, locale) : "";
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const selectionRef = useRef({ start: initialBody.length, end: initialBody.length });
+  const caretRef = useRef<number | null>(null);
   // Resolve the built-in template into plain text so edits detach from it.
   const [draft, setDraft] = useState<CampaignFlowStep | null>(
     step
       ? {
           ...step,
           title: flowStepTitle(step, locale),
-          body: flowStepBody(step, locale),
+          body: initialBody,
           templateKey: undefined,
         }
       : null,
   );
 
+  const rememberSelection = () => {
+    const node = bodyRef.current;
+    if (!node) return;
+    selectionRef.current = { start: node.selectionStart, end: node.selectionEnd };
+  };
+
+  useLayoutEffect(() => {
+    const node = bodyRef.current;
+    const caret = caretRef.current;
+    if (!node || caret == null) return;
+    node.focus();
+    node.setSelectionRange(caret, caret);
+    caretRef.current = null;
+  }, [draft?.body]);
+
   if (!step) return null;
   const current = draft ?? step;
+
+  const insertVariable = (variable: string) => {
+    const token = `{{${variable}}}`;
+    const node = bodyRef.current;
+    const focused = Boolean(node && document.activeElement === node);
+    const start = focused && node ? node.selectionStart : selectionRef.current.start;
+    const end = focused && node ? node.selectionEnd : selectionRef.current.end;
+    const nextBody = `${current.body.slice(0, start)}${token}${current.body.slice(end)}`;
+    caretRef.current = start + token.length;
+    selectionRef.current = { start: caretRef.current, end: caretRef.current };
+    setDraft({ ...current, body: nextBody });
+  };
 
   return (
     <Modal
@@ -72,12 +103,8 @@ export function EditFlowStepModal({
                     key={variable}
                     type="button"
                     className="rounded-full border border-purple-jam/15 bg-canvas px-3 py-1 text-xs font-medium text-ink hover:border-barney/40"
-                    onClick={() =>
-                      setDraft({
-                        ...current,
-                        body: `${current.body}${current.body.endsWith(" ") || !current.body ? "" : " "}{{${variable}}}`,
-                      })
-                    }
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => insertVariable(variable)}
                   >
                     {`{{${variable}}}`}
                   </button>
@@ -87,9 +114,17 @@ export function EditFlowStepModal({
             <label className="block space-y-2">
               <span className="text-[13px] font-medium text-muted">{t("message")}</span>
               <textarea
+                ref={bodyRef}
                 rows={7}
                 value={current.body}
-                onChange={(event) => setDraft({ ...current, body: event.target.value })}
+                onSelect={rememberSelection}
+                onKeyUp={rememberSelection}
+                onClick={rememberSelection}
+                onBlur={rememberSelection}
+                onChange={(event) => {
+                  rememberSelection();
+                  setDraft({ ...current, body: event.target.value });
+                }}
                 className="min-h-36 max-h-56 w-full resize-none overflow-y-auto rounded-xl border border-purple-jam/15 bg-white px-3 py-2.5 text-sm leading-6 text-ink outline-none focus:border-barney/50"
               />
             </label>

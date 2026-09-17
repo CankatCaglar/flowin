@@ -44,11 +44,13 @@ function LeadsContent() {
       ? campaignParam
       : "all";
 
+  const initialLeadId = searchParams.get("lead")?.trim() ?? "";
+
   return (
     <div>
       <PageHeader title={t("title")} subtitle={t("subtitle")} />
       <LeadsWorkspace
-        key={`${initialStatus}-${initialCampaignId}-${searchParams.get("awaiting") ?? ""}`}
+        key={`${initialStatus}-${initialCampaignId}-${searchParams.get("awaiting") ?? ""}-${initialLeadId}`}
         leads={leads}
         campaigns={campaigns}
         messages={messages}
@@ -56,6 +58,7 @@ function LeadsContent() {
         initialCampaignId={initialCampaignId}
         initialStatus={initialStatus}
         replyWaitOnly={awaitingOurs}
+        initialLeadId={initialLeadId}
       />
     </div>
   );

@@ -63,6 +63,9 @@ export async function sendManualLeadMessage(input: {
       sentAt: new Date(),
       unipileMessageId: ids.messageId,
     });
+    const { cancelScheduledReplyEmail, markLeadNotificationsSeen } = await import("@/lib/notifications");
+    await cancelScheduledReplyEmail(lead.brandId, lead.id);
+    await markLeadNotificationsSeen(lead.brandId, lead.id);
     return message;
   } catch (error) {
     if (error instanceof UnipileError && (error.status === 400 || error.status === 403 || error.status === 422)) {

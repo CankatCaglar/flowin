@@ -13,7 +13,7 @@ import {
   saveLead,
   todayPacingUsage,
 } from "@/lib/outreach-data";
-import { historyHas, SEND_EVENT_KINDS } from "@/lib/leads";
+import { historyHas, isLeadFlowTerminal, SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { isQuietHours, istanbulDateKey, normalizePacing, normalizeSchedule, variedPacing, warmupPacing } from "@/lib/pacing";
 import {
@@ -43,7 +43,7 @@ import {
 } from "@/lib/unipile";
 import { ingestLeadAvatar, isStoredLeadAvatarUrl } from "@/lib/brand-avatar";
 import { findActiveOccupant } from "@/lib/lead-identity";
-import type { Campaign, CampaignFlowStep, Lead } from "@/types";
+import type { Brand, Campaign, CampaignFlowStep, Lead } from "@/types";
 
 function templateValues(lead: Lead) {
   const names = splitPersonName(lead.fullName);
@@ -220,7 +220,10 @@ export async function markLeadReplied(
   await storeInboundReply(lead, campaign, body, ids);
   await incrementDailyStat(lead.brandId, { replied: 1 }, lead.campaignId);
   await incrementCampaignCounters(lead.campaignId, { replied: 1 });
-  return saveLead(lead);
+  const saved = await saveLead(lead);
+  const { notifyIfCampaignEmpty } = await import("@/lib/notifications");
+  await notifyIfCampaignEmpty(lead.campaignId);
+  return saved;
 }
 
 async function queueInmailReply(
@@ -487,12 +490,12 @@ export async function runLeadStep(
   ) {
     lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
-    return { deferred: "pacing" as const };
+    return { deferred: "pacing" as const, brand };
   }
 
   try {
     await executeStep(lead, campaign, step, brand.unipileAccountId, schedule);
-    return { ok: true as const, step: step.kind };
+    return { ok: true as const, step: step.kind, lead, campaign };
   } catch (error) {
     const retryable = error instanceof UnipileError && error.retryable;
     const message = error instanceof Error ? error.message : "unipile";
@@ -508,7 +511,7 @@ export async function runLeadStep(
     lead.nextStepId = "";
     lead.nextStepAt = undefined;
     await saveLead(lead);
-    return { failed: message };
+    return { failed: message, brand, campaign, lead };
   }
 }
 
@@ -559,6 +562,9 @@ export async function runDueSequence(limit = 50, brandId?: string) {
     skipped: 0,
   };
   const occupancyByBrand = new Map<string, { leads: Lead[]; campaigns: Campaign[] }>();
+  const failures: Array<{ brand: Brand; lead: Lead; campaign: Campaign }> = [];
+  const pacingBrands = new Map<string, Brand>();
+  const emptyCampaigns = new Set<string>();
   for (const lead of due.slice(0, limit)) {
     results.processed += 1;
     let occupancy = occupancyByBrand.get(lead.brandId);
@@ -570,10 +576,33 @@ export async function runDueSequence(limit = 50, brandId?: string) {
       occupancyByBrand.set(lead.brandId, occupancy);
     }
     const result = await runLeadStep(lead, occupancy);
-    if ("ok" in result && result.ok) results.ok += 1;
-    else if ("deferred" in result) results.deferred += 1;
-    else if ("failed" in result) results.failed += 1;
-    else results.skipped += 1;
+    if ("ok" in result && result.ok) {
+      results.ok += 1;
+      if (isLeadFlowTerminal(result.lead)) emptyCampaigns.add(result.campaign.id);
+    } else if ("deferred" in result) {
+      results.deferred += 1;
+      if (result.deferred === "pacing" && "brand" in result && result.brand) {
+        pacingBrands.set(result.brand.id, result.brand);
+      }
+    } else if ("failed" in result) {
+      results.failed += 1;
+      if ("brand" in result && result.brand && "campaign" in result && result.campaign) {
+        failures.push({ brand: result.brand, lead: result.lead, campaign: result.campaign });
+        emptyCampaigns.add(result.campaign.id);
+      }
+    } else results.skipped += 1;
+  }
+  if (failures.length) {
+    const { notifySequenceFailures } = await import("@/lib/notifications");
+    await notifySequenceFailures(failures);
+  }
+  if (pacingBrands.size) {
+    const { notifyDailyCap } = await import("@/lib/notifications");
+    for (const brand of pacingBrands.values()) await notifyDailyCap(brand);
+  }
+  if (emptyCampaigns.size) {
+    const { notifyIfCampaignEmpty } = await import("@/lib/notifications");
+    for (const campaignId of emptyCampaigns) await notifyIfCampaignEmpty(campaignId);
   }
   return results;
 }

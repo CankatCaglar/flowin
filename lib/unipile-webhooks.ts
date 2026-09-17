@@ -246,11 +246,18 @@ export async function handleUnipileWebhook(body: unknown) {
       textOf(asRecord(payload.message)) ||
       unipileReactionEmojis(payload)[0] ||
       "";
+    const messageId = messageIdOf(data, payload);
     await markLeadReplied(lead, campaign, body || "👏", {
-      unipileMessageId: messageIdOf(data, payload),
+      unipileMessageId: messageId,
       unipileChatId: chatId,
       skipInbox: reactionEvent || isReactionNotice(body),
     });
+    const { notifyNewReply, notifyReaction } = await import("@/lib/notifications");
+    if (reactionEvent || isReactionNotice(body)) {
+      await notifyReaction({ brand, lead, campaign, messageId });
+    } else {
+      await notifyNewReply({ brand, lead, campaign, messageId });
+    }
     return { replied: lead.id };
   }
 

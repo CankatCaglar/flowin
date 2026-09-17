@@ -92,6 +92,7 @@
     "leads": "Leads",
     "messages": "Messages",
     "settings": "Settings",
+    "notifications": "Notifications",
     "viewProfiles": "View Profiles",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
@@ -512,5 +513,54 @@
     "pausedOn": "Outreach is paused.",
     "pausedOff": "Outreach is running again.",
     "adminOnly": "Only an admin session can change settings."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "open": "Notifications",
+    "markAll": "Mark all as read",
+    "all": "All ({count})",
+    "unread": "Unread ({count})",
+    "viewAll": "View all notifications",
+    "empty": "No notifications.",
+    "emptyUnread": "No unread notifications.",
+    "pageSubtitle": "Notifications for this brand.",
+    "types": {
+      "new_reply": {
+        "title": "New reply",
+        "body": "{leadName} replied to the {campaignName} campaign."
+      },
+      "reaction": {
+        "title": "Your message got a reaction",
+        "body": "{leadName} reacted to your message in the {campaignName} campaign."
+      },
+      "linkedin_disconnected": {
+        "title": "LinkedIn connection lost",
+        "body": "The LinkedIn connection for {brandName} was disconnected."
+      },
+      "lead_failed": {
+        "title": "Lead could not be processed",
+        "body": "The action for {leadName} could not be completed. {campaignName} · {brandName}"
+      },
+      "leads_failed": {
+        "title": "Multiple leads failed",
+        "body": "Actions could not be completed for {count} leads in the {campaignName} campaign."
+      },
+      "campaign_paused_error": {
+        "title": "Campaign paused",
+        "body": "{campaignName} was paused because of a technical error."
+      },
+      "campaign_empty": {
+        "title": "Campaign out of leads",
+        "body": "Every lead in the {campaignName} campaign has finished the flow."
+      },
+      "daily_cap": {
+        "title": "Daily limit reached",
+        "body": "Today’s outreach limit for {brandName} is complete."
+      },
+      "campaign_completed": {
+        "title": "Campaign completed",
+        "body": "The {campaignName} campaign has finished."
+      }
+    }
   }
 }

@@ -546,13 +546,23 @@ export async function attachUnipileAccount(
     ...(status === "running" ? { unipileSyncedAt: Timestamp.now() } : {}),
     ...(publicId ? { linkedinPublicId: publicId } : {}),
   });
+  if (status === "running") {
+    const { resolveBrandNotifications } = await import("@/lib/notifications");
+    await resolveBrandNotifications(brandId, "linkedin_disconnected");
+  }
   const brand = await fetchBrand(brandId);
   if (!brand || status !== "running") return brand;
   return fillBrandLinkedInCompany(brand);
 }
 
 export async function setUnipileStatus(brandId: string, status: UnipileStatus) {
+  const current = await fetchBrand(brandId);
+  if (!current || current.unipileStatus === status) return;
   await requireFirebaseDb().collection("brands").doc(brandId).update({ unipileStatus: status });
+  if (current.unipileStatus === "running" && (status === "disconnected" || status === "error")) {
+    const { onUnipileStatusLost } = await import("@/lib/notifications");
+    await onUnipileStatusLost({ ...current, unipileStatus: status }, status);
+  }
 }
 
 export async function deleteBrand(brandId: string) {

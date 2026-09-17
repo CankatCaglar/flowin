@@ -26,7 +26,9 @@ async function run(request: Request) {
   }
   try {
     const results = await runDueSequence(50);
-    return NextResponse.json(results);
+    const { drainDueNotificationEmails } = await import("@/lib/notifications");
+    const mail = await drainDueNotificationEmails();
+    return NextResponse.json({ ...results, mail });
   } catch (error) {
     console.error("[cron] sequence failed:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "sequence-failed" }, { status: 500 });

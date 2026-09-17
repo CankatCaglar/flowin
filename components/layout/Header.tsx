@@ -7,14 +7,16 @@ import { UserMenu } from "@/components/layout/UserMenu";
 import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { usePathname } from "@/i18n/navigation";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandAvatar } from "@/components/brands/BrandAvatar";
 
-const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "settings"> = {
+const titles: Record<string, "overview" | "campaigns" | "leads" | "messages" | "settings" | "notifications"> = {
   "/dashboard": "overview",
   "/campaigns": "campaigns",
   "/leads": "leads",
   "/messages": "messages",
   "/settings": "settings",
+  "/notifications": "notifications",
 };
 
 function campaignBreadcrumb(pathname: string) {
@@ -79,6 +81,7 @@ export function Header({
       </div>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         {showDate ? <DateRangePicker /> : null}
+        <NotificationBell />
         <UserMenu variant="light" />
       </div>
     </header>

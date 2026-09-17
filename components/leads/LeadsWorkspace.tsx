@@ -36,6 +36,7 @@ export function LeadsWorkspace({
   initialCampaignId = "all",
   initialStatus = "all",
   replyWaitOnly = false,
+  initialLeadId = "",
   onAddLead,
 }: {
   leads: Lead[];
@@ -45,6 +46,7 @@ export function LeadsWorkspace({
   initialCampaignId?: string;
   initialStatus?: LeadStatus | "all";
   replyWaitOnly?: boolean;
+  initialLeadId?: string;
   onAddLead?: (input: {
     fullName: string;
     linkedinUrl: string;
@@ -65,9 +67,9 @@ export function LeadsWorkspace({
   const [campaignId, setCampaignId] = useState(initialCampaignId);
   const [stage, setStage] = useState<LeadStage | "all">("all");
   const [status, setStatus] = useState<LeadStatus | "all">(initialStatus);
-  const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialLeadId || null);
   const [addOpen, setAddOpen] = useState(false);
+  const [userPage, setUserPage] = useState<number | null>(null);
 
   const campaignNames = useMemo(
     () => new Map(campaigns.map((campaign) => [campaign.id, campaign.name])),
@@ -106,6 +108,9 @@ export function LeadsWorkspace({
   }, [campaignById, campaignId, leads, messages, query, replyWaitOnly, showCampaign, stage, status]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const leadIndex = initialLeadId ? filtered.findIndex((lead) => lead.id === initialLeadId) : -1;
+  const leadPage = leadIndex >= 0 ? Math.floor(leadIndex / PAGE_SIZE) + 1 : 1;
+  const page = userPage ?? leadPage;
   const safePage = Math.min(page, pageCount);
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const rows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
@@ -130,7 +135,7 @@ export function LeadsWorkspace({
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setPage(1);
+                setUserPage(1);
               }}
               placeholder={t("searchPlaceholder")}
               className="h-9 w-full rounded-xl border border-purple-jam/15 bg-white py-2 pl-10 pr-3 text-sm text-ink outline-none focus:border-barney/40 sm:h-10"
@@ -149,7 +154,7 @@ export function LeadsWorkspace({
               ]}
               onChange={(value) => {
                 setCampaignId(value);
-                setPage(1);
+                setUserPage(1);
               }}
             />
           ) : null}
@@ -165,7 +170,7 @@ export function LeadsWorkspace({
             ]}
             onChange={(value) => {
               setStage(value as LeadStage | "all");
-              setPage(1);
+              setUserPage(1);
             }}
           />
           <SelectMenu
@@ -180,7 +185,7 @@ export function LeadsWorkspace({
             ]}
             onChange={(value) => {
               setStatus(value as LeadStatus | "all");
-              setPage(1);
+              setUserPage(1);
             }}
           />
           <Button
@@ -317,7 +322,7 @@ export function LeadsWorkspace({
           <Pagination
             page={safePage}
             pageCount={pageCount}
-            onPageChange={setPage}
+            onPageChange={setUserPage}
             prevLabel={campaignsT("prevPage")}
             nextLabel={campaignsT("nextPage")}
           />
@@ -341,7 +346,7 @@ export function LeadsWorkspace({
             setStage("all");
             setStatus("all");
             setCampaignId(showCampaign ? "all" : campaignId);
-            setPage(1);
+            setUserPage(1);
             setAddOpen(false);
             if (created?.id) setSelectedId(created.id);
           }}

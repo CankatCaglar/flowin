@@ -189,3 +189,34 @@ export interface OutreachMessage {
 
 /** @deprecated Use OutreachMessage */
 export type DerivedMessage = OutreachMessage;
+
+export type NotificationType =
+  | "new_reply"
+  | "reaction"
+  | "linkedin_disconnected"
+  | "lead_failed"
+  | "leads_failed"
+  | "campaign_paused_error"
+  | "campaign_empty"
+  | "daily_cap"
+  | "campaign_completed";
+
+export type NotificationEmailStatus = "none" | "scheduled" | "sent" | "canceled";
+
+export interface AppNotification {
+  id: string;
+  brandId: string;
+  type: NotificationType;
+  href: string;
+  leadId?: string;
+  campaignId?: string;
+  messageId?: string;
+  params: Record<string, string | number>;
+  readAt?: Date | null;
+  createdAt: Date;
+  email: NotificationEmailStatus;
+  emailDueAt?: Date;
+  emailSentAt?: Date;
+  dedupeKey: string;
+  resolvedAt?: Date | null;
+}

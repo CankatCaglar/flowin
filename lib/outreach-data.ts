@@ -359,6 +359,10 @@ export async function updateCampaign(
   await ref.update(campaignPayload(next));
   if (next.status === "completed" && current.status !== "completed") {
     await closeOpenLeadsForCompletedCampaign(campaignId);
+    const { fetchBrand } = await import("@/lib/data");
+    const { notifyCampaignCompleted } = await import("@/lib/notifications");
+    const brand = await fetchBrand(next.brandId);
+    if (brand) await notifyCampaignCompleted({ brand, campaign: next });
   }
   const becameActive = isCampaignRunning(next.status) && !isCampaignRunning(current.status);
   if (becameActive) {
@@ -662,6 +666,7 @@ export async function createLead(input: {
   schedule?: boolean;
   deferAvatar?: boolean;
   skipOccupancyCheck?: boolean;
+  skipEmptyResolve?: boolean;
 }) {
   const campaign = await fetchCampaign(input.campaignId);
   if (!campaign || campaign.brandId !== input.brandId) {
@@ -704,6 +709,10 @@ export async function createLead(input: {
     nextStepAt: schedule.nextStepAt,
   });
   await ref.create(leadPayload(lead));
+  if (!input.skipEmptyResolve) {
+    const { resolveBrandNotifications } = await import("@/lib/notifications");
+    await resolveBrandNotifications(input.brandId, "campaign_empty", input.campaignId);
+  }
   if (!input.deferAvatar) {
     await persistRemoteLeadAvatar(lead);
   }
@@ -756,11 +765,16 @@ export async function createLeads(
       ...row,
       deferAvatar: true,
       skipOccupancyCheck: true,
+      skipEmptyResolve: true,
     });
     created.push(lead);
     occupancy.leads.push(lead);
   }
   await Promise.all(created.map((lead) => persistRemoteLeadAvatar(lead)));
+  if (created.length) {
+    const { resolveBrandNotifications } = await import("@/lib/notifications");
+    await resolveBrandNotifications(brandId, "campaign_empty", campaignId);
+  }
   return { created, skipped };
 }
 
@@ -791,6 +805,7 @@ export async function copyCampaignLeads(
       unipileProviderId: lead.unipileProviderId,
       pictureUrl: isRemoteAvatarUrl(lead.avatarUrl ?? "") ? lead.avatarUrl : "",
       skipOccupancyCheck: true,
+      skipEmptyResolve: true,
     });
     if (isStoredLeadAvatarUrl(lead.avatarUrl ?? "") && (await copyLeadAvatar(lead.id, next.id))) {
       next.avatarUrl = leadAvatarUrl(next.id);
@@ -802,6 +817,10 @@ export async function copyCampaignLeads(
     }
     created.push(next);
     occupancy.leads.push(next);
+  }
+  if (created.length) {
+    const { resolveBrandNotifications } = await import("@/lib/notifications");
+    await resolveBrandNotifications(brandId, "campaign_empty", targetCampaignId);
   }
   return { created, skipped };
 }

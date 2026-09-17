@@ -92,6 +92,7 @@
     "leads": "Leadler",
     "messages": "Mesajlar",
     "settings": "Ayarlar",
+    "notifications": "Bildirimler",
     "viewProfiles": "Profilleri Gör",
     "collapse": "Menüyü daralt",
     "expand": "Menüyü genişlet",
@@ -512,5 +513,54 @@
     "pausedOn": "Outreach duraklatıldı.",
     "pausedOff": "Outreach tekrar açık.",
     "adminOnly": "Ayarlar yalnızca yönetici oturumuyla değişir."
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "open": "Bildirimler",
+    "markAll": "Tümünü Okundu İşaretle",
+    "all": "Tümü ({count})",
+    "unread": "Okunmamış ({count})",
+    "viewAll": "Tüm bildirimleri gör",
+    "empty": "Bildirim yok.",
+    "emptyUnread": "Okunmamış bildirim yok.",
+    "pageSubtitle": "Bu markaya ait bildirimler.",
+    "types": {
+      "new_reply": {
+        "title": "Yeni Yanıt",
+        "body": "{leadName}, {campaignName} kampanyasına yanıt verdi."
+      },
+      "reaction": {
+        "title": "Mesajınıza Reaksiyon Geldi",
+        "body": "{leadName}, {campaignName} kampanyasındaki mesajınıza reaksiyon verdi."
+      },
+      "linkedin_disconnected": {
+        "title": "LinkedIn Bağlantısı Kesildi",
+        "body": "{brandName} profilinin LinkedIn bağlantısı kesildi."
+      },
+      "lead_failed": {
+        "title": "Lead İşlenemedi",
+        "body": "{leadName} için işlem tamamlanamadı. {campaignName} · {brandName}"
+      },
+      "leads_failed": {
+        "title": "Birden Fazla Lead İşlenemedi",
+        "body": "{campaignName} kampanyasında {count} lead için işlem tamamlanamadı."
+      },
+      "campaign_paused_error": {
+        "title": "Kampanya Durduruldu",
+        "body": "{campaignName} teknik bir hata nedeniyle durduruldu."
+      },
+      "campaign_empty": {
+        "title": "Kampanyada Lead Kalmadı",
+        "body": "{campaignName} kampanyasındaki tüm leadlerin akışı tamamlandı."
+      },
+      "daily_cap": {
+        "title": "Günlük Limite Ulaşıldı",
+        "body": "{brandName} profili için bugünkü outreach limiti tamamlandı."
+      },
+      "campaign_completed": {
+        "title": "Kampanya Tamamlandı",
+        "body": "{campaignName} kampanyasının akışı tamamlandı."
+      }
+    }
   }
 }

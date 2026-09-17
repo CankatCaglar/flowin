@@ -31,6 +31,7 @@ function MessagesContent() {
     campaignParam && campaigns.some((campaign) => campaign.id === campaignParam)
       ? campaignParam
       : "all";
+  const initialLeadId = searchParams.get("lead")?.trim() ?? "";
   const initialFilter = awaitingOurs ? "ours" : "all";
 
   return (
@@ -43,7 +44,7 @@ function MessagesContent() {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <MessagesWorkspace
-            key={`${initialFilter}-${initialCampaignId}`}
+            key={`${initialFilter}-${initialCampaignId}-${initialLeadId}`}
             brandId={selectedBrand?.id ?? ""}
             messages={messages}
             leads={leads}
@@ -52,6 +53,7 @@ function MessagesContent() {
             onSent={refresh}
             initialCampaignId={initialCampaignId}
             initialFilter={initialFilter}
+            initialLeadId={initialLeadId}
           />
         </div>
       )}

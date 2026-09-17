@@ -48,6 +48,7 @@ export function MessagesWorkspace({
   onSent,
   initialCampaignId = "all",
   initialFilter = "all",
+  initialLeadId = "",
 }: {
   brandId: string;
   messages: OutreachMessage[];
@@ -57,6 +58,7 @@ export function MessagesWorkspace({
   onSent?: () => void;
   initialCampaignId?: string;
   initialFilter?: "all" | "replies" | "ours";
+  initialLeadId?: string;
 }) {
   const t = useTranslations("messages");
   const common = useTranslations("common");
@@ -67,7 +69,7 @@ export function MessagesWorkspace({
   const [query, setQuery] = useState("");
   const [campaignId, setCampaignId] = useState(initialCampaignId);
   const [filter, setFilter] = useState<"all" | "replies" | "ours">(initialFilter);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialLeadId || null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [extras, setExtras] = useState<OutreachMessage[]>([]);
   const [sending, setSending] = useState(false);

@@ -73,6 +73,23 @@ export function formatLastAction(value: Date, now: Date, locale: string) {
   return `${datePart} ${time}`;
 }
 
+export function formatRelativeShort(value: Date, now: Date, locale: string) {
+  const diff = Math.max(0, now.getTime() - value.getTime());
+  const minutes = Math.round(diff / 60_000);
+  const hours = Math.round(diff / 3_600_000);
+  const days = Math.round(diff / 86_400_000);
+  if (locale === "tr") {
+    if (minutes < 1) return "şimdi";
+    if (minutes < 60) return `${minutes} dk önce`;
+    if (hours < 24) return `${hours} saat önce`;
+    return `${days} gün önce`;
+  }
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
 export function personInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

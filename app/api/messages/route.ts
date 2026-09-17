@@ -22,6 +22,12 @@ export async function GET(request: Request) {
       } catch (error) {
         console.error("[messages] linkedin sync failed:", error instanceof Error ? error.message : error);
       }
+      try {
+        const { markLeadNotificationsSeen } = await import("@/lib/notifications");
+        await markLeadNotificationsSeen(brandId, leadId);
+      } catch (error) {
+        console.error("[messages] notification seen failed:", error instanceof Error ? error.message : error);
+      }
     }
     const messages = await fetchMessages(brandId);
     try {

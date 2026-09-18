@@ -31,7 +31,7 @@ export function linkedInPublicId(url: string) {
     const path = new URL(normalized).pathname;
     const classic = path.match(/\/in\/([^/]+)/i);
     if (classic?.[1]) return decodeURIComponent(classic[1]).replace(/\/+$/, "");
-    const sales = path.match(/\/sales\/lead\/([^/,]+)/i);
+    const sales = path.match(/\/sales\/(?:lead|people)\/([^/,]+)/i);
     if (sales?.[1]) return decodeURIComponent(sales[1]).replace(/\/+$/, "");
     return "";
   } catch {

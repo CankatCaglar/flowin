@@ -18,65 +18,196 @@ export type LeadImportResult = {
   fileName: string;
 };
 
-const NAME_KEYS = ["fullname", "full_name", "name", "adsoyad", "ad soyad", "isim"];
-const FIRST_KEYS = ["firstname", "first_name", "givenname", "ad", "first"];
-const LAST_KEYS = ["lastname", "last_name", "familyname", "soyad", "last"];
-const LINKEDIN_KEYS = [
-  "linkedin",
-  "linkedinurl",
-  "linkedin_url",
-  "linkedin profile url",
-  "profileurl",
-  "profile url",
-  "profile",
-  "url",
-  "profil",
+const NAME_KEYS = [
+  "linkedinname",
+  "fullname",
+  "fullnameofcontact",
+  "personname",
+  "contactname",
+  "prospectname",
+  "leadname",
+  "name",
+  "adsoyad",
+  "isim",
 ];
-const COMPANY_KEYS = ["company", "sirket", "firma", "organization", "organisation"];
-const POSITION_KEYS = ["position", "title", "jobtitle", "unvan", "pozisyon", "rol"];
-const EMAIL_KEYS = ["email", "e-mail", "eposta", "e-posta"];
-const PHONE_KEYS = ["phone", "telefon", "mobile", "cep"];
+const FIRST_KEYS = ["firstname", "givenname", "given", "ad", "first"];
+const LAST_KEYS = ["lastname", "familyname", "surname", "soyad", "last"];
+const LINKEDIN_KEYS = [
+  "profilelink",
+  "linkedinurl",
+  "linkedinprofileurl",
+  "linkedinprofilelink",
+  "linkedinprofile",
+  "personlinkedinurl",
+  "publicprofileurl",
+  "profileurl",
+  "salesnavigatorprofilelink",
+  "salesnavigatorurl",
+  "salesnavurl",
+  "salesnavigatorprofileurl",
+  "linkedinlink",
+  "linkedin",
+  "memberurl",
+  "vanityurl",
+  "profile",
+  "profil",
+  "url",
+];
+const COMPANY_KEYS = [
+  "organisation",
+  "organization",
+  "companyname",
+  "currentcompany",
+  "company",
+  "account",
+  "employer",
+  "sirket",
+  "firma",
+];
+const POSITION_KEYS = [
+  "currentroles",
+  "currentrole",
+  "currenttitle",
+  "jobtitle",
+  "headline",
+  "occupation",
+  "position",
+  "title",
+  "description",
+  "unvan",
+  "pozisyon",
+  "rol",
+  "role",
+  "job",
+];
+const EMAIL_KEYS = ["email", "emailaddress", "e-mail", "eposta", "e-posta", "mail"];
+const PHONE_KEYS = ["phone", "phonenumber", "mobile", "mobilephone", "telefon", "cep"];
 
-function normalizeHeader(value: string) {
+const LINKEDIN_URL_RE =
+  /(?:https?:\/\/)?(?:[\w-]+\.)?linkedin\.com\/(?:in|sales\/lead|sales\/people)\/[^\s"'<>\\]+/gi;
+
+function compactKey(value: string) {
   return value
     .trim()
     .toLocaleLowerCase("tr")
     .normalize("NFKD")
     .replace(/ı/g, "i")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+    .replace(/[^a-z0-9]+/g, "");
 }
 
-function cell(row: Record<string, string>, keys: string[]) {
+function pick(row: Record<string, string>, keys: string[]) {
   for (const key of keys) {
-    const value = row[key];
+    const value = row[compactKey(key)];
     if (value) return value;
   }
   return "";
 }
 
-function mapRow(raw: Record<string, string>): ImportedLead | null {
+function cleanLinkedInUrl(raw: string) {
+  const trimmed = raw.trim().replace(/[),.;]+$/g, "");
+  if (!trimmed) return "";
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed.replace(/^\/+/, "")}`;
+  try {
+    const url = new URL(withProtocol);
+    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+    if (!host.endsWith("linkedin.com")) return "";
+    const inMatch = url.pathname.match(/\/in\/([^/]+)/i);
+    if (inMatch?.[1]) {
+      const handle = decodeURIComponent(inMatch[1]).replace(/\/+$/, "");
+      if (handle) return `https://www.linkedin.com/in/${handle}`;
+    }
+    const salesMatch = url.pathname.match(/\/sales\/(?:lead|people)\/([^/,]+)/i);
+    if (salesMatch?.[1]) {
+      const id = decodeURIComponent(salesMatch[1]).replace(/\/+$/, "");
+      if (id) return `https://www.linkedin.com/sales/lead/${id}`;
+    }
+    return normalizeLinkedInUrl(withProtocol);
+  } catch {
+    return "";
+  }
+}
+
+function extractLinkedInUrl(value: string) {
+  const matches = value.match(LINKEDIN_URL_RE) ?? [];
+  const ranked = [...matches].sort((left, right) => {
+    const score = (item: string) => (/\/in\//i.test(item) ? 0 : 1);
+    return score(left) - score(right);
+  });
+  for (const match of ranked) {
+    const url = cleanLinkedInUrl(match);
+    if (url) return url;
+  }
+  return cleanLinkedInUrl(value);
+}
+
+function linkedinUrlFromRow(row: Record<string, string>, original: Record<string, string>) {
+  for (const key of LINKEDIN_KEYS) {
+    const value = row[compactKey(key)];
+    if (!value) continue;
+    const url = extractLinkedInUrl(value);
+    if (url) return url;
+  }
+  for (const value of Object.values(original)) {
+    const url = extractLinkedInUrl(String(value ?? ""));
+    if (url) return url;
+  }
+  return "";
+}
+
+function compactRow(raw: Record<string, string>) {
   const row: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
-    row[normalizeHeader(key)] = String(value ?? "").trim();
+    const compact = compactKey(key);
+    const text = String(value ?? "").trim();
+    if (!compact || !text || row[compact]) continue;
+    row[compact] = text;
   }
-  const first = cell(row, FIRST_KEYS);
-  const last = cell(row, LAST_KEYS);
-  const fullName = cell(row, NAME_KEYS) || [first, last].filter(Boolean).join(" ").trim();
-  const linkedinUrl = normalizeLinkedInUrl(cell(row, LINKEDIN_KEYS));
+  return row;
+}
+
+function mapRow(raw: Record<string, string>): ImportedLead | null {
+  const row = compactRow(raw);
+  const first = pick(row, FIRST_KEYS);
+  const last = pick(row, LAST_KEYS);
+  const fullName = [first, last].filter(Boolean).join(" ").trim() || pick(row, NAME_KEYS);
+  const linkedinUrl = linkedinUrlFromRow(row, raw);
   if (!fullName || !linkedinUrl) return null;
   return {
     fullName,
     linkedinUrl,
-    company: cell(row, COMPANY_KEYS),
-    position: cell(row, POSITION_KEYS),
-    email: cell(row, EMAIL_KEYS),
-    phone: cell(row, PHONE_KEYS),
+    company: pick(row, COMPANY_KEYS),
+    position: pick(row, POSITION_KEYS),
+    email: pick(row, EMAIL_KEYS),
+    phone: pick(row, PHONE_KEYS),
   };
 }
 
-function parseCsv(text: string): Record<string, string>[] {
+function detectDelimiter(text: string) {
+  let inQuotes = false;
+  const counts: Record<string, number> = { ",": 0, ";": 0, "\t": 0 };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '"') {
+      if (inQuotes && text[index + 1] === '"') {
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (inQuotes) continue;
+    if (char === "\n" || char === "\r") break;
+    if (char in counts) counts[char] += 1;
+  }
+  const ranked = Object.entries(counts).sort((left, right) => right[1] - left[1]);
+  const top = ranked[0];
+  return top && top[1] > 0 ? top[0] : ",";
+}
+
+function parseDelimited(text: string, delimiter: string) {
   const rows: string[][] = [];
   let current = "";
   let row: string[] = [];
@@ -94,7 +225,7 @@ function parseCsv(text: string): Record<string, string>[] {
       }
       continue;
     }
-    if (char === "," && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       row.push(current);
       current = "";
       continue;
@@ -113,33 +244,48 @@ function parseCsv(text: string): Record<string, string>[] {
     row.push(current);
     if (row.some((cellValue) => cellValue.trim())) rows.push(row);
   }
-  const headers = (rows[0] ?? []).map((header) => header.trim());
-  return rows.slice(1).map((values) => {
+  return rows;
+}
+
+const HEADER_HINTS = new Set(
+  [
+    ...NAME_KEYS,
+    ...FIRST_KEYS,
+    ...LAST_KEYS,
+    ...LINKEDIN_KEYS,
+    ...COMPANY_KEYS,
+    ...POSITION_KEYS,
+    ...EMAIL_KEYS,
+    ...PHONE_KEYS,
+    "id",
+    "location",
+    "industry",
+    "linkedinname",
+    "profilelink",
+  ].map(compactKey),
+);
+
+function looksLikeHeader(cells: string[]) {
+  const hits = cells.map(compactKey).filter((key) => HEADER_HINTS.has(key)).length;
+  return hits >= 2;
+}
+
+function recordsFromRows(rows: string[][]) {
+  const headerIndex = rows.findIndex(looksLikeHeader);
+  const index = headerIndex >= 0 ? headerIndex : 0;
+  const headers = (rows[index] ?? []).map((header) => String(header ?? "").trim());
+  if (!headers.some(Boolean)) return [];
+  return rows.slice(index + 1).map((values) => {
     const item: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      item[header] = values[index] ?? "";
+    headers.forEach((header, column) => {
+      if (!header) return;
+      item[header] = String(values[column] ?? "").trim();
     });
     return item;
   });
 }
 
-export async function parseLeadFile(file: File): Promise<LeadImportResult> {
-  const name = file.name.toLowerCase();
-  let records: Record<string, string>[] = [];
-  if (name.endsWith(".csv") || file.type === "text/csv") {
-    records = parseCsv(await file.text());
-  } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
-    records = sheet
-      ? XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "", raw: false })
-      : [];
-  } else {
-    throw new Error("unsupported-file");
-  }
-
+export function parseLeadRecords(records: Record<string, string>[]): Omit<LeadImportResult, "fileName"> {
   const seen = new Set<string>();
   const leads: ImportedLead[] = [];
   let skipped = 0;
@@ -159,5 +305,31 @@ export async function parseLeadFile(file: File): Promise<LeadImportResult> {
     seen.add(key);
     leads.push(lead);
   }
-  return { leads, skipped, fileName: file.name };
+  return { leads, skipped };
+}
+
+export async function parseLeadFile(file: File): Promise<LeadImportResult> {
+  const name = file.name.toLowerCase();
+  let records: Record<string, string>[] = [];
+  if (name.endsWith(".csv") || file.type === "text/csv") {
+    const text = await file.text();
+    records = recordsFromRows(parseDelimited(text, detectDelimiter(text)));
+  } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
+    const rows = sheet
+      ? XLSX.utils.sheet_to_json<(string | number | boolean | Date | null)[]>(sheet, {
+          header: 1,
+          defval: "",
+          raw: false,
+        })
+      : [];
+    records = recordsFromRows(rows.map((row) => row.map((cell) => String(cell ?? ""))));
+  } else {
+    throw new Error("unsupported-file");
+  }
+
+  return { ...parseLeadRecords(records), fileName: file.name };
 }

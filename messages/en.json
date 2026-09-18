@@ -352,7 +352,7 @@
       "audiencePlaceholder": "Target audience",
       "comingSoon": "Coming soon",
       "noExistingLists": "No list to reuse yet. Upload a CSV or Excel file.",
-      "importHint": "Upload your filtered list as CSV or Excel. Rows with a full name and LinkedIn profile URL are imported.",
+      "importHint": "Upload LIX, Sales Navigator, or other LinkedIn lead exports as CSV or Excel. Rows with a name and profile link are imported.",
       "importDrop": "Choose a file or drop it here",
       "importTypes": "CSV, XLSX, or XLS",
       "importReading": "Reading file…",

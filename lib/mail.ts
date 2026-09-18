@@ -1,18 +1,15 @@
 import "server-only";
 import { Resend } from "resend";
-import { getAdminCredentials } from "@/lib/admin";
 import { appOrigin } from "@/lib/unipile";
 
 const DEFAULT_FROM = "Flowin by Nera <flowin@nerainnovations.com>";
 
-function notificationInbox() {
-  const override = process.env.NOTIFICATION_EMAIL?.trim().toLowerCase() ?? "";
-  if (override) return override;
-  return getAdminCredentials().email;
-}
-
 function fromAddress() {
   return process.env.RESEND_FROM_EMAIL?.trim() || DEFAULT_FROM;
+}
+
+export function notificationRecipient(brandEmail?: string | null) {
+  return brandEmail?.trim().toLowerCase() ?? "";
 }
 
 export function notificationAppUrl(path: string) {
@@ -38,18 +35,19 @@ function lumaHtml(body: string, url: string) {
 }
 
 export async function sendNotificationEmail(input: {
+  to: string;
   subject: string;
   body: string;
   url: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY?.trim() ?? "";
-  const to = notificationInbox();
+  const to = notificationRecipient(input.to);
   if (!apiKey) {
     console.error("[mail] RESEND_API_KEY missing");
     return { ok: false as const, error: "unconfigured" };
   }
   if (!to) {
-    console.error("[mail] ADMIN_EMAIL / NOTIFICATION_EMAIL missing");
+    console.error("[mail] brand recipient email missing");
     return { ok: false as const, error: "no-recipient" };
   }
   try {

@@ -4,7 +4,7 @@ import { fetchBrand } from "@/lib/data";
 import { requireFirebaseDb } from "@/lib/firebase";
 import { isLeadFlowTerminal } from "@/lib/leads";
 import { leadNeedsOurReply } from "@/lib/chat-thread";
-import { notificationAppUrl, sendNotificationEmail } from "@/lib/mail";
+import { notificationAppUrl, notificationRecipient, sendNotificationEmail } from "@/lib/mail";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { istanbulDateKey } from "@/lib/pacing";
 import type {
@@ -195,7 +195,14 @@ export async function emitNotification(input: EmitInput) {
 async function deliverNotificationEmail(notification: AppNotification) {
   const copy = EMAIL_COPY[notification.type];
   if (!copy) return true;
+  const brand = await fetchBrand(notification.brandId);
+  const to = notificationRecipient(brand?.linkedinEmail);
+  if (!to) {
+    console.error("[notifications] brand has no linkedinEmail:", notification.brandId);
+    return false;
+  }
   const result = await sendNotificationEmail({
+    to,
     subject: copy.subject,
     body: copy.body(notification.params),
     url: notificationAppUrl(notification.href),

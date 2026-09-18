@@ -1,4 +1,4 @@
-import { historyHas } from "@/lib/leads";
+import { historyHas, isLeadFlowTerminal } from "@/lib/leads";
 import { splitFlowBranches } from "@/lib/campaign-flow";
 import {
   addIstanbulDateKey,
@@ -203,4 +203,99 @@ export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
     return true;
   }
   return false;
+}
+
+export function flowStepQuotaKind(step: CampaignFlowStep) {
+  if (step.kind === "profile_view" || step.kind === "connection_check") return "views" as const;
+  if (step.kind === "connection") return "invites" as const;
+  if (step.kind === "message") return "messages" as const;
+  if (step.kind === "inmail") return "inmails" as const;
+  return null;
+}
+
+export function leadQueueStepId(lead: Lead, flow: CampaignFlowStep[]) {
+  if (lead.awaiting === "connection") {
+    return flow.find((step) => step.kind === "connection" && !step.branch)?.id ?? lead.nextStepId ?? "";
+  }
+  if (lead.awaiting === "inmail") {
+    return flow.find((step) => step.kind === "inmail")?.id ?? lead.nextStepId ?? "";
+  }
+  return lead.nextStepId ?? "";
+}
+
+export function liveFlowStepCounts(
+  leads: Lead[],
+  campaignId: string,
+  flow: CampaignFlowStep[],
+) {
+  const counts: Record<string, number> = {};
+  for (const lead of leads) {
+    if (lead.campaignId !== campaignId || isLeadFlowTerminal(lead)) continue;
+    const stepId = leadQueueStepId(lead, flow);
+    if (!stepId) continue;
+    counts[stepId] = (counts[stepId] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function viewCount(lead: Lead) {
+  return lead.history.filter((event) => event.kind === "profile_viewed").length;
+}
+
+export function leadCompletedStep(lead: Lead, step: CampaignFlowStep, flow: CampaignFlowStep[]) {
+  if (step.kind === "connection") {
+    return historyHas(lead, "connection_sent") || historyHas(lead, "accepted");
+  }
+  if (step.kind === "inmail") return historyHas(lead, "inmail_sent");
+  if (step.kind === "message") {
+    if (step.branch === "inmail_accepted") {
+      return historyHas(lead, "inmail_sent") && historyHas(lead, "message_1_sent");
+    }
+    const index = messageIndexOnAcceptedPath(flow, step.id);
+    if (index === 0) return historyHas(lead, "message_1_sent");
+    if (index === 1) return historyHas(lead, "message_2_sent");
+    if (index >= 2) return historyHas(lead, "message_3_sent");
+    return false;
+  }
+  if (step.kind !== "profile_view" && step.kind !== "connection_check") return false;
+  const views = viewCount(lead);
+  if (!step.branch) return views >= 1;
+  if (step.branch === "no_response") {
+    if (historyHas(lead, "inmail_sent")) return true;
+    return (
+      (lead.currentBranch === "no_response" ||
+        lead.currentBranch === "inmail_accepted" ||
+        lead.currentBranch === "inmail_no_response") &&
+      views >= 2
+    );
+  }
+  if (step.branch === "inmail_no_response") {
+    return lead.currentBranch === "inmail_no_response" && views >= 2;
+  }
+  if (step.branch === "accepted") {
+    const lane = stepsInLane(flow, "accepted");
+    const index = lane.findIndex((item) => item.id === step.id);
+    const messagesBefore = lane.slice(0, Math.max(index, 0)).filter((item) => item.kind === "message").length;
+    if (messagesBefore <= 0) return historyHas(lead, "message_1_sent");
+    if (messagesBefore === 1) return historyHas(lead, "message_2_sent");
+    return historyHas(lead, "message_3_sent");
+  }
+  return false;
+}
+
+export function completedFlowStepCounts(
+  leads: Lead[],
+  campaignId: string,
+  flow: CampaignFlowStep[],
+) {
+  const counts: Record<string, number> = {};
+  for (const step of flow) counts[step.id] = 0;
+  for (const lead of leads) {
+    if (lead.campaignId !== campaignId) continue;
+    for (const step of flow) {
+      if (!leadCompletedStep(lead, step, flow)) continue;
+      counts[step.id] = (counts[step.id] ?? 0) + 1;
+    }
+  }
+  return counts;
 }

@@ -80,8 +80,9 @@ export async function hydrateLeadAvatars(leads: Lead[]): Promise<{
 function needsAvatarHydration(lead: Lead) {
   const url = lead.avatarUrl ?? "";
   if (isStoredLeadAvatarUrl(url) || isMissingLeadAvatar(url)) return false;
+  if (lead.avatarChecked) return false;
   if (isRemoteAvatarUrl(url)) return true;
-  return !lead.avatarChecked || !url;
+  return !url;
 }
 
 async function hydrateLeadAvatar(lead: Lead): Promise<string> {
@@ -101,10 +102,12 @@ async function hydrateLeadAvatarUncached(lead: Lead): Promise<string> {
       await saveLead(lead);
       return url;
     }
-    lead.avatarUrl = MISSING_LEAD_AVATAR;
     lead.avatarChecked = true;
+    if (!isRemoteAvatarUrl(lead.avatarUrl ?? "") && !isStoredLeadAvatarUrl(lead.avatarUrl ?? "")) {
+      lead.avatarUrl = MISSING_LEAD_AVATAR;
+    }
     await saveLead(lead);
-    return "";
+    return isRemoteAvatarUrl(lead.avatarUrl ?? "") ? lead.avatarUrl ?? "" : "";
   } catch (error) {
     if (error instanceof UnipileError && error.retryable) return "";
     console.error(
@@ -132,7 +135,7 @@ async function resolveStoredPhoto(lead: Lead): Promise<string> {
   const image = await downloadLeadAvatarImage(lead.id, profile.pictureUrl);
   if (image) return leadAvatarUrl(lead.id);
   lead.avatarUrl = profile.pictureUrl;
-  throw new UnipileError("avatar-download-failed", 502, true);
+  return "";
 }
 
 async function fetchUnipileProfile(lead: Lead): Promise<{ pictureUrl: string; company: string }> {

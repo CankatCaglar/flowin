@@ -25,7 +25,7 @@ async function run(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const results = await runDueSequence(50);
+    const results = await runDueSequence(80);
     const { drainDueNotificationEmails } = await import("@/lib/notifications");
     const mail = await drainDueNotificationEmails();
     return NextResponse.json({ ...results, mail });

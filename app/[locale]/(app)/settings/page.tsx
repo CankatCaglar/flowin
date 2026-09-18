@@ -33,11 +33,10 @@ import {
   DEFAULT_ALERTS,
   DEFAULT_PACING,
   DEFAULT_SCHEDULE,
-  istanbulDateKey,
   normalizeAlerts,
   normalizePacing,
   normalizeSchedule,
-  variedPacing,
+  effectivePacing,
 } from "@/lib/pacing";
 import { linkedInProfileHref } from "@/lib/linkedin-profile";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -253,7 +252,11 @@ export default function SettingsPage() {
             <p className="text-[12px] leading-5 text-barney">{t("pacingWarn")}</p>
           </div>
           {(() => {
-            const today = variedPacing(normalizePacing(pacing), istanbulDateKey(), selectedBrand.id);
+            const today = effectivePacing({
+              id: selectedBrand.id,
+              createdAt: selectedBrand.createdAt,
+              pacing,
+            });
             return (
               <div className="mt-5 grid min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
                 <Stepper

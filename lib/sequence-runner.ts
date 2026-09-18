@@ -6,6 +6,7 @@ import {
   createMessage,
   fetchCampaign,
   fetchCampaigns,
+  fetchLead,
   fetchLeads,
   incrementCampaignCounters,
   incrementDailyStat,
@@ -15,10 +16,12 @@ import {
 } from "@/lib/outreach-data";
 import { historyHas, isLeadFlowTerminal, SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
-import { isQuietHours, istanbulDateKey, normalizePacing, normalizeSchedule, variedPacing, warmupPacing } from "@/lib/pacing";
+import { effectivePacing, isQuietHours, normalizeSchedule } from "@/lib/pacing";
 import {
   findStep,
   firstBranchStep,
+  firstOpenStep,
+  flowStepQuotaKind,
   isRunnable,
   messageIndexOnAcceptedPath,
   nextStepInLane,
@@ -33,6 +36,8 @@ import {
   isAlreadyConnectedInviteError,
   isFirstDegree,
   isPendingInviteError,
+  isRetryableUnipileError,
+  isTransientFailReason,
   reportProfileVisit,
   sendUnipileInvitation,
     startUnipileChat,
@@ -44,6 +49,13 @@ import {
 import { ingestLeadAvatar, isStoredLeadAvatarUrl } from "@/lib/brand-avatar";
 import { findActiveOccupant } from "@/lib/lead-identity";
 import type { Brand, Campaign, CampaignFlowStep, Lead } from "@/types";
+
+const MIN_STEP_GAP_MS = 20 * 60 * 1000;
+
+function lastHistoryAt(lead: Lead) {
+  const last = lead.history[lead.history.length - 1];
+  return last?.at;
+}
 
 function templateValues(lead: Lead) {
   const names = splitPersonName(lead.fullName);
@@ -155,7 +167,7 @@ export async function markLeadAccepted(lead: Lead, campaign: Campaign) {
   lead.currentBranch = "accepted";
   lead.awaiting = "";
   lead.status = "queued";
-  lead.stage = "message_1";
+  lead.stage = "accepted";
   lead.failReason = "";
   const next = firstBranchStep(campaign.flow, "accepted");
   if (next) {
@@ -315,9 +327,9 @@ async function executeStep(
           console.error("[unipile] profile visit skipped:", error instanceof Error ? error.message : error);
         }
       }
-      const alreadyAccepted =
-        lead.currentBranch === "accepted" || historyHas(lead, "accepted");
-      if (alreadyAccepted && isFirstDegree(profile)) {
+      const alreadyOnAccepted =
+        lead.currentBranch === "accepted" || lead.currentBranch === "inmail_accepted";
+      if (isFirstDegree(profile) && !alreadyOnAccepted && lead.awaiting !== "inmail") {
         await applyUsage(lead.brandId, campaign.id, "views", step.id);
         appendHistory(lead, "profile_viewed");
         lead.failReason = "";
@@ -350,6 +362,20 @@ async function executeStep(
 
   if (step.kind === "connection") {
     try {
+      const identifier = lead.linkedinPublicId || lead.unipileProviderId || lead.linkedinUrl;
+      if (identifier) {
+        try {
+          const profile = await getUnipileProfile(accountId, identifier);
+          lead.unipileProviderId = profile.provider_id || lead.unipileProviderId;
+          if (profile.public_identifier) lead.linkedinPublicId = profile.public_identifier;
+          await applyProfilePhoto(lead, profile);
+          if (isFirstDegree(profile)) {
+            return markLeadAccepted(lead, campaign);
+          }
+        } catch (error) {
+          if (!isRetryableUnipileError(error)) throw error;
+        }
+      }
       await sendUnipileInvitation(accountId, providerId);
     } catch (error) {
       if (isAlreadyConnectedInviteError(error)) {
@@ -376,6 +402,7 @@ async function executeStep(
     lead.unipileChatId = ids.chatId || lead.unipileChatId;
     if (step.kind === "inmail") {
       appendHistory(lead, "inmail_sent");
+      lead.stage = "inmail";
       lead.awaiting = "inmail";
       lead.status = "waiting_reply";
       const timeout = firstBranchStep(campaign.flow, "inmail_no_response");
@@ -422,10 +449,19 @@ async function executeStep(
 }
 
 export async function runLeadStep(
-  lead: Lead,
+  input: Lead,
   occupancy?: { leads: Lead[]; campaigns: Campaign[] },
 ) {
+  const fresh = await fetchLead(input.id);
+  const lead = fresh ?? input;
   if (!isRunnable(lead)) return { skipped: true as const };
+  if (fresh && fresh.nextStepAt && fresh.nextStepAt.getTime() > Date.now() + 15_000) {
+    return { skipped: true as const };
+  }
+  const recent = lastHistoryAt(lead);
+  if (recent && Date.now() - recent.getTime() < MIN_STEP_GAP_MS) {
+    return { deferred: "cooldown" as const };
+  }
   const [brand, campaign] = await Promise.all([
     fetchBrand(lead.brandId),
     fetchCampaign(lead.campaignId),
@@ -472,32 +508,25 @@ export async function runLeadStep(
     return { skipped: true as const };
   }
 
-  const caps = variedPacing(
-    warmupPacing(normalizePacing(brand.pacing), campaign.startDate),
-    istanbulDateKey(),
-    brand.id,
-  );
+  const caps = effectivePacing(brand);
   const usage = await todayPacingUsage(brand.id);
-  const needsView = step.kind === "profile_view" || step.kind === "connection_check";
-  const needsInvite = step.kind === "connection";
-  const needsMessage = step.kind === "message";
-  const needsInmail = step.kind === "inmail";
+  const kind = flowStepQuotaKind(step);
   if (
-    (needsView && usage.views >= caps.dailyViews) ||
-    (needsInvite && usage.invites >= caps.dailyInvites) ||
-    (needsMessage && usage.messages >= caps.dailyMessages) ||
-    (needsInmail && usage.inmails >= caps.dailyInmails)
+    (kind === "views" && usage.views >= caps.dailyViews) ||
+    (kind === "invites" && usage.invites >= caps.dailyInvites) ||
+    (kind === "messages" && usage.messages >= caps.dailyMessages) ||
+    (kind === "inmails" && usage.inmails >= caps.dailyInmails)
   ) {
     lead.nextStepAt = tomorrowMorning(new Date(), schedule);
     await saveLead(lead);
-    return { deferred: "pacing" as const, brand };
+    return { deferred: "pacing" as const, brand, kind };
   }
 
   try {
     await executeStep(lead, campaign, step, brand.unipileAccountId, schedule);
-    return { ok: true as const, step: step.kind, lead, campaign };
+    return { ok: true as const, step: step.kind, kind, lead, campaign };
   } catch (error) {
-    const retryable = error instanceof UnipileError && error.retryable;
+    const retryable = isRetryableUnipileError(error);
     const message = error instanceof Error ? error.message : "unipile";
     console.error("[sequence] step failed:", lead.id, step.kind, message);
     if (retryable) {
@@ -515,6 +544,37 @@ export async function runLeadStep(
   }
 }
 
+async function requeueTransientFailure(lead: Lead, campaign: Campaign) {
+  lead.failReason = "";
+  repairLeadFlowCursor(lead, campaign.flow);
+  if (historyHas(lead, "accepted")) {
+    lead.currentBranch = "accepted";
+    lead.awaiting = "";
+    lead.status = "queued";
+    const step = findStep(campaign.flow, lead.nextStepId);
+    if (!step || step.branch !== "accepted") {
+      lead.nextStepId = firstBranchStep(campaign.flow, "accepted")?.id ?? "";
+    }
+    lead.nextStepAt = new Date();
+    await saveLead(lead);
+    return;
+  }
+  if (historyHasConnection(lead)) {
+    await waitForConnection(lead, campaign, normalizeSchedule(undefined));
+    return;
+  }
+  lead.status = "queued";
+  lead.awaiting = "";
+  if (!lead.nextStepId) {
+    const invite = campaign.flow.find((step) => step.kind === "connection" && !step.branch);
+    lead.nextStepId = historyHas(lead, "profile_viewed")
+      ? invite?.id ?? firstOpenStep(campaign.flow)?.id ?? ""
+      : firstOpenStep(campaign.flow)?.id ?? "";
+  }
+  lead.nextStepAt = new Date();
+  await saveLead(lead);
+}
+
 async function recoverFailedInvite(lead: Lead) {
   const [brand, campaign] = await Promise.all([fetchBrand(lead.brandId), fetchCampaign(lead.campaignId)]);
   if (!brand || !campaign || !isCampaignRunning(campaign.status)) return;
@@ -525,6 +585,10 @@ async function recoverFailedInvite(lead: Lead) {
   }
   if (isPendingInviteError(lead.failReason)) {
     await waitForConnection(lead, campaign, normalizeSchedule(brand.schedule));
+    return;
+  }
+  if (isTransientFailReason(lead.failReason ?? "")) {
+    await requeueTransientFailure(lead, campaign);
   }
 }
 
@@ -532,7 +596,11 @@ export async function recoverFailedInvites(brandId?: string) {
   const { fetchFailedLeads } = await import("@/lib/outreach-data");
   const recoverable = (await fetchFailedLeads()).filter((lead) => {
     if (brandId && lead.brandId !== brandId) return false;
-    return isPendingInviteError(lead.failReason) || isAlreadyConnectedInviteError(lead.failReason);
+    return (
+      isPendingInviteError(lead.failReason) ||
+      isAlreadyConnectedInviteError(lead.failReason) ||
+      isTransientFailReason(lead.failReason ?? "")
+    );
   });
   for (const lead of recoverable) {
     try {
@@ -548,7 +616,16 @@ export async function recoverFailedInvites(brandId?: string) {
   return recoverable.length;
 }
 
-export async function runDueSequence(limit = 50, brandId?: string) {
+type QuotaKind = "views" | "invites" | "messages" | "inmails";
+
+type BrandRuntime = {
+  occupancy: { leads: Lead[]; campaigns: Campaign[] };
+  remaining: Record<QuotaKind, number>;
+  schedule: ReturnType<typeof normalizeSchedule>;
+  brand?: Brand;
+};
+
+export async function runDueSequence(limit = 80, brandId?: string) {
   await recoverFailedInvites(brandId);
   const { fetchDueLeads } = await import("@/lib/outreach-data");
   const due = (await fetchDueLeads())
@@ -561,28 +638,75 @@ export async function runDueSequence(limit = 50, brandId?: string) {
     failed: 0,
     skipped: 0,
   };
-  const occupancyByBrand = new Map<string, { leads: Lead[]; campaigns: Campaign[] }>();
+  const runtimes = new Map<string, BrandRuntime>();
   const failures: Array<{ brand: Brand; lead: Lead; campaign: Campaign }> = [];
   const pacingBrands = new Map<string, Brand>();
   const emptyCampaigns = new Set<string>();
-  for (const lead of due.slice(0, limit)) {
+  const seen = new Set<string>();
+
+  const runtimeFor = async (id: string) => {
+    let runtime = runtimes.get(id);
+    if (runtime) return runtime;
+    const occupancy = {
+      leads: await fetchLeads(id),
+      campaigns: await fetchCampaigns(id),
+    };
+    const brand = await fetchBrand(id);
+    const caps = brand
+      ? effectivePacing(brand)
+      : { dailyViews: 0, dailyInvites: 0, dailyMessages: 0, dailyInmails: 0 };
+    const usage = await todayPacingUsage(id);
+    runtime = {
+      occupancy,
+      remaining: {
+        views: Math.max(0, caps.dailyViews - usage.views),
+        invites: Math.max(0, caps.dailyInvites - usage.invites),
+        messages: Math.max(0, caps.dailyMessages - usage.messages),
+        inmails: Math.max(0, caps.dailyInmails - usage.inmails),
+      },
+      schedule: normalizeSchedule(brand?.schedule),
+      brand: brand ?? undefined,
+    };
+    runtimes.set(id, runtime);
+    return runtime;
+  };
+
+  const peekKind = (lead: Lead, runtime: BrandRuntime) => {
+    const campaign = runtime.occupancy.campaigns.find((item) => item.id === lead.campaignId);
+    if (!campaign) return null;
+    repairLeadFlowCursor(lead, campaign.flow);
+    const step = findStep(campaign.flow, lead.nextStepId);
+    return step ? flowStepQuotaKind(step) : null;
+  };
+
+  for (const lead of due) {
+    if (results.ok >= limit) break;
+    const runtime = await runtimeFor(lead.brandId);
+    const kind = peekKind(lead, runtime);
+    if (kind && runtime.remaining[kind] <= 0) continue;
     results.processed += 1;
-    let occupancy = occupancyByBrand.get(lead.brandId);
-    if (!occupancy) {
-      occupancy = {
-        leads: await fetchLeads(lead.brandId),
-        campaigns: await fetchCampaigns(lead.brandId),
-      };
-      occupancyByBrand.set(lead.brandId, occupancy);
+    seen.add(lead.id);
+    let result: Awaited<ReturnType<typeof runLeadStep>>;
+    try {
+      result = await runLeadStep(lead, runtime.occupancy);
+    } catch (error) {
+      results.skipped += 1;
+      console.error(
+        "[sequence] lead crashed:",
+        lead.id,
+        error instanceof Error ? error.message : error,
+      );
+      continue;
     }
-    const result = await runLeadStep(lead, occupancy);
     if ("ok" in result && result.ok) {
       results.ok += 1;
+      if (kind) runtime.remaining[kind] = Math.max(0, runtime.remaining[kind] - 1);
       if (isLeadFlowTerminal(result.lead)) emptyCampaigns.add(result.campaign.id);
     } else if ("deferred" in result) {
       results.deferred += 1;
-      if (result.deferred === "pacing" && "brand" in result && result.brand) {
-        pacingBrands.set(result.brand.id, result.brand);
+      if (result.deferred === "pacing") {
+        if (kind) runtime.remaining[kind] = 0;
+        if ("brand" in result && result.brand) pacingBrands.set(result.brand.id, result.brand);
       }
     } else if ("failed" in result) {
       results.failed += 1;
@@ -592,6 +716,18 @@ export async function runDueSequence(limit = 50, brandId?: string) {
       }
     } else results.skipped += 1;
   }
+
+  for (const lead of due) {
+    if (seen.has(lead.id) || !isRunnable(lead)) continue;
+    const runtime = await runtimeFor(lead.brandId);
+    const kind = peekKind(lead, runtime);
+    if (!kind || runtime.remaining[kind] > 0) continue;
+    lead.nextStepAt = tomorrowMorning(new Date(), runtime.schedule);
+    await saveLead(lead);
+    results.deferred += 1;
+    if (runtime.brand) pacingBrands.set(runtime.brand.id, runtime.brand);
+  }
+
   if (failures.length) {
     const { notifySequenceFailures } = await import("@/lib/notifications");
     await notifySequenceFailures(failures);

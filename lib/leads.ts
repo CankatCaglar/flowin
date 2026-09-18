@@ -3,8 +3,10 @@ import type { CampaignStatus, Lead, LeadEvent, LeadEventKind, LeadStage, LeadSta
 
 export const LEAD_STAGES: LeadStage[] = [
   "pending",
-  "connection_request",
   "profile_viewed",
+  "connection_request",
+  "accepted",
+  "inmail",
   "message_1",
   "message_2",
   "message_3",
@@ -17,6 +19,7 @@ export type LeadStatusLabelKey =
   | "waiting_connection"
   | "waiting_accept"
   | "queued_message"
+  | "waiting_inmail"
   | "campaign_ended";
 
 export const LEAD_EVENT_KINDS: LeadEventKind[] = [
@@ -93,6 +96,8 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
   failed: "connection_request",
   connection_request: "connection_request",
   profile_viewed: "profile_viewed",
+  accepted: "accepted",
+  inmail: "inmail",
   message_1: "message_1",
   message_2: "message_2",
   message_3: "message_3",
@@ -101,12 +106,14 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
 
 const STAGE_RANK: Record<LeadStage, number> = {
   pending: 0,
-  connection_request: 1,
-  profile_viewed: 2,
-  message_1: 3,
-  message_2: 4,
-  message_3: 5,
-  flow_completed: 6,
+  profile_viewed: 1,
+  connection_request: 2,
+  accepted: 3,
+  inmail: 4,
+  message_1: 5,
+  message_2: 6,
+  message_3: 7,
+  flow_completed: 8,
 };
 
 export function historyHas(lead: Pick<Lead, "history">, kind: LeadEventKind) {
@@ -115,15 +122,13 @@ export function historyHas(lead: Pick<Lead, "history">, kind: LeadEventKind) {
 
 export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">): LeadStage {
   if (lead.status === "flow_completed") return "flow_completed";
-  const viewed = historyHas(lead, "profile_viewed");
-  const invited = historyHas(lead, "connection_sent");
-  const accepted = historyHas(lead, "accepted");
   if (historyHas(lead, "message_3_sent")) return "message_3";
   if (historyHas(lead, "message_2_sent")) return "message_2";
-  if (historyHas(lead, "message_1_sent") || accepted) return "message_1";
-  if (invited) return "connection_request";
-  if (viewed) return "profile_viewed";
-  // Nothing has happened yet — only added to the campaign.
+  if (historyHas(lead, "message_1_sent")) return "message_1";
+  if (historyHas(lead, "inmail_sent")) return "inmail";
+  if (historyHas(lead, "accepted")) return "accepted";
+  if (historyHas(lead, "connection_sent")) return "connection_request";
+  if (historyHas(lead, "profile_viewed")) return "profile_viewed";
   return "pending";
 }
 
@@ -137,6 +142,7 @@ export function leadStatusLabelKey(lead: Lead, campaignStatus?: CampaignStatus):
   if (lead.status === "flow_completed") return "flow_completed";
   if (campaignStatus === "completed") return "campaign_ended";
   const accepted = lead.currentBranch === "accepted" || historyHas(lead, "accepted");
+  if (lead.awaiting === "inmail") return "waiting_inmail";
   if (lead.status === "waiting_reply") {
     if (lead.awaiting === "connection" && !accepted) return "waiting_accept";
     return "waiting_reply";

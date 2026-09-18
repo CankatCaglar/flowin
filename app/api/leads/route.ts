@@ -2,7 +2,6 @@ import { NextResponse, after } from "next/server";
 import { getAdminSessionEmail } from "@/lib/admin-session";
 import { firebasePayload, firebaseStatus } from "@/lib/firebase";
 import { DuplicateActiveLeadError } from "@/lib/lead-identity";
-import { hydrateLeadAvatars } from "@/lib/lead-avatar";
 import {
   closeScheduledLeadsOnCompletedCampaigns,
   createLead,
@@ -19,14 +18,29 @@ export async function GET(request: Request) {
   const brandId = new URL(request.url).searchParams.get("brandId")?.trim() ?? "";
   if (!brandId) return NextResponse.json({ error: "invalid" }, { status: 400 });
   try {
-    await recoverFailedInvites(brandId);
+    try {
+      await recoverFailedInvites(brandId);
+    } catch (error) {
+      console.error(
+        "[leads] recover failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
     const leads = await fetchLeads(brandId);
     after(() => {
-      void hydrateLeadAvatars(leads);
-      void closeScheduledLeadsOnCompletedCampaigns(brandId);
-      void repairBrandLeadCursors(brandId)
-        .then(() => ensureRunningLeadSchedules(brandId))
-        .then(() => runDueSequence(12, brandId));
+      void (async () => {
+        try {
+          await closeScheduledLeadsOnCompletedCampaigns(brandId);
+          await repairBrandLeadCursors(brandId);
+          await ensureRunningLeadSchedules(brandId);
+          await runDueSequence(12, brandId);
+        } catch (error) {
+          console.error(
+            "[leads] background sequence failed:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+      })();
     });
     return NextResponse.json(leads);
   } catch (error) {

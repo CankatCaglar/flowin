@@ -7,6 +7,7 @@ import { useBrand } from "@/contexts/BrandContext";
 import { useBrandData } from "@/hooks/useBrandData";
 import { updateCampaign } from "@/lib/outreach-api";
 import { canonicalizeCampaignFlow, defaultCampaignFlow } from "@/lib/campaign-flow";
+import { completedFlowStepCounts } from "@/lib/sequence";
 import type { CampaignFlowStep } from "@/types";
 
 export default function CampaignFlowPage({
@@ -16,7 +17,7 @@ export default function CampaignFlowPage({
 }) {
   const { id } = use(params);
   const { selectedBrand } = useBrand();
-  const { campaigns, refresh } = useBrandData(selectedBrand?.id ?? null);
+  const { campaigns, leads, refresh } = useBrandData(selectedBrand?.id ?? null);
   const campaign = campaigns.find((item) => item.id === id);
   const [localFlow, setLocalFlow] = useState<CampaignFlowStep[] | null>(null);
   const [editing, setEditing] = useState<CampaignFlowStep | null>(null);
@@ -25,12 +26,14 @@ export default function CampaignFlowPage({
   if (!campaign) return null;
   const steps = localFlow ?? campaign.flow ?? defaultCampaignFlow();
   const activeId = editing?.id ?? selectedId;
+  const queueCounts = completedFlowStepCounts(leads, campaign.id, steps);
 
   return (
     <div>
       <CampaignFlowEditor
         steps={steps}
         selectedId={activeId}
+        queueCounts={queueCounts}
         onSelect={(step) => {
           setSelectedId(step.id);
           setEditing(step);

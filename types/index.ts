@@ -7,8 +7,10 @@ export type LeadStatus =
   | "flow_completed";
 export type LeadStage =
   | "pending"
-  | "connection_request"
   | "profile_viewed"
+  | "connection_request"
+  | "accepted"
+  | "inmail"
   | "message_1"
   | "message_2"
   | "message_3"

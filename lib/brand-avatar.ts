@@ -293,7 +293,9 @@ async function fetchImage(url: string): Promise<AvatarImage | null> {
       redirect: "follow",
     });
     if (!response.ok) {
-      console.error("[brand-avatar] download failed:", response.status);
+      if (response.status !== 401 && response.status !== 403) {
+        console.error("[brand-avatar] download failed:", response.status);
+      }
       return null;
     }
     const buffer = Buffer.from(await response.arrayBuffer());

@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronRight, Clock3, MinusCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { flowStepTitle, splitFlowBranches, waitBadgeKey } from "@/lib/campaign-flow";
 import { flowStepIcons } from "@/lib/flow-icons";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import type { CampaignFlowStep } from "@/types";
 
 const LINE = "border-dashed border-purple-jam/25";
@@ -38,10 +38,12 @@ function StepCard({
   step,
   selected,
   onSelect,
+  queueCount,
 }: {
   step: CampaignFlowStep;
   selected: boolean;
   onSelect: (step: CampaignFlowStep) => void;
+  queueCount?: number;
 }) {
   const t = useTranslations("campaigns.flow");
   const locale = useLocale();
@@ -50,14 +52,22 @@ function StepCard({
 
   const content = (
     <>
-      <span className="flex w-full items-center justify-center gap-2">
+      <span className="flex w-full items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-barney" />
-        <span className="min-w-0 truncate font-display text-sm font-semibold text-ink">
+        <span className="min-w-0 flex-1 truncate font-display text-sm font-semibold text-ink">
           {flowStepTitle(step, locale)}
         </span>
         {step.premium ? (
           <span className="shrink-0 rounded-md border border-barney/20 bg-barney/5 px-2 py-0.5 text-[10px] font-medium text-barney">
             {t("premium")}
+          </span>
+        ) : null}
+        {typeof queueCount === "number" ? (
+          <span
+            className="shrink-0 rounded-full bg-barney/10 px-2 py-0.5 font-display text-[11px] font-semibold tabular-nums text-barney"
+            title={t("queueCount", { count: queueCount })}
+          >
+            {formatNumber(queueCount, locale)}
           </span>
         ) : null}
       </span>
@@ -68,7 +78,8 @@ function StepCard({
   );
 
   const shell = cn(
-    "relative flex w-full items-center rounded-xl border bg-white px-9 py-3 text-left shadow-sm transition-colors",
+    "relative flex w-full items-center rounded-xl border bg-white px-4 py-3 text-left shadow-sm transition-colors",
+    editable ? "pr-10" : "pr-4",
     selected && editable ? "border-barney" : "border-purple-jam/12",
     editable && !selected ? "hover:border-barney/35" : null,
   );
@@ -94,11 +105,13 @@ function FlowColumn({
   leadingWait,
   selectedId,
   onSelect,
+  queueCounts,
 }: {
   steps: CampaignFlowStep[];
   leadingWait?: boolean;
   selectedId?: string | null;
   onSelect: (step: CampaignFlowStep) => void;
+  queueCounts?: Record<string, number>;
 }) {
   if (steps.length === 0) return null;
 
@@ -120,6 +133,7 @@ function FlowColumn({
               step={step}
               selected={selectedId === step.id}
               onSelect={onSelect}
+              queueCount={queueCounts ? queueCounts[step.id] ?? 0 : undefined}
             />
           </Fragment>
         ))}
@@ -191,12 +205,14 @@ export function CampaignFlowEditor({
   onSelect,
   onClear,
   embedded = false,
+  queueCounts,
 }: {
   steps: CampaignFlowStep[];
   selectedId?: string | null;
   onSelect: (step: CampaignFlowStep) => void;
   onClear?: () => void;
   embedded?: boolean;
+  queueCounts?: Record<string, number>;
 }) {
   const t = useTranslations("campaigns.flow");
 
@@ -223,6 +239,7 @@ export function CampaignFlowEditor({
       leadingWait
       selectedId={selectedId}
       onSelect={onSelect}
+      queueCounts={queueCounts}
     />
   );
 
@@ -234,7 +251,12 @@ export function CampaignFlowEditor({
 
       <div className={embedded ? "" : "mt-6"}>
         <div className="mx-auto max-w-80">
-          <FlowColumn steps={trunk} selectedId={selectedId} onSelect={onSelect} />
+          <FlowColumn
+            steps={trunk}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            queueCounts={queueCounts}
+          />
         </div>
 
         {hasBranches ? (

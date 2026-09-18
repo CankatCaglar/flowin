@@ -20,6 +20,10 @@ import { warmBrandBundle } from "@/lib/brand-data-cache";
 import { cn, EMPTY_METRIC, formatPercent } from "@/lib/utils";
 import type { Brand } from "@/types";
 
+function hardNavigate(path: string) {
+  window.location.assign(new URL(path, window.location.origin).toString());
+}
+
 export default function BrandsPage() {
   return (
     <Suspense fallback={<BrandsFallback />}>
@@ -75,14 +79,17 @@ function BrandsPageInner() {
   const [removing, setRemoving] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(
-    searchParams.get("linkedin") ?? searchParams.get("unipile"),
-  );
+  const urlNotice = searchParams.get("linkedin") ?? searchParams.get("unipile");
   const noticeKind = searchParams.get("unipile")
     ? "unipile"
     : searchParams.get("linkedin")
       ? "linkedin"
       : null;
+  const notice =
+    searchParams.get("unipile") === "pending" &&
+    brands.some((brand) => brand.unipileStatus === "running")
+      ? "connected"
+      : urlNotice;
 
   const filtered = useMemo(
     () =>
@@ -100,22 +107,11 @@ function BrandsPageInner() {
   const pendingRetry = useRef(false);
 
   useEffect(() => {
-    setNotice(searchParams.get("linkedin") ?? searchParams.get("unipile"));
-  }, [searchParams]);
-
-  useEffect(() => {
     if (loading || pendingRetry.current) return;
     if (searchParams.get("unipile") !== "pending") return;
     pendingRetry.current = true;
     void refresh();
   }, [loading, refresh, searchParams]);
-
-  useEffect(() => {
-    if (searchParams.get("unipile") !== "pending") return;
-    if (brands.some((brand) => brand.unipileStatus === "running")) {
-      setNotice("connected");
-    }
-  }, [brands, searchParams]);
 
   const noticeText =
     noticeKind === "unipile"
@@ -235,7 +231,7 @@ function BrandsPageInner() {
                     className="rounded-lg px-2 py-1 text-[11px] font-medium text-white/70 hover:bg-white/10 hover:text-white"
                     onClick={(event) => {
                       event.stopPropagation();
-                      window.location.assign(
+                      hardNavigate(
                         `/api/unipile/start?locale=${locale}&brand=${encodeURIComponent(brand.id)}`,
                       );
                     }}
@@ -317,7 +313,7 @@ function BrandsPageInner() {
             await editBrand(editing.id, input);
           }}
           onRefreshPhoto={() => {
-            window.location.assign(`/api/linkedin/start?locale=${locale}`);
+            hardNavigate(`/api/linkedin/start?locale=${locale}`);
           }}
         />
 
@@ -333,7 +329,7 @@ function BrandsPageInner() {
             </Button>
             <Button
               onClick={() => {
-                window.location.assign(`/api/linkedin/start?locale=${locale}`);
+                hardNavigate(`/api/linkedin/start?locale=${locale}`);
               }}
             >
               {t("connectContinue")}

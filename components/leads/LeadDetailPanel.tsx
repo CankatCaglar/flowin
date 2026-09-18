@@ -8,7 +8,8 @@ import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { flowStepTitle } from "@/lib/campaign-flow";
-import { isLeadFlowTerminal, leadStatusLabelKey } from "@/lib/leads";
+import { isLeadFlowTerminal } from "@/lib/leads";
+import { leadStatusLabel } from "@/lib/lead-status";
 import { displayLeadCompany } from "@/lib/linkedin-company";
 import { findStep } from "@/lib/sequence";
 import { EMPTY_METRIC, cn, formatDateTime } from "@/lib/utils";
@@ -115,8 +116,13 @@ export function LeadDetailPanel({
               label={campaignEnded ? stageT("campaign_ended") : stageT(lead.stage)}
             />
             <StatusBadge
+              plain
               status={campaignEnded ? "completed" : lead.status}
-              label={statusT(leadStatusLabelKey(lead, campaign?.status))}
+              label={leadStatusLabel(lead, {
+                campaign,
+                locale,
+                t: statusT,
+              })}
             />
           </div>
         </div>

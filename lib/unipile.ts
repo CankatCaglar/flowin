@@ -89,6 +89,10 @@ async function unipileRequest<T>(
     headers,
     body,
     cache: "no-store",
+    signal: AbortSignal.timeout(25_000),
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "fetch failed";
+    throw new UnipileError(message || "fetch failed", 503, true);
   });
   const data = (await response.json().catch(() => ({}))) as T & {
     title?: unknown;
@@ -731,8 +735,29 @@ export async function importSalesNavigatorLeads(accountId: string, searchUrl: st
 }
 
 export function isFirstDegree(profile: UnipileProfile) {
-  const distance = String(profile.network_distance ?? "").toUpperCase();
-  return distance === "DISTANCE_1" || distance === "FIRST_DEGREE" || distance === "1";
+  if (profile.is_relationship === true) return true;
+  const distance = String(profile.network_distance ?? "")
+    .toUpperCase()
+    .replace(/[\s-]/g, "_");
+  return (
+    distance === "DISTANCE_1" ||
+    distance === "FIRST_DEGREE" ||
+    distance === "FIRST" ||
+    distance === "DISTANCE1" ||
+    distance === "1"
+  );
+}
+
+export function isRetryableUnipileError(error: unknown) {
+  if (error instanceof UnipileError && error.retryable) return true;
+  const text = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  return /fetch failed|network|econnreset|etimedout|enotfound|timeout|deadline|unavailable|temporar|too many requests|\b(429|502|503|504)\b/.test(
+    text,
+  );
+}
+
+export function isTransientFailReason(reason: string) {
+  return isRetryableUnipileError(new Error(reason));
 }
 
 function inviteErrorText(error: unknown) {

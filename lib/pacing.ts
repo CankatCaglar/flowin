@@ -31,26 +31,10 @@ export function normalizeAlerts(input?: Partial<BrandAlerts> | null): BrandAlert
 }
 
 /**
- * Warmup ramp — 7 calendar days for new campaigns.
- *
- * LinkedIn flags sudden spikes from zero. Even on established accounts, a new
- * campaign starting at full throttle can trigger a spam/bot review. 7 days is
- * the minimum safe ramp; the daily variance (65-100%) adds organic noise on top.
- *
- * LinkedIn 2024-25 safe hard ceilings (research-based community consensus):
- *   views:    ~30/day      invites: ~15/day
- *   messages: ~25/day      inmails: ~10/day
+ * Account warmup — 2 calendar days from brand creation, then full brand caps.
+ * A new campaign on an already-warm seat must not restart the ramp.
  */
-const WARMUP: BrandPacing[] = [
-  { dailyViews:  4, dailyInvites:  2, dailyMessages:  4, dailyInmails: 1 }, // day 0
-  { dailyViews:  7, dailyInvites:  4, dailyMessages:  7, dailyInmails: 2 }, // day 1
-  { dailyViews: 10, dailyInvites:  5, dailyMessages: 10, dailyInmails: 2 }, // day 2
-  { dailyViews: 13, dailyInvites:  7, dailyMessages: 12, dailyInmails: 3 }, // day 3
-  { dailyViews: 16, dailyInvites:  8, dailyMessages: 14, dailyInmails: 3 }, // day 4
-  { dailyViews: 18, dailyInvites:  9, dailyMessages: 16, dailyInmails: 4 }, // day 5
-  { dailyViews: 20, dailyInvites: 10, dailyMessages: 18, dailyInmails: 4 }, // day 6
-  // Day 7+: full brand pacing (with dailyVariance applied on top)
-];
+const WARMUP_SCALE = [0.5, 0.75] as const;
 
 const ISO_WEEKDAY: Record<string, number> = {
   Mon: 1,
@@ -177,12 +161,11 @@ function seededFloat(seed: string): number {
 }
 
 /**
- * Per-brand, per-day multiplier in [0.65, 1.0].
- * Same brand + same date → same value every cron run that day.
- * Different days → naturally different values → looks human to LinkedIn.
+ * Per-brand, per-day multiplier in [0.9, 1.0] so the account actually uses
+ * its configured max, with a little day-to-day noise for LinkedIn.
  */
 export function dailyPacingMultiplier(dateKey: string, brandId: string): number {
-  return 0.65 + seededFloat(`${dateKey}::${brandId}`) * 0.35;
+  return 0.9 + seededFloat(`${dateKey}::${brandId}`) * 0.1;
 }
 
 /**
@@ -226,14 +209,36 @@ export function campaignAgeDays(start: Date, now = new Date()) {
   );
 }
 
-export function warmupPacing(brand: BrandPacing, campaignStart: Date, now = new Date()): BrandPacing {
-  const age = campaignAgeDays(campaignStart, now);
-  const ramp = WARMUP[age];
-  if (!ramp) return brand;
+export function warmupPacing(caps: BrandPacing, startedAt: Date, now = new Date()): BrandPacing {
+  const age = campaignAgeDays(startedAt, now);
+  const scale = WARMUP_SCALE[age];
+  if (scale == null) return caps;
+  const scaleCap = (value: number) => Math.max(1, Math.round(value * scale));
   return {
-    dailyViews: Math.min(brand.dailyViews, ramp.dailyViews),
-    dailyInvites: Math.min(brand.dailyInvites, ramp.dailyInvites),
-    dailyMessages: Math.min(brand.dailyMessages, ramp.dailyMessages),
-    dailyInmails: Math.min(brand.dailyInmails, ramp.dailyInmails),
+    dailyViews: scaleCap(caps.dailyViews),
+    dailyInvites: scaleCap(caps.dailyInvites),
+    dailyMessages: scaleCap(caps.dailyMessages),
+    dailyInmails: scaleCap(caps.dailyInmails),
   };
+}
+
+export function brandWarmupStart(brand: { createdAt?: Date | string | null }) {
+  const raw = brand.createdAt;
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) return raw;
+  if (typeof raw === "string" || typeof raw === "number") {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+  return new Date(0);
+}
+
+export function effectivePacing(
+  brand: { id: string; createdAt?: Date | string | null; pacing?: BrandPacing | null },
+  now = new Date(),
+): BrandPacing {
+  return variedPacing(
+    warmupPacing(normalizePacing(brand.pacing), brandWarmupStart(brand), now),
+    istanbulDateKey(now),
+    brand.id,
+  );
 }

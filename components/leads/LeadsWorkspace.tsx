@@ -12,11 +12,11 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SelectMenu } from "@/components/ui/SelectMenu";
 import { useDateRange } from "@/contexts/DateRangeContext";
 import { Link } from "@/i18n/navigation";
+import { leadStatusLabel } from "@/lib/lead-status";
 import {
   exportLeadsCsv,
   leadLastActionAt,
   isLeadFlowTerminal,
-  leadStatusLabelKey,
   LEAD_STAGES,
   LEAD_STATUSES,
 } from "@/lib/leads";
@@ -198,7 +198,11 @@ export function LeadsWorkspace({
                 campaignNames,
                 stageLabel: (item) => stageT(item),
                 statusLabel: (_status, lead) =>
-                  statusT(leadStatusLabelKey(lead, campaignById.get(lead.campaignId)?.status)),
+                  leadStatusLabel(lead, {
+                    campaign: campaignById.get(lead.campaignId),
+                    locale,
+                    t: statusT,
+                  }),
                 lastAction: (lead) => formatLastAction(leadLastActionAt(lead), now, locale),
               })
             }
@@ -304,8 +308,14 @@ export function LeadsWorkspace({
                     </td>
                     <td className="px-3 py-2 text-center">
                       <StatusBadge
+                        plain
                         status={campaignEnded ? "completed" : lead.status}
-                        label={statusT(leadStatusLabelKey(lead, campaignStatus))}
+                        label={leadStatusLabel(lead, {
+                          campaign: campaignById.get(lead.campaignId),
+                          campaignStatus,
+                          locale,
+                          t: statusT,
+                        })}
                       />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-center text-muted">

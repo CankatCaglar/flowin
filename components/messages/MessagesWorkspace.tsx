@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { Button } from "@/components/ui/Button";
@@ -77,6 +77,7 @@ export function MessagesWorkspace({
   const [pendingDelete, setPendingDelete] = useState<OutreachMessage | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [mobileChat, setMobileChat] = useState(Boolean(initialLeadId));
 
   const leadsById = useMemo(() => new Map(leads.map((lead) => [lead.id, lead])), [leads]);
   const visibleMessages = useMemo(() => {
@@ -194,9 +195,14 @@ export function MessagesWorkspace({
   };
 
   return (
-    <div className="grid h-full min-h-0 overflow-hidden rounded-2xl border border-purple-jam/10 bg-white max-xl:grid-rows-[minmax(12rem,38%)_minmax(0,1fr)] xl:grid-cols-[22rem_minmax(0,1fr)]">
-      <section className="flex min-h-0 flex-col border-b border-purple-jam/10 xl:border-b-0 xl:border-r">
-        <div className="space-y-3 border-b border-purple-jam/8 p-4">
+    <div className="grid h-full min-h-0 min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-purple-jam/10 bg-white max-xl:grid-rows-1 xl:grid-cols-[22rem_minmax(0,1fr)]">
+      <section
+        className={cn(
+          "flex min-h-0 min-w-0 flex-col border-purple-jam/10 xl:border-r",
+          mobileChat && "max-xl:hidden",
+        )}
+      >
+        <div className="min-w-0 space-y-3 border-b border-purple-jam/8 p-3 sm:p-4">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -215,7 +221,7 @@ export function MessagesWorkspace({
             ]}
             onChange={setCampaignId}
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             {(
               [
                 ["all", t("filterAll")],
@@ -247,9 +253,12 @@ export function MessagesWorkspace({
               <li key={thread.leadId}>
                 <button
                   type="button"
-                  onClick={() => setSelectedId(thread.leadId)}
+                  onClick={() => {
+                    setSelectedId(thread.leadId);
+                    setMobileChat(true);
+                  }}
                   className={cn(
-                    "flex w-full items-start gap-3 px-4 py-3 text-left",
+                    "flex w-full min-w-0 items-start gap-3 px-3 py-3 text-left sm:px-4",
                     active ? "bg-barney/5" : "hover:bg-canvas/70",
                   )}
                 >
@@ -280,11 +289,24 @@ export function MessagesWorkspace({
         ) : null}
       </section>
 
-      <section className="flex min-h-0 flex-col overflow-hidden">
+      <section
+        className={cn(
+          "flex min-h-0 min-w-0 flex-col overflow-hidden",
+          !mobileChat && "max-xl:hidden",
+        )}
+      >
         {selected ? (
           <>
-            <header className="shrink-0 border-b border-purple-jam/8 px-5 py-4">
-              <div className="flex items-center gap-3">
+            <header className="min-w-0 shrink-0 border-b border-purple-jam/8 px-3 py-3 sm:px-5 sm:py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  aria-label={common("back")}
+                  onClick={() => setMobileChat(false)}
+                  className="shrink-0 rounded-lg p-1 text-muted hover:bg-canvas hover:text-ink xl:hidden"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 {selectedLead ? (
                   <LeadAvatar lead={selectedLead} size="md" />
                 ) : (
@@ -292,9 +314,9 @@ export function MessagesWorkspace({
                     {selected.leadName.slice(0, 1)}
                   </span>
                 )}
-                <div className="min-w-0">
-                  <h2 className="font-display text-lg font-semibold text-ink">{selected.leadName}</h2>
-                  <p className="truncate text-sm text-muted">
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-display text-lg font-semibold text-ink">{selected.leadName}</h2>
+                  <p className="wrap-break-word text-sm text-muted sm:truncate">
                     {selectedLead?.company || selectedLead?.position
                       ? [selectedLead.position, selectedLead.company].filter(Boolean).join(" · ")
                       : selected.campaignName}
@@ -305,7 +327,7 @@ export function MessagesWorkspace({
             </header>
             <ol
               ref={threadScrollRef}
-              className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-5"
+              className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5"
             >
               {bubbles.map((message) => {
                 const inbound = message.direction === "inbound";
@@ -328,16 +350,16 @@ export function MessagesWorkspace({
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     ) : null}
-                    <div className={cn("flex max-w-[78%] flex-col", inbound ? "items-start" : "items-end")}>
+                    <div className={cn("flex min-w-0 max-w-[min(78%,100%)] flex-col", inbound ? "items-start" : "items-end")}>
                       <div
                         className={cn(
-                          "px-3.5 py-2.5 text-sm leading-6",
+                          "min-w-0 px-3.5 py-2.5 text-sm leading-6",
                           inbound
                             ? "rounded-2xl rounded-bl-md bg-canvas text-ink"
                             : "rounded-2xl rounded-br-md bg-barney text-white",
                         )}
                       >
-                        <p className="whitespace-pre-wrap">{message.body}</p>
+                        <p className="wrap-anywhere whitespace-pre-wrap">{message.body}</p>
                       </div>
                       {message.reactions.length > 0 ? (
                         <span className="-mt-2 rounded-full border border-purple-jam/10 bg-white px-1.5 py-0.5 text-sm shadow-sm">
@@ -354,7 +376,7 @@ export function MessagesWorkspace({
               <li ref={threadEndRef} aria-hidden className="h-0" />
             </ol>
             <form
-              className="shrink-0 border-t border-purple-jam/8 bg-white px-5 py-3"
+              className="min-w-0 shrink-0 border-t border-purple-jam/8 bg-white px-3 py-3 sm:px-5"
 
               onSubmit={(event) => {
                 event.preventDefault();
@@ -378,7 +400,7 @@ export function MessagesWorkspace({
                       void submitDraft();
                     }
                   }}
-                  className="min-h-11 max-h-32 flex-1 resize-none rounded-xl border border-purple-jam/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-barney/40 disabled:bg-canvas disabled:text-muted"
+                  className="min-h-11 max-h-32 min-w-0 flex-1 resize-none rounded-xl border border-purple-jam/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-barney/40 disabled:bg-canvas disabled:text-muted"
                 />
                 <Button
                   type="submit"
@@ -390,7 +412,7 @@ export function MessagesWorkspace({
                   <span className="hidden sm:inline">{sending ? t("sending") : t("send")}</span>
                 </Button>
               </div>
-              <p className={cn("mt-2 text-[11px]", sendError ? "text-rose-600" : "text-muted")}>
+              <p className={cn("mt-2 wrap-break-word text-[11px]", sendError ? "text-rose-600" : "text-muted")}>
                 {sendError ||
                   (!canCompose && selectedBrand?.testMode
                     ? t("sendTestMode")

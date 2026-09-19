@@ -102,13 +102,13 @@ export function LeadDetailPanel({
   };
 
   return (
-    <aside className="surface-card flex h-full min-h-0 flex-col overflow-clip rounded-2xl p-5">
-      <div className="flex items-start gap-3">
+    <aside className="surface-card flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl p-4 sm:p-5">
+      <div className="flex min-w-0 items-start gap-3">
         <LeadAvatar lead={lead} size="md" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-display text-lg font-semibold leading-snug text-ink">{lead.fullName}</h2>
-          <p className="text-sm text-muted">{lead.position || EMPTY_METRIC}</p>
-          <p className="text-sm text-muted">{displayLeadCompany(lead) || EMPTY_METRIC}</p>
+          <p className="wrap-break-word text-sm text-muted">{lead.position || EMPTY_METRIC}</p>
+          <p className="wrap-break-word text-sm text-muted">{displayLeadCompany(lead) || EMPTY_METRIC}</p>
           {campaignName ? <p className="text-sm text-muted">{campaignName}</p> : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <StageBadge
@@ -163,24 +163,24 @@ export function LeadDetailPanel({
         <div className="mt-2 border-t border-purple-jam/10 pt-3">
           <ul className="space-y-2.5 text-sm text-ink">
             {lead.email ? (
-              <li className="flex items-center gap-2.5">
+              <li className="flex min-w-0 items-center gap-2.5">
                 <Mail className="h-4 w-4 shrink-0 text-barney" />
-                <span className="truncate">{lead.email}</span>
+                <span className="min-w-0 truncate">{lead.email}</span>
               </li>
             ) : null}
             {lead.phone ? (
-              <li className="flex items-center gap-2.5">
+              <li className="flex min-w-0 items-center gap-2.5">
                 <Phone className="h-4 w-4 shrink-0 text-barney" />
-                <span>{lead.phone}</span>
+                <span className="min-w-0 wrap-break-word">{lead.phone}</span>
               </li>
             ) : null}
-            <li className="flex items-center gap-2.5">
-              <LinkedInIcon className="h-4 w-4 shrink-0" />
+            <li className="flex min-w-0 items-start gap-2.5">
+              <LinkedInIcon className="mt-0.5 h-4 w-4 shrink-0" />
               <a
                 href={lead.linkedinUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="truncate hover:text-barney"
+                className="min-w-0 flex-1 wrap-anywhere hover:text-barney sm:truncate sm:whitespace-nowrap"
               >
                 {linkedinHost(lead.linkedinUrl)}
               </a>
@@ -232,9 +232,9 @@ export function LeadDetailPanel({
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-ink">{historyLabel[item.kind]}</p>
-                      <p className="shrink-0 whitespace-nowrap text-xs text-muted">
+                    <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <p className="min-w-0 text-sm font-medium text-ink">{historyLabel[item.kind]}</p>
+                      <p className="text-xs text-muted sm:shrink-0 sm:whitespace-nowrap">
                         {formatDateTime(item.at, locale)}
                       </p>
                     </div>

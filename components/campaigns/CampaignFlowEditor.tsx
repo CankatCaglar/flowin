@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useEffect } from "react";
-import { CheckCircle2, ChevronRight, Clock3, MinusCircle } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { CheckCircle2, ChevronRight, Clock3, Info, MinusCircle } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useDismissable } from "@/hooks/useDismissable";
 import { flowStepTitle, splitFlowBranches, waitBadgeKey } from "@/lib/campaign-flow";
 import { flowStepIcons } from "@/lib/flow-icons";
 import { cn, formatNumber } from "@/lib/utils";
@@ -34,16 +35,84 @@ function WaitRow({ step }: { step: CampaignFlowStep }) {
   );
 }
 
+function hoverOpensTooltip() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function QueueCount({ count, showInfo }: { count: number; showInfo?: boolean }) {
+  const t = useTranslations("campaigns.flow");
+  const locale = useLocale();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  useDismissable(rootRef, open, () => setOpen(false));
+
+  const number = (
+    <span className="font-display text-[13px] font-semibold tabular-nums text-barney">
+      {formatNumber(count, locale)}
+    </span>
+  );
+
+  if (!showInfo) {
+    return (
+      <div className="absolute left-[calc(100%+0.5rem)] top-1/2 z-20 -translate-y-1/2">
+        {number}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      data-queue-info
+      className="absolute left-[calc(100%+0.5rem)] top-1/2 z-20 -translate-y-1/2"
+      onMouseEnter={() => {
+        if (hoverOpensTooltip()) setOpen(true);
+      }}
+      onMouseLeave={() => {
+        if (hoverOpensTooltip()) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={t("queueCountInfo")}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (hoverOpensTooltip()) {
+            setOpen(true);
+            return;
+          }
+          setOpen((value) => !value);
+        }}
+        className="group inline-flex min-h-8 items-center gap-1"
+      >
+        {number}
+        <Info className="h-3.5 w-3.5 text-muted transition-colors group-hover:text-barney" />
+      </button>
+      {open ? (
+        <p
+          role="tooltip"
+          className="absolute right-0 top-full z-30 mt-1.5 w-44 rounded-lg border border-purple-jam/12 bg-white px-2.5 py-2 text-left text-[11px] leading-4 text-ink shadow-sm sm:right-auto sm:left-0"
+        >
+          {t("queueCountHint")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function StepCard({
   step,
   selected,
   onSelect,
   queueCount,
+  showQueueInfo,
 }: {
   step: CampaignFlowStep;
   selected: boolean;
   onSelect: (step: CampaignFlowStep) => void;
   queueCount?: number;
+  showQueueInfo?: boolean;
 }) {
   const t = useTranslations("campaigns.flow");
   const locale = useLocale();
@@ -52,9 +121,9 @@ function StepCard({
 
   const content = (
     <>
-      <span className="flex w-full items-center gap-2">
+      <span className="flex items-center justify-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-barney" />
-        <span className="min-w-0 flex-1 truncate font-display text-sm font-semibold text-ink">
+        <span className="truncate font-display text-sm font-semibold text-ink">
           {flowStepTitle(step, locale)}
         </span>
         {step.premium ? (
@@ -62,33 +131,23 @@ function StepCard({
             {t("premium")}
           </span>
         ) : null}
-        {typeof queueCount === "number" ? (
-          <span
-            className="shrink-0 rounded-full bg-barney/10 px-2 py-0.5 font-display text-[11px] font-semibold tabular-nums text-barney"
-            title={t("queueCount", { count: queueCount })}
-          >
-            {formatNumber(queueCount, locale)}
-          </span>
-        ) : null}
       </span>
       {editable ? (
-        <ChevronRight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
       ) : null}
     </>
   );
 
   const shell = cn(
-    "relative flex w-full items-center rounded-xl border bg-white px-4 py-3 text-left shadow-sm transition-colors",
-    editable ? "pr-10" : "pr-4",
+    "relative flex w-full items-center justify-center rounded-xl border bg-white py-3 text-center shadow-sm transition-colors",
+    editable ? "px-10" : "px-4",
     selected && editable ? "border-barney" : "border-purple-jam/12",
     editable && !selected ? "hover:border-barney/35" : null,
   );
 
-  if (!editable) {
-    return <div className={shell}>{content}</div>;
-  }
-
-  return (
+  const card = !editable ? (
+    <div className={shell}>{content}</div>
+  ) : (
     <button
       type="button"
       data-flow-step
@@ -97,6 +156,15 @@ function StepCard({
     >
       {content}
     </button>
+  );
+
+  return (
+    <div className="relative">
+      {card}
+      {typeof queueCount === "number" ? (
+        <QueueCount count={queueCount} showInfo={showQueueInfo} />
+      ) : null}
+    </div>
   );
 }
 
@@ -114,9 +182,10 @@ function FlowColumn({
   queueCounts?: Record<string, number>;
 }) {
   if (steps.length === 0) return null;
+  const showCounts = Boolean(queueCounts);
 
   return (
-    <div className="relative">
+    <div className={cn("relative", showCounts && "px-8 sm:px-12")}>
       <span
         aria-hidden
         className={cn(
@@ -134,6 +203,9 @@ function FlowColumn({
               selected={selectedId === step.id}
               onSelect={onSelect}
               queueCount={queueCounts ? queueCounts[step.id] ?? 0 : undefined}
+              showQueueInfo={
+                showCounts && !leadingWait && index === 0 && step.kind === "profile_view"
+              }
             />
           </Fragment>
         ))}
@@ -221,7 +293,7 @@ export function CampaignFlowEditor({
     if (!onClear || !selectedId) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest("[data-flow-step]")) return;
+      if (target?.closest("[data-flow-step], [data-queue-info]")) return;
       onClear();
     };
     document.addEventListener("pointerdown", onPointerDown);

@@ -26,6 +26,7 @@ import {
   firstOpenStep,
   flowStepQuotaKind,
   isRunnable,
+  isStepDueNow,
   messageIndexOnAcceptedPath,
   nextStepInLane,
   readyQuotaKind,
@@ -508,7 +509,7 @@ export async function runLeadStep(
     return { skipped: true as const };
   }
   const earliest = earliestStepAt(lead, step, schedule);
-  if (earliest.getTime() > Date.now() + 15_000) {
+  if (!isStepDueNow(earliest, schedule)) {
     if (!lead.nextStepAt || lead.nextStepAt.getTime() < earliest.getTime()) {
       lead.nextStepAt = earliest;
       await saveLead(lead);
@@ -552,6 +553,7 @@ export async function runLeadStep(
     }
     appendHistory(lead, "failed");
     lead.status = "failed";
+    lead.stage = "failed";
     lead.failReason = message;
     lead.nextStepId = "";
     lead.nextStepAt = undefined;

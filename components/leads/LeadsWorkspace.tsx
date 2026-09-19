@@ -70,9 +70,7 @@ export function LeadsWorkspace({
   const [query, setQuery] = useState("");
   const [campaignId, setCampaignId] = useState(initialCampaignId);
   const [stage, setStage] = useState<LeadStage | "campaign_ended" | "all">(initialStage);
-  const [status, setStatus] = useState<LeadStatusLabelKey | "all">(
-    initialStatus === "failed" ? "all" : initialStatus,
-  );
+  const [status, setStatus] = useState<LeadStatusLabelKey | "all">(initialStatus);
   const [selectedId, setSelectedId] = useState<string | null>(initialLeadId || null);
   const [addOpen, setAddOpen] = useState(false);
   const [userPage, setUserPage] = useState<number | null>(null);
@@ -132,7 +130,7 @@ export function LeadsWorkspace({
   return (
     <div
       className={cn(
-        "grid items-stretch gap-4 sm:gap-6",
+        "grid min-w-0 items-stretch gap-4 sm:gap-6",
         selected
           ? "xl:grid-cols-[minmax(0,1fr)_26rem] xl:grid-rows-[minmax(32rem,auto)] xl:items-stretch"
           : "grid-cols-1",
@@ -351,7 +349,7 @@ export function LeadsWorkspace({
         </div>
       </div>
       {selected ? (
-        <div className="min-h-0 xl:h-0 xl:min-h-full">
+        <div className="min-h-0 min-w-0 max-w-full xl:h-0 xl:min-h-full">
           <LeadDetailPanel
             lead={selected}
             campaign={campaigns.find((item) => item.id === selected.campaignId)}

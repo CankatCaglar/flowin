@@ -14,6 +14,10 @@ export const DEFAULT_SCHEDULE: BrandSchedule = {
   weekdays: [1, 2, 3, 4, 5],
 };
 
+/** UTC hours from `vercel.json`. Istanbul is permanently UTC+3. */
+export const SEQUENCE_CRON_UTC_HOURS = [6, 8, 10, 12, 14, 16] as const;
+const ISTANBUL_UTC_OFFSET = 3;
+
 export const DEFAULT_ALERTS: BrandAlerts = {
   connectionLost: true,
   sendFailed: true,
@@ -113,6 +117,39 @@ export function isQuietHours(at = new Date(), schedule?: Partial<BrandSchedule> 
   const clock = clockInIstanbul(at);
   const minutes = clock.hour * 60 + clock.minute;
   return minutes < hours.startHour * 60 || minutes >= hours.endHour * 60;
+}
+
+export function sequenceCronIstanbulHours() {
+  return SEQUENCE_CRON_UTC_HOURS.map((hour) => hour + ISTANBUL_UTC_OFFSET);
+}
+
+/** Latest cron hour that still falls inside today's working window. */
+export function lastUsableCronIstanbulHour(schedule?: Partial<BrandSchedule> | null) {
+  const hours = normalizeSchedule(schedule);
+  const usable = sequenceCronIstanbulHours().filter(
+    (hour) => hour >= hours.startHour && hour < hours.endHour,
+  );
+  return usable[usable.length - 1] ?? hours.startHour;
+}
+
+export function nextSequenceCronAt(from = new Date()) {
+  const utcHour = from.getUTCHours();
+  const nextHour = SEQUENCE_CRON_UTC_HOURS.find((hour) => hour > utcHour);
+  const at = new Date(from);
+  at.setUTCMinutes(0, 0, 0);
+  if (nextHour == null) {
+    at.setUTCDate(at.getUTCDate() + 1);
+    at.setUTCHours(SEQUENCE_CRON_UTC_HOURS[0], 0, 0, 0);
+    return at;
+  }
+  at.setUTCHours(nextHour, 0, 0, 0);
+  return at;
+}
+
+/** True when the next cron would already be in quiet hours — this is today's last working slot. */
+export function isLastWorkingCron(at = new Date(), schedule?: Partial<BrandSchedule> | null) {
+  if (isQuietHours(at, schedule)) return false;
+  return isQuietHours(nextSequenceCronAt(at), schedule);
 }
 
 export function istanbulDateKey(at = new Date()) {

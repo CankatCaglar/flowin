@@ -19,7 +19,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-ink sm:text-2xl">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 wrap-break-word text-sm text-muted">{subtitle}</p> : null}
         </div>
         {actions}
       </div>

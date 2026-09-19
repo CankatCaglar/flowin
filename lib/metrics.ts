@@ -3,6 +3,7 @@ import { isCampaignRunning } from "@/lib/campaign-status";
 import { eachDateKey, previousRange, toDateKey } from "@/lib/dates";
 import {
   FLOW_MESSAGE_EVENT_KINDS,
+  isLeadFlowTerminal,
   leadWasContacted,
   SEND_EVENT_KINDS,
 } from "@/lib/leads";
@@ -200,7 +201,7 @@ export function kpiMetrics(
 }
 
 export function failedLeads(leads: Lead[]) {
-  return leads.filter((lead) => lead.status === "failed");
+  return leads.filter((lead) => lead.status === "failed" || lead.stage === "failed");
 }
 
 export function isUnresponsiveLead(lead: Lead, now: Date) {
@@ -214,15 +215,14 @@ export function unresponsiveLeads(leads: Lead[], now: Date) {
 }
 
 export function leadFinishedProcess(lead: Lead) {
-  return lead.status === "replied" || lead.status === "flow_completed";
+  return isLeadFlowTerminal(lead);
 }
 
 export function expiringCampaigns(campaigns: Campaign[], leads: Lead[] = []) {
   return campaigns.filter((campaign) => {
-    if (campaign.status === "draft" || campaign.status === "completed" || campaign.status === "paused") {
-      return false;
-    }
-    return leads.some((lead) => lead.campaignId === campaign.id && leadFinishedProcess(lead));
+    if (!isCampaignRunning(campaign.status)) return false;
+    const mine = leads.filter((lead) => lead.campaignId === campaign.id);
+    return mine.length > 0 && mine.every((lead) => isLeadFlowTerminal(lead));
   });
 }
 

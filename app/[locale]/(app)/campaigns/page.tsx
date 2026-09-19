@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowUpDown, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { CampaignDateFilter, type CampaignDatePreset } from "@/components/campaigns/CampaignDateFilter";
@@ -15,7 +16,13 @@ import { useBrandData } from "@/hooks/useBrandData";
 import { Link, useRouter } from "@/i18n/navigation";
 import { campaignIconStyle } from "@/lib/campaign-icon";
 import { addDays, appToday, startOfDay } from "@/lib/dates";
-import { countContactedLeads, countFlowMessages, effectiveRepliedCount } from "@/lib/metrics";
+import {
+  countContactedLeads,
+  countFlowMessages,
+  effectiveRepliedCount,
+  expiringCampaigns,
+  lowResponseCampaigns,
+} from "@/lib/metrics";
 import { cn, formatDateTime, formatNumber, formatSuccessRate, successRate } from "@/lib/utils";
 import type { Campaign, CampaignStatus, Lead, OutreachMessage } from "@/types";
 
@@ -104,6 +111,8 @@ export default function CampaignsPage() {
   const { selectedBrand } = useBrand();
   const { campaigns, leads, messages, loading, refresh } = useBrandData(selectedBrand?.id ?? null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const attention = searchParams.get("attention");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [dateFilter, setDateFilter] = useState<CampaignDatePreset>("all");
@@ -111,16 +120,27 @@ export default function CampaignsPage() {
   const [sortDir, setSortDir] = useState<1 | -1>(-1);
   const [page, setPage] = useState(1);
 
+  const attentionIds = useMemo(() => {
+    if (attention === "depleted") {
+      return new Set(expiringCampaigns(campaigns, leads).map((campaign) => campaign.id));
+    }
+    if (attention === "low") {
+      return new Set(lowResponseCampaigns(campaigns, leads, messages).map((campaign) => campaign.id));
+    }
+    return null;
+  }, [attention, campaigns, leads, messages]);
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     const rows = campaigns.filter((campaign) => {
+      if (attentionIds && !attentionIds.has(campaign.id)) return false;
       if (filter !== "all" && campaign.status !== filter) return false;
       if (!createdInWindow(campaign, dateFilter)) return false;
       if (term && !campaign.name.toLowerCase().includes(term)) return false;
       return true;
     });
     return [...rows].sort((a, b) => compareCampaigns(a, b, sortKey, sortDir, leads, messages));
-  }, [campaigns, dateFilter, filter, leads, messages, query, sortDir, sortKey]);
+  }, [attentionIds, campaigns, dateFilter, filter, leads, messages, query, sortDir, sortKey]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);

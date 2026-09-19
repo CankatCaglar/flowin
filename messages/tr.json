@@ -145,7 +145,7 @@
       "failed": "İşlenemeyen Leadler",
       "failedHint": "{count} lead hata nedeniyle işlenemedi",
       "expiring": "Lead'i Tükenen Kampanyalar",
-      "expiringHint": "{count} kampanyada süreç tamamlanan lead var",
+      "expiringHint": "{count} kampanyada işlenecek lead kalmadı",
       "lowResponse": "Düşük Yanıtlı Kampanya",
       "lowResponseHint": "{count} kampanyanın yanıt oranı %10'un altında",
       "followUp": "Yanıt Bekleyen Leadler",
@@ -220,7 +220,7 @@
     "openCampaign": "Kampanyayı aç",
     "pauseCampaign": "Duraklat",
     "resumeCampaign": "Devam ettir",
-    "completeCampaign": "Kampanyayı bitir",
+    "completeCampaign": "Kampanyayı Bitir",
     "confirm": {
       "pauseTitle": "Kampanyayı duraklat?",
       "pauseBody": "“{name}” durur. Lead’ler kaldığı adımda bekler. Devam ettirince baştan değil, aynı yerden sürer.",
@@ -228,9 +228,9 @@
       "resumeTitle": "Kampanyayı devam ettir?",
       "resumeBody": "“{name}” kaldığı yerden devam eder. Gönderilen adımlar tekrarlanmaz.",
       "resumeAction": "Devam ettir",
-      "completeTitle": "Kampanyayı bitir?",
+      "completeTitle": "Kampanyayı Bitir?",
       "completeBody": "“{name}” kapanır ve yeni gönderim olmaz. Bitirilen kampanya tekrar çalıştırılmaz.",
-      "completeAction": "Kampanyayı bitir"
+      "completeAction": "Kampanyayı Bitir"
     },
     "notFound": "Kampanya bulunamadı.",
     "backToList": "Kampanyalara dön",
@@ -319,6 +319,8 @@
       "premiumHint": "Bu adım premium özelliktir. Ücretsiz planda daha sonra kilitlenecek.",
       "heading": "Akış",
       "queueCount": "{count} lead bu adımı tamamladı",
+      "queueCountInfo": "Bu adımı tamamlayan lead sayısı",
+      "queueCountHint": "Bu sayı, bu adımı tamamlayan lead adedidir.",
       "branchAccepted": "Yanıt gelirse",
       "branchNoResponse": "Yanıt gelmezse",
       "branchAcceptedHint": "Bağlantı isteği kabul edildi",

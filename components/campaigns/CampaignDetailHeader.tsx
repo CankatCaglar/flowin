@@ -60,7 +60,7 @@ export function CampaignDetailHeader({
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold text-ink">{campaign.name}</h1>
         <StatusBadge status={campaign.status} label={statusT(campaign.status)} />
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
           {isCampaignRunning(campaign.status) ? (
             <Button variant="brand" disabled={saving} onClick={() => setPending("paused")}>
               {list("pauseCampaign")}

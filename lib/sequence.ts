@@ -4,9 +4,11 @@ import {
   addIstanbulDateKey,
   clockInIstanbul,
   DEFAULT_SCHEDULE,
+  isLastWorkingCron,
   isQuietHours,
   istanbulDateKey,
   istanbulWallDate,
+  lastUsableCronIstanbulHour,
   normalizeSchedule,
   skipToScheduleDay,
 } from "@/lib/pacing";
@@ -58,13 +60,14 @@ export function withJitter(baseMs: number) {
   return baseMs + jitter;
 }
 
-function morningJitter(startHour: number, endHour: number) {
-  // Spread leads across the full active window so each 2-hour cron run (Pro)
-  // picks up a natural slice throughout the day instead of a single 09:00 burst.
-  const windowMinutes = Math.max(60, (endHour - startHour) * 60);
+function morningJitter(schedule: BrandSchedule) {
+  // Spread only up to the last in-hours cron. Times after that miss the day:
+  // the next tick is already in quiet hours (default: 17:00 last run, 18:00 close).
+  const lastCron = lastUsableCronIstanbulHour(schedule);
+  const windowMinutes = Math.max(60, (lastCron - schedule.startHour) * 60);
   const offsetMin = Math.floor(Math.random() * windowMinutes);
   return {
-    hour: startHour + Math.floor(offsetMin / 60),
+    hour: schedule.startHour + Math.floor(offsetMin / 60),
     minute: offsetMin % 60,
   };
 }
@@ -79,7 +82,7 @@ export function nextBusinessMorning(
   let key = istanbulDateKey(from);
   for (let i = 0; i < skipDays; i += 1) key = addIstanbulDateKey(key, 1);
   key = skipToScheduleDay(key, hours);
-  const { hour, minute } = morningJitter(hours.startHour, hours.endHour);
+  const { hour, minute } = morningJitter(hours);
   return istanbulWallDate(key, hour, minute);
 }
 
@@ -254,6 +257,18 @@ export function flowStepQuotaKind(step: CampaignFlowStep) {
   return null;
 }
 
+/** True when the step may run now, including the last cron pulling leftover same-day work. */
+export function isStepDueNow(
+  earliest: Date,
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+  now = new Date(),
+) {
+  if (earliest.getTime() <= now.getTime() + 15_000) return true;
+  if (!isLastWorkingCron(now, schedule)) return false;
+  if (isQuietHours(earliest, schedule)) return false;
+  return istanbulDateKey(earliest) === istanbulDateKey(now);
+}
+
 /** Step delay already elapsed — this lead can fill today's remaining quota. */
 export function readyQuotaKind(
   lead: Lead,
@@ -266,7 +281,7 @@ export function readyQuotaKind(
   repairLeadFlowCursor(copy, flow, schedule);
   const step = findStep(flow, copy.nextStepId);
   if (!step) return null;
-  if (earliestStepAt(copy, step, schedule, now).getTime() > now.getTime() + 15_000) return null;
+  if (!isStepDueNow(earliestStepAt(copy, step, schedule, now), schedule, now)) return null;
   return flowStepQuotaKind(step);
 }
 

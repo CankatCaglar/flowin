@@ -11,6 +11,20 @@ export const LEAD_STAGES: LeadStage[] = [
   "message_2",
   "message_3",
   "flow_completed",
+  "failed",
+];
+
+export const LEAD_STATUS_FILTERS: LeadStatusLabelKey[] = [
+  "queued_view",
+  "waiting_connection",
+  "waiting_accept",
+  "queued_message",
+  "queued",
+  "waiting_reply",
+  "waiting_inmail",
+  "replied",
+  "flow_completed",
+  "campaign_ended",
 ];
 
 export type LeadStatusLabelKey =
@@ -93,7 +107,7 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
   proposal: "message_2",
   awaiting_reply: "message_1",
   replied: "message_1",
-  failed: "connection_request",
+  failed: "failed",
   connection_request: "connection_request",
   profile_viewed: "profile_viewed",
   accepted: "accepted",
@@ -106,6 +120,7 @@ const LEGACY_STAGE: Record<string, LeadStage> = {
 
 const STAGE_RANK: Record<LeadStage, number> = {
   pending: 0,
+  failed: 0,
   profile_viewed: 1,
   connection_request: 2,
   accepted: 3,
@@ -120,15 +135,25 @@ export function historyHas(lead: Pick<Lead, "history">, kind: LeadEventKind) {
   return lead.history.some((event) => event.kind === kind);
 }
 
+const STAGE_FROM_EVENT: Partial<Record<LeadEventKind, LeadStage>> = {
+  failed: "failed",
+  message_3_sent: "message_3",
+  message_2_sent: "message_2",
+  message_1_sent: "message_1",
+  inmail_sent: "inmail",
+  accepted: "accepted",
+  connection_sent: "connection_request",
+  profile_viewed: "profile_viewed",
+};
+
 export function deriveLeadStage(lead: Pick<Lead, "status" | "stage" | "history">): LeadStage {
+  if (lead.status === "failed") return "failed";
   if (lead.status === "flow_completed") return "flow_completed";
-  if (historyHas(lead, "message_3_sent")) return "message_3";
-  if (historyHas(lead, "message_2_sent")) return "message_2";
-  if (historyHas(lead, "message_1_sent")) return "message_1";
-  if (historyHas(lead, "inmail_sent")) return "inmail";
-  if (historyHas(lead, "accepted")) return "accepted";
-  if (historyHas(lead, "connection_sent")) return "connection_request";
-  if (historyHas(lead, "profile_viewed")) return "profile_viewed";
+  for (let index = lead.history.length - 1; index >= 0; index -= 1) {
+    const kind = lead.history[index]?.kind;
+    const stage = kind ? STAGE_FROM_EVENT[kind] : undefined;
+    if (stage) return stage;
+  }
   return "pending";
 }
 
@@ -160,9 +185,9 @@ export function asLeadStatus(value: unknown): LeadStatus {
 }
 
 export function asLeadStage(value: unknown, status: LeadStatus): LeadStage {
+  if (status === "failed") return "failed";
   if (status === "flow_completed") return "flow_completed";
   const raw = String(value ?? "");
-  if (raw === "failed") return "connection_request";
   return LEGACY_STAGE[raw] ?? "pending";
 }
 

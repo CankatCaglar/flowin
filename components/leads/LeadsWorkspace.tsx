@@ -17,8 +17,10 @@ import {
   exportLeadsCsv,
   leadLastActionAt,
   isLeadFlowTerminal,
+  leadStatusLabelKey,
   LEAD_STAGES,
-  LEAD_STATUSES,
+  LEAD_STATUS_FILTERS,
+  type LeadStatusLabelKey,
 } from "@/lib/leads";
 import { leadNeedsOurReply } from "@/lib/chat-thread";
 import { displayLeadCompany } from "@/lib/linkedin-company";
@@ -35,6 +37,7 @@ export function LeadsWorkspace({
   showCampaign = false,
   initialCampaignId = "all",
   initialStatus = "all",
+  initialStage = "all",
   replyWaitOnly = false,
   initialLeadId = "",
   onAddLead,
@@ -45,6 +48,7 @@ export function LeadsWorkspace({
   showCampaign?: boolean;
   initialCampaignId?: string;
   initialStatus?: LeadStatus | "all";
+  initialStage?: LeadStage | "campaign_ended" | "all";
   replyWaitOnly?: boolean;
   initialLeadId?: string;
   onAddLead?: (input: {
@@ -65,8 +69,10 @@ export function LeadsWorkspace({
   const { now } = useDateRange();
   const [query, setQuery] = useState("");
   const [campaignId, setCampaignId] = useState(initialCampaignId);
-  const [stage, setStage] = useState<LeadStage | "all">("all");
-  const [status, setStatus] = useState<LeadStatus | "all">(initialStatus);
+  const [stage, setStage] = useState<LeadStage | "campaign_ended" | "all">(initialStage);
+  const [status, setStatus] = useState<LeadStatusLabelKey | "all">(
+    initialStatus === "failed" ? "all" : initialStatus,
+  );
   const [selectedId, setSelectedId] = useState<string | null>(initialLeadId || null);
   const [addOpen, setAddOpen] = useState(false);
   const [userPage, setUserPage] = useState<number | null>(null);
@@ -94,8 +100,11 @@ export function LeadsWorkspace({
       const ended =
         campaignById.get(lead.campaignId)?.status === "completed" && !isLeadFlowTerminal(lead);
       if (showCampaign && campaignId !== "all" && lead.campaignId !== campaignId) return false;
-      if (stage !== "all" && (ended ? "flow_completed" : lead.stage) !== stage) return false;
-      if (status !== "all" && (ended ? "flow_completed" : lead.status) !== status) return false;
+      if (stage !== "all" && (ended ? "campaign_ended" : lead.stage) !== stage) return false;
+      if (status !== "all") {
+        const key = ended ? "campaign_ended" : leadStatusLabelKey(lead, campaignById.get(lead.campaignId)?.status);
+        if (key !== status) return false;
+      }
       if (replyWaitOnly && !leadNeedsOurReply(lead, messages)) return false;
       if (
         term &&
@@ -169,24 +178,25 @@ export function LeadsWorkspace({
             options={[
               { value: "all", label: t("stage") },
               ...LEAD_STAGES.map((item) => ({ value: item, label: stageT(item) })),
+              { value: "campaign_ended", label: stageT("campaign_ended") },
             ]}
             onChange={(value) => {
-              setStage(value as LeadStage | "all");
+              setStage(value as LeadStage | "campaign_ended" | "all");
               setUserPage(1);
             }}
           />
           <SelectMenu
             id="leads-status"
-            className="w-44 shrink-0"
+            className="w-56 shrink-0"
             triggerClassName="h-9 sm:h-10"
             value={status}
             ariaLabel={t("status")}
             options={[
               { value: "all", label: t("status") },
-              ...LEAD_STATUSES.map((item) => ({ value: item, label: statusT(item) })),
+              ...LEAD_STATUS_FILTERS.map((item) => ({ value: item, label: statusT(item) })),
             ]}
             onChange={(value) => {
-              setStatus(value as LeadStatus | "all");
+              setStatus(value as LeadStatusLabelKey | "all");
               setUserPage(1);
             }}
           />

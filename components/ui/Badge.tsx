@@ -37,6 +37,7 @@ const stageTextClass: Record<LeadStage, string> = {
   message_2: "text-sky-700",
   message_3: "text-sky-700",
   flow_completed: "text-emerald-700",
+  failed: "text-rose-700",
 };
 
 export function StatusBadge({

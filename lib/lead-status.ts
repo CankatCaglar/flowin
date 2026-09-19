@@ -1,5 +1,5 @@
 import { flowStepTitle } from "@/lib/campaign-flow";
-import { leadStatusLabelKey } from "@/lib/leads";
+import { historyHas, leadStatusLabelKey } from "@/lib/leads";
 import { findStep, firstBranchStep, firstOpenStep, leadCompletedStep, nextStepInLane } from "@/lib/sequence";
 import type { Campaign, CampaignFlowStep, CampaignStatus, Lead } from "@/types";
 
@@ -31,7 +31,15 @@ export function leadNextFlowStep(lead: Lead, campaign?: Campaign, campaignStatus
   if (key === "waiting_inmail") {
     return campaign.flow.find((step) => step.kind === "inmail") ?? null;
   }
-  return skipCompletedStep(lead, campaign, findStep(campaign.flow, lead.nextStepId));
+  const current = skipCompletedStep(lead, campaign, findStep(campaign.flow, lead.nextStepId));
+  if (current) return current;
+  if (key === "queued" && historyHas(lead, "connection_sent") && !historyHas(lead, "accepted")) {
+    return (
+      campaign.flow.find((step) => step.kind === "inmail") ??
+      firstBranchStep(campaign.flow, "no_response")
+    );
+  }
+  return null;
 }
 
 export function leadStatusLabel(

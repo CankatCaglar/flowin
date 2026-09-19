@@ -14,7 +14,8 @@ export type LeadStage =
   | "message_1"
   | "message_2"
   | "message_3"
-  | "flow_completed";
+  | "flow_completed"
+  | "failed";
 export type LeadEventKind =
   | "added"
   | "profile_viewed"

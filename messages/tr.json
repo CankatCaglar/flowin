@@ -195,7 +195,8 @@
     "message_1": "Mesaj 1 Gönderildi",
     "message_2": "Mesaj 2 Gönderildi",
     "message_3": "Mesaj 3 Gönderildi",
-    "flow_completed": "Akış Tamamlandı"
+    "flow_completed": "Akış Tamamlandı",
+    "failed": "İletim Başarısız"
   },
   "campaigns": {
     "title": "Kampanyalar",

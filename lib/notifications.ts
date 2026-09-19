@@ -450,7 +450,7 @@ export async function notifyLeadFailed(input: {
   await emitNotification({
     brandId: input.brand.id,
     type: "lead_failed",
-    href: `/leads?status=failed&lead=${encodeURIComponent(input.lead.id)}`,
+    href: `/leads?stage=failed&lead=${encodeURIComponent(input.lead.id)}`,
     dedupeKey: `lead_failed:${input.lead.id}`,
     params: {
       leadName: input.lead.fullName,
@@ -471,7 +471,7 @@ export async function notifyLeadsFailedBatch(input: {
   await emitNotification({
     brandId: input.brand.id,
     type: "leads_failed",
-    href: `/leads?status=failed&campaign=${encodeURIComponent(input.campaign.id)}`,
+    href: `/leads?stage=failed&campaign=${encodeURIComponent(input.campaign.id)}`,
     dedupeKey: `leads_failed:${input.campaign.id}:${istanbulDateKey()}`,
     params: {
       campaignName: input.campaign.name,

@@ -9,6 +9,7 @@ import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { flowStepTitle } from "@/lib/campaign-flow";
 import { isLeadFlowTerminal } from "@/lib/leads";
+import { humanizeFailReason } from "@/lib/fail-reason";
 import { leadNextFlowStep, leadStatusLabel } from "@/lib/lead-status";
 import { displayLeadCompany } from "@/lib/linkedin-company";
 import { EMPTY_METRIC, cn, formatDateTime } from "@/lib/utils";
@@ -140,7 +141,7 @@ export function LeadDetailPanel({
           {lead.failReason ? (
             <p className="text-sm text-rose-700">
               <span className="font-medium">{t("failReason")}: </span>
-              {lead.failReason}
+              {humanizeFailReason(lead.failReason, locale)}
             </p>
           ) : null}
           {nextTitle && lead.status !== "failed" && lead.status !== "replied" ? (

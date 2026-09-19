@@ -19,7 +19,7 @@ export function notificationAppUrl(path: string) {
 }
 
 function lumaBody(body: string, url: string) {
-  return `Merhaba,\n\n${body}\n\n${url}\n\nİyi çalışmalar,\nFlowin by Nera`;
+  return `Merhaba,\n\n${body}\n\nLead’i açmak için: ${url}\n\nİyi çalışmalar,\nFlowin by Nera`;
 }
 
 function lumaHtml(body: string, url: string) {
@@ -30,7 +30,7 @@ function lumaHtml(body: string, url: string) {
   const href = url.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return `<p>Merhaba,</p>
 <p>${escaped.replace(/\n/g, "<br/>")}</p>
-<p><a href="${href}">${href}</a></p>
+<p><a href="${href}">Lead sayfasını aç</a></p>
 <p>İyi çalışmalar,<br/>Flowin by Nera</p>`;
 }
 

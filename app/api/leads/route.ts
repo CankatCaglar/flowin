@@ -33,7 +33,7 @@ export async function GET(request: Request) {
           await closeScheduledLeadsOnCompletedCampaigns(brandId);
           await repairBrandLeadCursors(brandId);
           await ensureRunningLeadSchedules(brandId);
-          await runDueSequence(12, brandId);
+          await runDueSequence(50, brandId);
         } catch (error) {
           console.error(
             "[leads] background sequence failed:",

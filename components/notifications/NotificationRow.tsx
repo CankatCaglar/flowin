@@ -39,6 +39,16 @@ export function NotificationRow({
   const visual = ICONS[item.type];
   const unread = !item.readAt;
   const now = new Date();
+  const capKind = String(item.params.limit ?? "all");
+  const capLimit =
+    item.type === "daily_cap"
+      ? t(
+          `types.daily_cap.limits.${
+            ["views", "invites", "messages", "inmails"].includes(capKind) ? capKind : "all"
+          }`,
+        )
+      : "";
+  const capParams = { ...item.params, limit: capLimit };
 
   return (
     <button
@@ -51,14 +61,16 @@ export function NotificationRow({
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-2">
-          <span className="text-sm font-semibold text-ink">{t(`types.${item.type}.title`)}</span>
+          <span className="text-sm font-semibold text-ink">
+            {item.type === "daily_cap" ? t("types.daily_cap.title", capParams) : t(`types.${item.type}.title`)}
+          </span>
           <span className="flex shrink-0 items-center gap-1.5 pt-0.5">
             <span className="text-[11px] text-muted">{formatRelativeShort(item.createdAt, now, locale)}</span>
             {unread ? <span className="h-1.5 w-1.5 rounded-full bg-barney" /> : null}
           </span>
         </span>
         <span className="mt-0.5 block text-xs leading-5 text-muted">
-          {t(`types.${item.type}.body`, item.params)}
+          {item.type === "daily_cap" ? t("types.daily_cap.body", capParams) : t(`types.${item.type}.body`, item.params)}
         </span>
       </span>
     </button>

@@ -24,13 +24,30 @@ function normalizeDsn(value: string) {
   return `https://${trimmed}`;
 }
 
+function asHttpsOrigin(value: string) {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function isLocalOrigin(value: string) {
+  return /localhost|127\.0\.0\.1/i.test(value);
+}
+
+/** Public site origin for emails and hosted-auth returns. Never prefer localhost. */
 export function appOrigin(request?: Request) {
-  const fromEnv = process.env.APP_URL?.trim().replace(/\/+$/, "");
-  if (fromEnv) return fromEnv;
-  if (request) return new URL(request.url).origin;
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel.replace(/^https?:\/\//, "")}`;
-  return "http://localhost:3000";
+  const fromEnv = asHttpsOrigin(process.env.APP_URL ?? "");
+  if (fromEnv && !isLocalOrigin(fromEnv)) return fromEnv;
+  const production = asHttpsOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL ?? "");
+  if (production && !isLocalOrigin(production)) return production;
+  if (request) {
+    const origin = new URL(request.url).origin;
+    if (!isLocalOrigin(origin)) return origin;
+  }
+  const vercel = asHttpsOrigin(process.env.VERCEL_URL ?? "");
+  if (vercel && !isLocalOrigin(vercel)) return vercel;
+  return fromEnv || "http://localhost:3000";
 }
 
 export class UnipileError extends Error {
@@ -756,8 +773,19 @@ export function isRetryableUnipileError(error: unknown) {
   );
 }
 
+/** Sender account (or Unipile seat) is out of InMail / API credits — not the recipient. */
+export function isInsufficientCreditsError(error: unknown) {
+  const text = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  return (
+    text.includes("insufficient credit") ||
+    text.includes("not enough credit") ||
+    text.includes("out of credit") ||
+    text.includes("no credit")
+  );
+}
+
 export function isTransientFailReason(reason: string) {
-  return isRetryableUnipileError(new Error(reason));
+  return isRetryableUnipileError(new Error(reason)) || isInsufficientCreditsError(reason);
 }
 
 function inviteErrorText(error: unknown) {

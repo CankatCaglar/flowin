@@ -6,6 +6,7 @@ import { isLeadFlowTerminal } from "@/lib/leads";
 import { leadNeedsOurReply } from "@/lib/chat-thread";
 import { notificationAppUrl, notificationRecipient, sendNotificationEmail } from "@/lib/mail";
 import { isCampaignRunning } from "@/lib/campaign-status";
+import { humanizeFailReason } from "@/lib/fail-reason";
 import { istanbulDateKey } from "@/lib/pacing";
 import type {
   AppNotification,
@@ -48,7 +49,9 @@ const EMAIL_COPY: Record<
   lead_failed: {
     subject: "Lead İşlenemedi",
     body: (params) =>
-      `${params.leadName} için işlem tamamlanamadı. ${params.campaignName} · ${params.brandName}`,
+      `${params.leadName} için işlem tamamlanamadı.\n${params.campaignName} · ${params.brandName}${
+        params.reason ? `\n${params.reason}` : ""
+      }`,
   },
   leads_failed: {
     subject: "Birden Fazla Lead İşlenemedi",
@@ -453,6 +456,7 @@ export async function notifyLeadFailed(input: {
       leadName: input.lead.fullName,
       campaignName: input.campaign.name,
       brandName: input.brand.name,
+      reason: humanizeFailReason(input.lead.failReason ?? ""),
     },
     leadId: input.lead.id,
     campaignId: input.campaign.id,
@@ -492,13 +496,13 @@ export async function notifyCampaignPausedError(input: { brand: Brand; campaign:
   });
 }
 
-export async function notifyDailyCap(brand: Brand) {
+export async function notifyDailyCap(brand: Brand, limit: "views" | "invites" | "messages" | "inmails") {
   await emitNotification({
     brandId: brand.id,
     type: "daily_cap",
     href: "/settings",
-    dedupeKey: `daily_cap:${brand.id}:${istanbulDateKey()}`,
-    params: { brandName: brand.name },
+    dedupeKey: `daily_cap:${brand.id}:${istanbulDateKey()}:${limit}`,
+    params: { brandName: brand.name, limit },
   });
 }
 

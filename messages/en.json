@@ -561,8 +561,15 @@
         "body": "Every lead in the {campaignName} campaign has finished the flow."
       },
       "daily_cap": {
-        "title": "Daily limit reached",
-        "body": "Today’s outreach limit for {brandName} is complete."
+        "title": "Daily {limit} Limit Reached",
+        "body": "Today’s {limit} limit for {brandName} is full. Other steps keep running if they still have quota.",
+        "limits": {
+          "all": "Outreach",
+          "views": "Profile View",
+          "invites": "Connection Request",
+          "messages": "Message",
+          "inmails": "InMail"
+        }
       },
       "campaign_completed": {
         "title": "Campaign completed",

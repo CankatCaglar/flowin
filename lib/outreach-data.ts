@@ -25,7 +25,7 @@ import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
 import { earliestStepAt, findStep, firstOpenStep, isRunnable, repairLeadFlowCursor, scheduleAt, snapToWorkingHours } from "@/lib/sequence";
-import { isQuietHours, normalizeSchedule } from "@/lib/pacing";
+import { istanbulDateKey, isQuietHours, normalizeSchedule } from "@/lib/pacing";
 import { hydrateCampaignDates } from "@/lib/storage";
 import { toDateKey } from "@/lib/dates";
 import type {
@@ -467,6 +467,27 @@ export async function closeScheduledLeadsOnCompletedCampaigns(brandId: string) {
     lead.awaiting = "";
     await saveLead(lead);
   }
+}
+
+export async function fetchRunnableLeads(brandId?: string) {
+  if (brandId) {
+    return (await fetchLeads(brandId)).filter(
+      (lead) => lead.status === "queued" || lead.status === "waiting_reply",
+    );
+  }
+  const snapshot = await requireFirebaseDb()
+    .collection("leads")
+    .where("status", "in", ["queued", "waiting_reply"])
+    .get();
+  return snapshot.docs.map((item) =>
+    hydrateLead({
+      id: item.id,
+      ...(item.data() as Partial<Lead>),
+      brandId: String(item.data().brandId ?? ""),
+      campaignId: String(item.data().campaignId ?? ""),
+      fullName: String(item.data().fullName ?? ""),
+    }),
+  );
 }
 
 export async function fetchDueLeads(now = new Date()) {
@@ -962,7 +983,7 @@ export async function incrementDailyStat(
   campaignId?: string,
 ) {
   const db = requireFirebaseDb();
-  const date = toDateKey(new Date());
+  const date = istanbulDateKey(new Date());
   const write = async (id: string, extra: Record<string, string>) => {
     const ref = db.collection("daily_stats").doc(id);
     const snapshot = await ref.get();
@@ -1019,7 +1040,7 @@ export async function fetchDailyStats(brandId: string, campaignId?: string): Pro
 
 export async function todayPacingUsage(brandId: string) {
   const stats = await fetchDailyStats(brandId);
-  const today = toDateKey(new Date());
+  const today = istanbulDateKey(new Date());
   const row = stats.find((stat) => stat.date === today);
   return {
     views: row?.views ?? 0,

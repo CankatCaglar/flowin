@@ -561,8 +561,15 @@
         "body": "{campaignName} kampanyasındaki tüm leadlerin akışı tamamlandı."
       },
       "daily_cap": {
-        "title": "Günlük Limite Ulaşıldı",
-        "body": "{brandName} profili için bugünkü outreach limiti tamamlandı."
+        "title": "Günlük {limit} Limitine Ulaşıldı",
+        "body": "{brandName} için bugünkü {limit} limiti doldu. Diğer adımlar kotası kaldıysa devam eder.",
+        "limits": {
+          "all": "Outreach",
+          "views": "Profil Görüntüleme",
+          "invites": "Bağlantı İsteği",
+          "messages": "Mesaj",
+          "inmails": "InMail"
+        }
       },
       "campaign_completed": {
         "title": "Kampanya Tamamlandı",

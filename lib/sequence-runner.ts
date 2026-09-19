@@ -1,6 +1,8 @@
 import "server-only";
 import { campaignStepCopy } from "@/lib/campaign-flow";
 import { fetchBrand } from "@/lib/data";
+import { Timestamp } from "firebase-admin/firestore";
+import { requireFirebaseDb } from "@/lib/firebase";
 import { interpolateTemplate, splitPersonName } from "@/lib/linkedin-profile";
 import {
   createMessage,
@@ -26,6 +28,7 @@ import {
   isRunnable,
   messageIndexOnAcceptedPath,
   nextStepInLane,
+  readyQuotaKind,
   repairLeadFlowCursor,
   scheduleAt,
   stageAfterMessageIndex,
@@ -36,6 +39,7 @@ import {
   getUnipileProfile,
   isAlreadyConnectedInviteError,
   isFirstDegree,
+  isInsufficientCreditsError,
   isPendingInviteError,
   isRetryableUnipileError,
   isTransientFailReason,
@@ -379,7 +383,6 @@ async function executeStep(
       await sendUnipileInvitation(accountId, providerId);
     } catch (error) {
       if (isAlreadyConnectedInviteError(error)) {
-        if (!historyHasConnection(lead)) appendHistory(lead, "connection_sent");
         return markLeadAccepted(lead, campaign);
       }
       if (isPendingInviteError(error)) {
@@ -455,9 +458,6 @@ export async function runLeadStep(
   const fresh = await fetchLead(input.id);
   const lead = fresh ?? input;
   if (!isRunnable(lead)) return { skipped: true as const };
-  if (fresh && fresh.nextStepAt && fresh.nextStepAt.getTime() > Date.now() + 15_000) {
-    return { skipped: true as const };
-  }
   const recent = lastHistoryAt(lead);
   if (recent && Date.now() - recent.getTime() < MIN_STEP_GAP_MS) {
     return { deferred: "cooldown" as const };
@@ -507,8 +507,12 @@ export async function runLeadStep(
     }
     return { skipped: true as const };
   }
-  if (lead.nextStepAt && lead.nextStepAt.getTime() > Date.now() + 15_000) {
-    await saveLead(lead);
+  const earliest = earliestStepAt(lead, step, schedule);
+  if (earliest.getTime() > Date.now() + 15_000) {
+    if (!lead.nextStepAt || lead.nextStepAt.getTime() < earliest.getTime()) {
+      lead.nextStepAt = earliest;
+      await saveLead(lead);
+    }
     return { deferred: "not-due" as const };
   }
 
@@ -530,9 +534,15 @@ export async function runLeadStep(
     await executeStep(lead, campaign, step, brand.unipileAccountId, schedule);
     return { ok: true as const, step: step.kind, kind, lead, campaign };
   } catch (error) {
-    const retryable = isRetryableUnipileError(error);
     const message = error instanceof Error ? error.message : "unipile";
     console.error("[sequence] step failed:", lead.id, step.kind, message);
+    if (isInsufficientCreditsError(error)) {
+      lead.failReason = message;
+      lead.nextStepAt = tomorrowMorning(new Date(), schedule);
+      await saveLead(lead);
+      return { deferred: "credits" as const, brand, kind };
+    }
+    const retryable = isRetryableUnipileError(error);
     if (retryable) {
       const retryAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
       const min = earliestStepAt(lead, step, schedule);
@@ -595,8 +605,17 @@ async function recoverFailedInvite(lead: Lead) {
     await waitForConnection(lead, campaign, normalizeSchedule(brand.schedule));
     return;
   }
+  const schedule = normalizeSchedule(brand.schedule);
+  if (isInsufficientCreditsError(lead.failReason)) {
+    lead.status = "queued";
+    lead.failReason = lead.failReason;
+    repairLeadFlowCursor(lead, campaign.flow, schedule);
+    lead.nextStepAt = tomorrowMorning(new Date(), schedule);
+    await saveLead(lead);
+    return;
+  }
   if (isTransientFailReason(lead.failReason ?? "")) {
-    await requeueTransientFailure(lead, campaign, normalizeSchedule(brand.schedule));
+    await requeueTransientFailure(lead, campaign, schedule);
   }
 }
 
@@ -633,12 +652,38 @@ type BrandRuntime = {
   brand?: Brand;
 };
 
+const QUOTA_KINDS: QuotaKind[] = ["views", "invites", "messages", "inmails"];
+const LOCK_MS = 4 * 60 * 1000;
+
+async function acquireSequenceLock(id: string) {
+  const ref = requireFirebaseDb().collection("_locks").doc(`sequence:${id}`);
+  try {
+    await requireFirebaseDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const until = Number(snap.data()?.until ?? 0);
+      if (until > Date.now()) throw new Error("locked");
+      tx.set(ref, { until: Date.now() + LOCK_MS, at: Timestamp.now() });
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function releaseSequenceLock(id: string) {
+  await requireFirebaseDb()
+    .collection("_locks")
+    .doc(`sequence:${id}`)
+    .delete()
+    .catch(() => undefined);
+}
+
 export async function runDueSequence(limit = 80, brandId?: string) {
   await recoverFailedInvites(brandId);
-  const { fetchDueLeads } = await import("@/lib/outreach-data");
-  const due = (await fetchDueLeads())
-    .filter((lead) => !brandId || lead.brandId === brandId)
-    .sort((a, b) => (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0));
+  const { fetchRunnableLeads } = await import("@/lib/outreach-data");
+  const pool = (await fetchRunnableLeads(brandId)).sort(
+    (a, b) => (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0),
+  );
   const results = {
     processed: 0,
     ok: 0,
@@ -648,10 +693,14 @@ export async function runDueSequence(limit = 80, brandId?: string) {
   };
   const runtimes = new Map<string, BrandRuntime>();
   const failures: Array<{ brand: Brand; lead: Lead; campaign: Campaign }> = [];
-  const pacingBrands = new Map<string, Brand>();
   const emptyCampaigns = new Set<string>();
-  const seen = new Set<string>();
-
+  const capHits = new Map<string, { brand: Brand; kinds: Set<QuotaKind> }>();
+  const markCap = (brand: Brand, kind?: QuotaKind | null) => {
+    if (!kind) return;
+    const row = capHits.get(brand.id) ?? { brand, kinds: new Set<QuotaKind>() };
+    row.kinds.add(kind);
+    capHits.set(brand.id, row);
+  };
   const runtimeFor = async (id: string) => {
     let runtime = runtimes.get(id);
     if (runtime) return runtime;
@@ -679,70 +728,97 @@ export async function runDueSequence(limit = 80, brandId?: string) {
     return runtime;
   };
 
-  const peekKind = (lead: Lead, runtime: BrandRuntime) => {
+  const readyKind = (lead: Lead, runtime: BrandRuntime) => {
     const campaign = runtime.occupancy.campaigns.find((item) => item.id === lead.campaignId);
-    if (!campaign) return null;
-    repairLeadFlowCursor(lead, campaign.flow, runtime.schedule);
-    const step = findStep(campaign.flow, lead.nextStepId);
-    return step ? flowStepQuotaKind(step) : null;
+    if (!campaign || !isCampaignRunning(campaign.status)) return null;
+    return readyQuotaKind(lead, campaign.flow, runtime.schedule);
   };
 
-  for (const lead of due) {
-    if (results.ok >= limit) break;
-    const runtime = await runtimeFor(lead.brandId);
-    const kind = peekKind(lead, runtime);
-    if (kind && runtime.remaining[kind] <= 0) continue;
-    results.processed += 1;
-    seen.add(lead.id);
-    let result: Awaited<ReturnType<typeof runLeadStep>>;
-    try {
-      result = await runLeadStep(lead, runtime.occupancy);
-    } catch (error) {
-      results.skipped += 1;
-      console.error(
-        "[sequence] lead crashed:",
-        lead.id,
-        error instanceof Error ? error.message : error,
-      );
-      continue;
-    }
-    if ("ok" in result && result.ok) {
-      results.ok += 1;
-      if (kind) runtime.remaining[kind] = Math.max(0, runtime.remaining[kind] - 1);
-      if (isLeadFlowTerminal(result.lead)) emptyCampaigns.add(result.campaign.id);
-    } else if ("deferred" in result) {
-      results.deferred += 1;
-      if (result.deferred === "pacing") {
-        if (kind) runtime.remaining[kind] = 0;
-        if ("brand" in result && result.brand) pacingBrands.set(result.brand.id, result.brand);
-      }
-    } else if ("failed" in result) {
-      results.failed += 1;
-      if ("brand" in result && result.brand && "campaign" in result && result.campaign) {
-        failures.push({ brand: result.brand, lead: result.lead, campaign: result.campaign });
-        emptyCampaigns.add(result.campaign.id);
-      }
-    } else results.skipped += 1;
+  const brandIds = [...new Set(pool.map((lead) => lead.brandId))];
+  const locked: string[] = [];
+  for (const id of brandIds) {
+    if (await acquireSequenceLock(id)) locked.push(id);
   }
+  const lockedSet = new Set(locked);
 
-  for (const lead of due) {
-    if (seen.has(lead.id) || !isRunnable(lead)) continue;
-    const runtime = await runtimeFor(lead.brandId);
-    const kind = peekKind(lead, runtime);
-    if (!kind || runtime.remaining[kind] > 0) continue;
-    lead.nextStepAt = tomorrowMorning(new Date(), runtime.schedule);
-    await saveLead(lead);
-    results.deferred += 1;
-    if (runtime.brand) pacingBrands.set(runtime.brand.id, runtime.brand);
+  try {
+    const byKind = new Map<QuotaKind, Lead[]>();
+    for (const kind of QUOTA_KINDS) byKind.set(kind, []);
+    for (const lead of pool) {
+      if (!lockedSet.has(lead.brandId)) continue;
+      const runtime = await runtimeFor(lead.brandId);
+      if (isQuietHours(new Date(), runtime.schedule)) continue;
+      const kind = readyKind(lead, runtime);
+      if (!kind || runtime.remaining[kind] <= 0) continue;
+      byKind.get(kind)?.push(lead);
+    }
+
+    const queue: Lead[] = [];
+    for (const kind of QUOTA_KINDS) {
+      const runtimeSlots = new Map<string, number>();
+      for (const lead of byKind.get(kind) ?? []) {
+        const runtime = await runtimeFor(lead.brandId);
+        const left = runtimeSlots.get(lead.brandId) ?? runtime.remaining[kind];
+        if (left <= 0) continue;
+        runtimeSlots.set(lead.brandId, left - 1);
+        queue.push(lead);
+      }
+    }
+
+    for (const lead of queue) {
+      if (results.ok >= limit) break;
+      const runtime = await runtimeFor(lead.brandId);
+      const kind = readyKind(lead, runtime);
+      if (!kind || runtime.remaining[kind] <= 0) continue;
+      results.processed += 1;
+      let result: Awaited<ReturnType<typeof runLeadStep>>;
+      try {
+        result = await runLeadStep(lead, runtime.occupancy);
+      } catch (error) {
+        results.skipped += 1;
+        console.error(
+          "[sequence] lead crashed:",
+          lead.id,
+          error instanceof Error ? error.message : error,
+        );
+        continue;
+      }
+      if ("ok" in result && result.ok) {
+        results.ok += 1;
+        const used = result.kind ?? kind;
+        if (used) {
+          runtime.remaining[used] = Math.max(0, runtime.remaining[used] - 1);
+          if (runtime.remaining[used] === 0 && runtime.brand) markCap(runtime.brand, used);
+        }
+        if (isLeadFlowTerminal(result.lead)) emptyCampaigns.add(result.campaign.id);
+      } else if ("deferred" in result) {
+        results.deferred += 1;
+        if (result.deferred === "pacing") {
+          const hit = ("kind" in result ? result.kind : undefined) ?? kind;
+          if (hit) runtime.remaining[hit] = 0;
+          if ("brand" in result && result.brand) markCap(result.brand, hit);
+        }
+      } else if ("failed" in result) {
+        results.failed += 1;
+        if ("brand" in result && result.brand && "campaign" in result && result.campaign) {
+          failures.push({ brand: result.brand, lead: result.lead, campaign: result.campaign });
+          emptyCampaigns.add(result.campaign.id);
+        }
+      } else results.skipped += 1;
+    }
+  } finally {
+    for (const id of locked) await releaseSequenceLock(id);
   }
 
   if (failures.length) {
     const { notifySequenceFailures } = await import("@/lib/notifications");
     await notifySequenceFailures(failures);
   }
-  if (pacingBrands.size) {
+  if (capHits.size) {
     const { notifyDailyCap } = await import("@/lib/notifications");
-    for (const brand of pacingBrands.values()) await notifyDailyCap(brand);
+    for (const { brand, kinds } of capHits.values()) {
+      for (const kind of kinds) await notifyDailyCap(brand, kind);
+    }
   }
   if (emptyCampaigns.size) {
     const { notifyIfCampaignEmpty } = await import("@/lib/notifications");

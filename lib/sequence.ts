@@ -254,6 +254,22 @@ export function flowStepQuotaKind(step: CampaignFlowStep) {
   return null;
 }
 
+/** Step delay already elapsed — this lead can fill today's remaining quota. */
+export function readyQuotaKind(
+  lead: Lead,
+  flow: CampaignFlowStep[],
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+  now = new Date(),
+) {
+  if (!isRunnable(lead)) return null;
+  const copy = { ...lead };
+  repairLeadFlowCursor(copy, flow, schedule);
+  const step = findStep(flow, copy.nextStepId);
+  if (!step) return null;
+  if (earliestStepAt(copy, step, schedule, now).getTime() > now.getTime() + 15_000) return null;
+  return flowStepQuotaKind(step);
+}
+
 export function leadQueueStepId(lead: Lead, flow: CampaignFlowStep[]) {
   if (lead.awaiting === "connection") {
     return flow.find((step) => step.kind === "connection" && !step.branch)?.id ?? lead.nextStepId ?? "";

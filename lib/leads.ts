@@ -74,9 +74,8 @@ export const FLOW_MESSAGE_EVENT_KINDS: LeadEventKind[] = [
   "inmail_sent",
 ];
 
-export function leadWasContacted(lead: Pick<Lead, "history" | "stage">) {
-  if (lead.history.some((event) => CONTACT_EVENT_KINDS.includes(event.kind))) return true;
-  return lead.stage !== "pending";
+export function leadWasContacted(lead: Pick<Lead, "history">) {
+  return lead.history.some((event) => CONTACT_EVENT_KINDS.includes(event.kind));
 }
 
 export function isLeadEventKind(value: unknown): value is LeadEventKind {

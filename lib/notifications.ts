@@ -497,12 +497,22 @@ export async function notifyCampaignPausedError(input: { brand: Brand; campaign:
 }
 
 export async function notifyDailyCap(brand: Brand, limit: "views" | "invites" | "messages" | "inmails") {
+  const params: Record<string, string | number> = { brandName: brand.name, limit };
+  if (limit === "views") {
+    const { fetchDailyStats, fetchLeads } = await import("@/lib/outreach-data");
+    const { brandTodayViewUsage } = await import("@/lib/sequence");
+    const { effectivePacing } = await import("@/lib/pacing");
+    const [leads, stats] = await Promise.all([fetchLeads(brand.id), fetchDailyStats(brand.id)]);
+    const usage = brandTodayViewUsage(leads, stats, effectivePacing(brand).dailyViews);
+    params.first = usage.first;
+    params.followUp = usage.followUp;
+  }
   await emitNotification({
     brandId: brand.id,
     type: "daily_cap",
     href: "/settings",
     dedupeKey: `daily_cap:${brand.id}:${istanbulDateKey()}:${limit}`,
-    params: { brandName: brand.name, limit },
+    params,
   });
 }
 

@@ -29,6 +29,7 @@ import {
   isStepDueNow,
   messageIndexOnAcceptedPath,
   nextStepInLane,
+  compareViewQueuePriority,
   readyQuotaKind,
   repairLeadFlowCursor,
   scheduleAt,
@@ -754,6 +755,18 @@ export async function runDueSequence(limit = 80, brandId?: string) {
       if (!kind || runtime.remaining[kind] <= 0) continue;
       byKind.get(kind)?.push(lead);
     }
+
+    const views = byKind.get("views") ?? [];
+    views.sort((a, b) => {
+      const flowA =
+        runtimes.get(a.brandId)?.occupancy.campaigns.find((item) => item.id === a.campaignId)?.flow ??
+        [];
+      const flowB =
+        runtimes.get(b.brandId)?.occupancy.campaigns.find((item) => item.id === b.campaignId)?.flow ??
+        [];
+      return compareViewQueuePriority(a, b, flowA, flowB);
+    });
+    byKind.set("views", views);
 
     const queue: Lead[] = [];
     for (const kind of QUOTA_KINDS) {

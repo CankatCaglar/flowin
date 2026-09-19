@@ -29,6 +29,7 @@ import { BrandAvatar } from "@/components/brands/BrandAvatar";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { Button } from "@/components/ui/Button";
 import { useBrand } from "@/contexts/BrandContext";
+import { useBrandData } from "@/hooks/useBrandData";
 import {
   DEFAULT_ALERTS,
   DEFAULT_PACING,
@@ -38,6 +39,7 @@ import {
   normalizeSchedule,
   effectivePacing,
 } from "@/lib/pacing";
+import { brandTodayViewUsage } from "@/lib/sequence";
 import { linkedInProfileHref } from "@/lib/linkedin-profile";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { BrandAlerts, BrandPacing, BrandSchedule } from "@/types";
@@ -113,6 +115,7 @@ export default function SettingsPage() {
   const t = useTranslations("settings");
   const brandsT = useTranslations("brands");
   const { selectedBrand, editBrand } = useBrand();
+  const { leads, stats } = useBrandData(selectedBrand?.id ?? null);
   const locale = useLocale();
   const [pacing, setPacing] = useState<BrandPacing>(DEFAULT_PACING);
   const [schedule, setSchedule] = useState<BrandSchedule>(DEFAULT_SCHEDULE);
@@ -257,8 +260,10 @@ export default function SettingsPage() {
               createdAt: selectedBrand.createdAt,
               pacing,
             });
+            const viewsToday = brandTodayViewUsage(leads, stats, today.dailyViews);
             return (
-              <div className="mt-5 grid min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
+              <>
+                <div className="mt-5 grid min-w-0 grid-cols-4 gap-x-1.5 gap-y-4">
                 <Stepper
                   icon={UserPlus}
                   label={t("dailyInvites")}
@@ -295,7 +300,11 @@ export default function SettingsPage() {
                   suffix={t("perDay")}
                   onChange={(dailyInmails) => setPacing((current) => ({ ...current, dailyInmails }))}
                 />
-              </div>
+                </div>
+                <p className="mt-3 text-center text-[12px] leading-5 text-muted">
+                  {t("todayViewsUsage", viewsToday)}
+                </p>
+              </>
             );
           })()}
           <div className="mt-auto flex justify-end pt-5">

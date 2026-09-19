@@ -70,7 +70,11 @@ export function NotificationRow({
           </span>
         </span>
         <span className="mt-0.5 block text-xs leading-5 text-muted">
-          {item.type === "daily_cap" ? t("types.daily_cap.body", capParams) : t(`types.${item.type}.body`, item.params)}
+          {item.type === "daily_cap"
+            ? capKind === "views" && "first" in item.params
+              ? t("types.daily_cap.viewsBody", capParams)
+              : t("types.daily_cap.body", capParams)
+            : t(`types.${item.type}.body`, item.params)}
         </span>
       </span>
     </button>

@@ -322,6 +322,7 @@
       "queueCount": "{count} lead bu adımı tamamladı",
       "queueCountInfo": "Bu adımı tamamlayan lead sayısı",
       "queueCountHint": "Bu sayı, bu adımı tamamlayan lead adedidir.",
+      "todayViewsUsage": "Bugün {used} / {cap} görüntüleme · {first} yeni · {followUp} devam",
       "branchAccepted": "Yanıt gelirse",
       "branchNoResponse": "Yanıt gelmezse",
       "branchAcceptedHint": "Bağlantı isteği kabul edildi",
@@ -494,7 +495,8 @@
     "disconnect": "Outreach bağlantısını kaldır",
     "disconnectConfirm": "Bu markanın Unipile koltuğu koparılır. Kampanyalar durur; veriler silinmez.",
     "pacing": "Günlük Pacing",
-    "pacingHint": "Kutulardaki sayılar bugünün limiti. Her gün değişir.",
+    "pacingHint": "Kutulardaki sayılar bugünün limiti. Her gün değişir. Profil görüntüleme kotası bu hesaptaki tüm akış adımlarını paylaşır; sırada bekleyen devam görüntülemeleri önce gider, kalan yeni profillere açılır.",
+    "todayViewsUsage": "Bugün {used} / {cap} kullanıldı · {first} yeni · {followUp} devam",
     "pacingWarn": "Belirtilen limitler LinkedIn’in güvenli kullanım kurallarına uygun olarak önerilir. Limitleri aşmak hesabınızın kısıtlanmasına neden olabilir.",
     "dailyInvites": "Günlük Bağlantı İsteği",
     "dailyMessages": "Günlük Mesaj",
@@ -567,6 +569,7 @@
       "daily_cap": {
         "title": "Günlük {limit} Limitine Ulaşıldı",
         "body": "{brandName} için bugünkü {limit} limiti doldu. Diğer adımlar kotası kaldıysa devam eder.",
+        "viewsBody": "{brandName} için bugünkü profil görüntüleme limiti doldu ({first} yeni, {followUp} devam). Davet ve mesaj kotası kaldıysa devam eder.",
         "limits": {
           "all": "Outreach",
           "views": "Profil Görüntüleme",

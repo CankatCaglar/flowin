@@ -278,6 +278,7 @@ export function CampaignFlowEditor({
   onClear,
   embedded = false,
   queueCounts,
+  todayViews,
 }: {
   steps: CampaignFlowStep[];
   selectedId?: string | null;
@@ -285,6 +286,7 @@ export function CampaignFlowEditor({
   onClear?: () => void;
   embedded?: boolean;
   queueCounts?: Record<string, number>;
+  todayViews?: { used: number; cap: number; first: number; followUp: number };
 }) {
   const t = useTranslations("campaigns.flow");
 
@@ -318,7 +320,12 @@ export function CampaignFlowEditor({
   return (
     <div className={embedded ? "" : "surface-card rounded-2xl p-5 sm:p-6"}>
       {embedded ? null : (
-        <h2 className="font-display text-base font-semibold text-ink">{t("heading")}</h2>
+        <div>
+          <h2 className="font-display text-base font-semibold text-ink">{t("heading")}</h2>
+          {todayViews ? (
+            <p className="mt-1 text-sm leading-5 text-muted">{t("todayViewsUsage", todayViews)}</p>
+          ) : null}
+        </div>
       )}
 
       <div className={embedded ? "" : "mt-6"}>

@@ -322,6 +322,7 @@
       "queueCount": "{count} leads completed this step",
       "queueCountInfo": "Leads that completed this step",
       "queueCountHint": "This is how many leads in the campaign have completed this step.",
+      "todayViewsUsage": "Today {used} / {cap} views · {first} new · {followUp} follow-up",
       "branchAccepted": "If they respond",
       "branchNoResponse": "If there is no response",
       "branchAcceptedHint": "Connection request accepted",
@@ -494,7 +495,8 @@
     "disconnect": "Remove outreach connection",
     "disconnectConfirm": "This brand’s Unipile seat will be detached. Campaigns stop; data is kept.",
     "pacing": "Daily Pacing",
-    "pacingHint": "The numbers are today's limit. They change each day.",
+    "pacingHint": "The numbers are today's limit. They change each day. Profile-view quota is shared across every view step on this account; in-progress follow-up views go first, leftover slots go to new profiles.",
+    "todayViewsUsage": "Today {used} / {cap} used · {first} new · {followUp} follow-up",
     "pacingWarn": "These limits follow LinkedIn’s safe-use guidance. Going above them can get the account restricted.",
     "dailyInvites": "Daily connection requests",
     "dailyMessages": "Daily messages",
@@ -567,6 +569,7 @@
       "daily_cap": {
         "title": "Daily {limit} Limit Reached",
         "body": "Today’s {limit} limit for {brandName} is full. Other steps keep running if they still have quota.",
+        "viewsBody": "Today’s profile-view limit for {brandName} is full ({first} new, {followUp} follow-up). Invites and messages keep running if they still have quota.",
         "limits": {
           "all": "Outreach",
           "views": "Profile View",

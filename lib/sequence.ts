@@ -12,7 +12,7 @@ import {
   normalizeSchedule,
   skipToScheduleDay,
 } from "@/lib/pacing";
-import type { BrandSchedule, CampaignFlowStep, FlowBranch, Lead, LeadStage } from "@/types";
+import type { BrandSchedule, CampaignFlowStep, DailyStat, FlowBranch, Lead, LeadStage } from "@/types";
 
 export function firstOpenStep(flow: CampaignFlowStep[]) {
   return splitFlowBranches(flow).trunk[0] ?? null;
@@ -312,6 +312,71 @@ export function liveFlowStepCounts(
 
 function viewCount(lead: Lead) {
   return lead.history.filter((event) => event.kind === "profile_viewed").length;
+}
+
+function eventAt(at: Date | string | number) {
+  return at instanceof Date ? at : new Date(at);
+}
+
+/** Later-path / already-viewed leads share the same daily view cap and go first. */
+export function isFollowUpViewLead(lead: Lead, flow: CampaignFlowStep[]) {
+  const step = findStep(flow, lead.nextStepId);
+  if (!step) return false;
+  if (step.kind !== "profile_view" && step.kind !== "connection_check") return false;
+  if (step.branch) return true;
+  return historyHas(lead, "profile_viewed");
+}
+
+export function compareViewQueuePriority(
+  a: Lead,
+  b: Lead,
+  flowA: CampaignFlowStep[],
+  flowB: CampaignFlowStep[],
+) {
+  const followA = isFollowUpViewLead(a, flowA);
+  const followB = isFollowUpViewLead(b, flowB);
+  if (followA !== followB) return followA ? -1 : 1;
+  return (a.nextStepAt?.getTime() ?? 0) - (b.nextStepAt?.getTime() ?? 0);
+}
+
+export function todayViewSplit(leads: Lead[], now = new Date()) {
+  const today = istanbulDateKey(now);
+  let first = 0;
+  let followUp = 0;
+  for (const lead of leads) {
+    const views = lead.history
+      .filter((event) => event.kind === "profile_viewed")
+      .map((event) => eventAt(event.at))
+      .filter((at) => !Number.isNaN(at.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+    views.forEach((at, index) => {
+      if (istanbulDateKey(at) !== today) return;
+      if (index === 0) first += 1;
+      else followUp += 1;
+    });
+  }
+  return { first, followUp, total: first + followUp };
+}
+
+export function brandTodayViewUsage(
+  leads: Lead[],
+  stats: DailyStat[],
+  cap: number,
+  now = new Date(),
+) {
+  const today = istanbulDateKey(now);
+  const recorded = stats.find((row) => row.date === today)?.views ?? 0;
+  const split = todayViewSplit(leads, now);
+  const used = Math.max(recorded, split.total);
+  const first = split.first;
+  const followUp = Math.max(used - first, split.followUp);
+  return {
+    used,
+    first,
+    followUp,
+    cap,
+    remaining: Math.max(0, cap - used),
+  };
 }
 
 export function leadCompletedStep(lead: Lead, step: CampaignFlowStep, flow: CampaignFlowStep[]) {

@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import { BarChart3, Check, Plus, Search, TrendingUp, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { FlowinLogo } from "@/components/brand/FlowinLogo";
 import { LinkedInIcon } from "@/components/brand/LinkedInIcon";
 import { BrandAvatar } from "@/components/brands/BrandAvatar";
+import { BrandCardMenu } from "@/components/brands/BrandCardMenu";
 import { BrandFormModal } from "@/components/brands/BrandFormModal";
 import { RouteGuard } from "@/components/auth/RouteGuard";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
@@ -183,8 +184,21 @@ function BrandsPageInner() {
             return (
               <article
                 key={brand.id}
-                className="admin-card animate-rise rounded-2xl p-5 text-center"
+                className="admin-card relative animate-rise rounded-2xl p-5 text-center"
               >
+                <div className="absolute right-2 top-2 z-10">
+                  <BrandCardMenu
+                    brand={brand}
+                    onEdit={() => {
+                      setEditing(brand);
+                      setModalOpen(true);
+                    }}
+                    onDelete={() => {
+                      setDeleteError(false);
+                      setDeleting(brand);
+                    }}
+                  />
+                </div>
                 <button
                   type="button"
                   className="w-full"
@@ -205,13 +219,20 @@ function BrandsPageInner() {
                   <p className="mt-1 truncate text-[12px] text-white/45">
                     {brand.linkedinCompany || EMPTY_METRIC}
                   </p>
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-white/60">
-                    <LinkedInIcon className="h-3.5 w-3.5" />
-                    {t("connected")}
-                  </p>
-                  <p className="mt-1 text-[11px] font-medium text-white/50">
-                    {outreachOn ? t("outreachOn") : t("outreachOff")}
-                  </p>
+                  <div className="mt-2 flex flex-col items-center gap-1">
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-white/60">
+                      <LinkedInIcon className="h-3.5 w-3.5 shrink-0" />
+                      {t("connected")}
+                    </p>
+                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-white/50">
+                      {outreachOn ? (
+                        <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                      ) : (
+                        <X className="h-3.5 w-3.5 shrink-0 text-rose-500" strokeWidth={2.5} />
+                      )}
+                      {outreachOn ? t("outreachOn") : t("outreachOff")}
+                    </p>
+                  </div>
                   <div className="mx-auto mt-3 flex w-max flex-col items-start gap-1 text-xs text-white/65">
                     <span className="flex items-center gap-2">
                       <BarChart3 className="h-3.5 w-3.5 shrink-0" />
@@ -225,46 +246,6 @@ function BrandsPageInner() {
                     </span>
                   </div>
                 </button>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-lg px-2 py-1 text-[11px] font-medium text-white/70 hover:bg-white/10 hover:text-white"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      hardNavigate(
-                        `/api/unipile/start?locale=${locale}&brand=${encodeURIComponent(brand.id)}`,
-                      );
-                    }}
-                  >
-                    {outreachOn
-                      ? t("outreachReconnect")
-                      : brand.unipileStatus === "disconnected"
-                        ? t("outreachReconnect")
-                        : t("outreachConnect")}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={common("edit")}
-                    className="rounded-lg p-1.5 text-white/55 hover:bg-white/10 hover:text-white"
-                    onClick={() => {
-                      setEditing(brand);
-                      setModalOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t("delete")}
-                    className="rounded-lg p-1.5 text-white/55 hover:bg-white/10 hover:text-rose-200"
-                    onClick={() => {
-                      setDeleteError(false);
-                      setDeleting(brand);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
               </article>
             );
           })}

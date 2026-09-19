@@ -9,9 +9,8 @@ import { LeadAvatar } from "@/components/leads/LeadAvatar";
 import { StageBadge, StatusBadge } from "@/components/ui/Badge";
 import { flowStepTitle } from "@/lib/campaign-flow";
 import { isLeadFlowTerminal } from "@/lib/leads";
-import { leadStatusLabel } from "@/lib/lead-status";
+import { leadNextFlowStep, leadStatusLabel } from "@/lib/lead-status";
 import { displayLeadCompany } from "@/lib/linkedin-company";
-import { findStep } from "@/lib/sequence";
 import { EMPTY_METRIC, cn, formatDateTime } from "@/lib/utils";
 import type { Campaign, Lead, LeadEventKind } from "@/types";
 
@@ -76,7 +75,7 @@ export function LeadDetailPanel({
   };
 
   const campaignEnded = campaign?.status === "completed" && !isLeadFlowTerminal(lead);
-  const nextStep = campaign && !campaignEnded ? findStep(campaign.flow, lead.nextStepId) : null;
+  const nextStep = campaign && !campaignEnded ? leadNextFlowStep(lead, campaign) : null;
   const nextTitle = nextStep ? flowStepTitle(nextStep, locale) : "";
   const historyRef = useRef<HTMLDivElement>(null);
   const historyKey = lead.history.map((item) => `${item.kind}-${item.at.toISOString()}`).join("|");

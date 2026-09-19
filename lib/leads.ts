@@ -142,7 +142,9 @@ export function leadStatusLabelKey(lead: Lead, campaignStatus?: CampaignStatus):
   if (lead.status === "flow_completed") return "flow_completed";
   if (campaignStatus === "completed") return "campaign_ended";
   const accepted = lead.currentBranch === "accepted" || historyHas(lead, "accepted");
-  if (lead.awaiting === "inmail") return "waiting_inmail";
+  if (lead.awaiting === "inmail" || (historyHas(lead, "inmail_sent") && lead.status === "waiting_reply" && !accepted)) {
+    return "waiting_inmail";
+  }
   if (lead.status === "waiting_reply") {
     if (lead.awaiting === "connection" && !accepted) return "waiting_accept";
     return "waiting_reply";

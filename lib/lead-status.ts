@@ -1,6 +1,6 @@
 import { flowStepTitle } from "@/lib/campaign-flow";
 import { leadStatusLabelKey } from "@/lib/leads";
-import { findStep, firstBranchStep, firstOpenStep } from "@/lib/sequence";
+import { findStep, firstBranchStep, firstOpenStep, leadCompletedStep, nextStepInLane } from "@/lib/sequence";
 import type { Campaign, CampaignFlowStep, CampaignStatus, Lead } from "@/types";
 
 const NEXT_STEP_KEYS = new Set([
@@ -10,18 +10,28 @@ const NEXT_STEP_KEYS = new Set([
   "queued_message",
 ]);
 
-function queuedFlowStep(lead: Lead, campaign: Campaign, key: string): CampaignFlowStep | null {
-  const current = findStep(campaign.flow, lead.nextStepId);
-  if (current) return current;
-  if (key === "queued_message") return firstBranchStep(campaign.flow, "accepted");
-  if (key === "queued_view") return firstOpenStep(campaign.flow);
+function skipCompletedStep(lead: Lead, campaign: Campaign, step: CampaignFlowStep | null) {
+  if (!step) return null;
+  if (!leadCompletedStep(lead, step, campaign.flow)) return step;
+  return nextStepInLane(campaign.flow, step.id, lead.currentBranch || step.branch || "");
+}
+
+export function leadNextFlowStep(lead: Lead, campaign?: Campaign, campaignStatus?: CampaignStatus) {
+  if (!campaign) return null;
+  const key = leadStatusLabelKey(lead, campaignStatus ?? campaign.status);
   if (key === "waiting_connection") {
     return campaign.flow.find((step) => step.kind === "connection" && !step.branch) ?? null;
+  }
+  if (key === "queued_view") return firstOpenStep(campaign.flow);
+  if (key === "queued_message") {
+    const current = skipCompletedStep(lead, campaign, findStep(campaign.flow, lead.nextStepId));
+    if (current && current.branch === "accepted") return current;
+    return firstBranchStep(campaign.flow, "accepted");
   }
   if (key === "waiting_inmail") {
     return campaign.flow.find((step) => step.kind === "inmail") ?? null;
   }
-  return null;
+  return skipCompletedStep(lead, campaign, findStep(campaign.flow, lead.nextStepId));
 }
 
 export function leadStatusLabel(
@@ -35,7 +45,7 @@ export function leadStatusLabel(
 ) {
   const campaignStatus = options.campaignStatus ?? options.campaign?.status;
   const key = leadStatusLabelKey(lead, campaignStatus);
-  const step = options.campaign ? queuedFlowStep(lead, options.campaign, key) : null;
+  const step = leadNextFlowStep(lead, options.campaign, campaignStatus);
   if (step && NEXT_STEP_KEYS.has(key)) {
     const title = flowStepTitle(step, options.locale).trim();
     if (title) {

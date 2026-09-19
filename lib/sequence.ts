@@ -83,6 +83,21 @@ export function nextBusinessMorning(
   return istanbulWallDate(key, hour, minute);
 }
 
+export function lastLeadActionAt(lead: Pick<Lead, "history">) {
+  const last = lead.history[lead.history.length - 1];
+  return last?.at;
+}
+
+/** Earliest time this step may run, honoring its flow delay from the last action. */
+export function earliestStepAt(
+  lead: Pick<Lead, "history">,
+  step: CampaignFlowStep,
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+  now = new Date(),
+) {
+  return scheduleAt(step, lastLeadActionAt(lead) ?? now, schedule);
+}
+
 export function scheduleAt(
   step: CampaignFlowStep,
   from = new Date(),
@@ -103,6 +118,18 @@ export function scheduleAt(
     return new Date(from.getTime() + withJitter(0));
   }
   return nextBusinessMorning(from, amount, hours);
+}
+
+/** If `at` falls outside this brand's days/hours, move it to the next open slot. */
+export function snapToWorkingHours(at: Date, schedule: BrandSchedule = DEFAULT_SCHEDULE) {
+  const hours = normalizeSchedule(schedule);
+  if (!isQuietHours(at, hours)) return at;
+  const clock = clockInIstanbul(at);
+  const workday = hours.weekdays.includes(clock.isoWeekday);
+  if (workday && clock.hour * 60 + clock.minute < hours.startHour * 60) {
+    return nextBusinessMorning(at, 0, hours);
+  }
+  return nextBusinessMorning(at, workday ? 1 : 0, hours);
 }
 
 export function tomorrowMorning(from = new Date(), schedule: BrandSchedule = DEFAULT_SCHEDULE) {
@@ -145,29 +172,17 @@ export function resumeAcceptedStep(lead: Lead, flow: CampaignFlowStep[]) {
 }
 
 /**
- * Old campaigns could point a waiting lead at InMail right after the invite.
- * Keep the due time; only snap the cursor back onto the fixed sequence.
+ * Snap a runnable lead onto the next unfinished step and never let the due
+ * time beat that step's flow delay (view today → invite tomorrow, not 11:20).
  */
-export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
+export function repairLeadFlowCursor(
+  lead: Lead,
+  flow: CampaignFlowStep[],
+  schedule: BrandSchedule = DEFAULT_SCHEDULE,
+) {
   if (!isRunnable(lead)) return false;
-  if (
-    historyHas(lead, "accepted") &&
-    !historyHas(lead, "connection_sent") &&
-    !historyHas(lead, "message_1_sent") &&
-    !historyHas(lead, "inmail_sent")
-  ) {
-    lead.history = lead.history.filter((event) => event.kind !== "accepted");
-    lead.currentBranch = "";
-    lead.awaiting = "";
-    lead.status = "queued";
-    lead.stage = historyHas(lead, "profile_viewed") ? "profile_viewed" : "pending";
-    const invite = stepsInLane(flow, "").find((step) => step.kind === "connection");
-    lead.nextStepId = invite?.id ?? firstOpenStep(flow)?.id ?? lead.nextStepId;
-    lead.nextStepAt = new Date();
-    return true;
-  }
+  let changed = false;
   if (historyHas(lead, "accepted") || lead.currentBranch === "accepted") {
-    let changed = false;
     if (lead.awaiting === "connection") {
       lead.awaiting = "";
       changed = true;
@@ -182,27 +197,53 @@ export function repairLeadFlowCursor(lead: Lead, flow: CampaignFlowStep[]) {
       lead.nextStepId = next?.id ?? "";
       changed = true;
     }
-    return changed;
-  }
-  if (lead.awaiting === "connection" && !lead.currentBranch) {
+  } else if (
+    !lead.awaiting &&
+    historyHas(lead, "profile_viewed") &&
+    !historyHas(lead, "connection_sent")
+  ) {
+    const invite = stepsInLane(flow, "").find((step) => step.kind === "connection");
+    const cursor = findStep(flow, lead.nextStepId);
+    if (invite && (!cursor || (cursor.kind === "profile_view" && !cursor.branch))) {
+      lead.nextStepId = invite.id;
+      changed = true;
+    }
+  } else if (lead.awaiting === "connection" && !lead.currentBranch) {
     const silentView = firstBranchStep(flow, "no_response");
     if (silentView && lead.nextStepId !== silentView.id) {
       lead.nextStepId = silentView.id;
-      return true;
+      changed = true;
+    }
+  }
+
+  const cursor = findStep(flow, lead.nextStepId);
+  if (cursor && !lead.awaiting && leadCompletedStep(lead, cursor, flow)) {
+    const next = nextStepInLane(flow, cursor.id, lead.currentBranch || cursor.branch || "");
+    if (next && next.id !== cursor.id) {
+      lead.nextStepId = next.id;
+      changed = true;
     }
   }
   if (lead.nextStepId && !findStep(flow, lead.nextStepId)) {
     if (lead.awaiting === "inmail") {
-      const silentView = firstBranchStep(flow, "inmail_no_response");
-      lead.nextStepId = silentView?.id ?? "";
+      lead.nextStepId = firstBranchStep(flow, "inmail_no_response")?.id ?? "";
     } else if (lead.awaiting === "connection") {
       lead.nextStepId = firstBranchStep(flow, "no_response")?.id ?? "";
     } else {
       lead.nextStepId = firstOpenStep(flow)?.id ?? "";
     }
-    return true;
+    changed = true;
   }
-  return false;
+
+  const step = findStep(flow, lead.nextStepId);
+  if (step) {
+    const earliest = earliestStepAt(lead, step, schedule);
+    if (!lead.nextStepAt || lead.nextStepAt.getTime() < earliest.getTime() - 15_000) {
+      lead.nextStepAt = earliest;
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 export function flowStepQuotaKind(step: CampaignFlowStep) {

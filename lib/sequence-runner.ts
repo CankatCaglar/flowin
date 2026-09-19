@@ -18,6 +18,7 @@ import { historyHas, isLeadFlowTerminal, SEND_EVENT_KINDS } from "@/lib/leads";
 import { isCampaignRunning } from "@/lib/campaign-status";
 import { effectivePacing, isQuietHours, normalizeSchedule } from "@/lib/pacing";
 import {
+  earliestStepAt,
   findStep,
   firstBranchStep,
   firstOpenStep,
@@ -333,7 +334,6 @@ async function executeStep(
         await applyUsage(lead.brandId, campaign.id, "views", step.id);
         appendHistory(lead, "profile_viewed");
         lead.failReason = "";
-        await saveLead(lead);
         return markLeadAccepted(lead, campaign);
       }
       appendHistory(lead, "profile_viewed");
@@ -498,7 +498,7 @@ export async function runLeadStep(
     return { deferred: "quiet-hours" as const };
   }
 
-  repairLeadFlowCursor(lead, campaign.flow);
+  repairLeadFlowCursor(lead, campaign.flow, schedule);
   const step = findStep(campaign.flow, lead.nextStepId);
   if (!step) {
     if (lead.nextStepId) {
@@ -506,6 +506,10 @@ export async function runLeadStep(
       await saveLead(lead);
     }
     return { skipped: true as const };
+  }
+  if (lead.nextStepAt && lead.nextStepAt.getTime() > Date.now() + 15_000) {
+    await saveLead(lead);
+    return { deferred: "not-due" as const };
   }
 
   const caps = effectivePacing(brand);
@@ -530,7 +534,9 @@ export async function runLeadStep(
     const message = error instanceof Error ? error.message : "unipile";
     console.error("[sequence] step failed:", lead.id, step.kind, message);
     if (retryable) {
-      lead.nextStepAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const retryAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const min = earliestStepAt(lead, step, schedule);
+      lead.nextStepAt = retryAt.getTime() > min.getTime() ? retryAt : min;
       await saveLead(lead);
       return { deferred: "retry" as const };
     }
@@ -544,9 +550,13 @@ export async function runLeadStep(
   }
 }
 
-async function requeueTransientFailure(lead: Lead, campaign: Campaign) {
+async function requeueTransientFailure(
+  lead: Lead,
+  campaign: Campaign,
+  schedule = normalizeSchedule(undefined),
+) {
   lead.failReason = "";
-  repairLeadFlowCursor(lead, campaign.flow);
+  repairLeadFlowCursor(lead, campaign.flow, schedule);
   if (historyHas(lead, "accepted")) {
     lead.currentBranch = "accepted";
     lead.awaiting = "";
@@ -555,23 +565,21 @@ async function requeueTransientFailure(lead: Lead, campaign: Campaign) {
     if (!step || step.branch !== "accepted") {
       lead.nextStepId = firstBranchStep(campaign.flow, "accepted")?.id ?? "";
     }
-    lead.nextStepAt = new Date();
-    await saveLead(lead);
+  } else if (historyHasConnection(lead)) {
+    await waitForConnection(lead, campaign, schedule);
     return;
+  } else {
+    lead.status = "queued";
+    lead.awaiting = "";
+    if (!lead.nextStepId) {
+      const invite = campaign.flow.find((step) => step.kind === "connection" && !step.branch);
+      lead.nextStepId = historyHas(lead, "profile_viewed")
+        ? invite?.id ?? firstOpenStep(campaign.flow)?.id ?? ""
+        : firstOpenStep(campaign.flow)?.id ?? "";
+    }
   }
-  if (historyHasConnection(lead)) {
-    await waitForConnection(lead, campaign, normalizeSchedule(undefined));
-    return;
-  }
-  lead.status = "queued";
-  lead.awaiting = "";
-  if (!lead.nextStepId) {
-    const invite = campaign.flow.find((step) => step.kind === "connection" && !step.branch);
-    lead.nextStepId = historyHas(lead, "profile_viewed")
-      ? invite?.id ?? firstOpenStep(campaign.flow)?.id ?? ""
-      : firstOpenStep(campaign.flow)?.id ?? "";
-  }
-  lead.nextStepAt = new Date();
+  const step = findStep(campaign.flow, lead.nextStepId);
+  lead.nextStepAt = step ? earliestStepAt(lead, step, schedule) : tomorrowMorning(new Date(), schedule);
   await saveLead(lead);
 }
 
@@ -588,7 +596,7 @@ async function recoverFailedInvite(lead: Lead) {
     return;
   }
   if (isTransientFailReason(lead.failReason ?? "")) {
-    await requeueTransientFailure(lead, campaign);
+    await requeueTransientFailure(lead, campaign, normalizeSchedule(brand.schedule));
   }
 }
 
@@ -674,7 +682,7 @@ export async function runDueSequence(limit = 80, brandId?: string) {
   const peekKind = (lead: Lead, runtime: BrandRuntime) => {
     const campaign = runtime.occupancy.campaigns.find((item) => item.id === lead.campaignId);
     if (!campaign) return null;
-    repairLeadFlowCursor(lead, campaign.flow);
+    repairLeadFlowCursor(lead, campaign.flow, runtime.schedule);
     const step = findStep(campaign.flow, lead.nextStepId);
     return step ? flowStepQuotaKind(step) : null;
   };

@@ -24,7 +24,7 @@ import { companyFromHeadline } from "@/lib/linkedin-company";
 import { DuplicateActiveLeadError, findActiveOccupant, leadIdentityKeys } from "@/lib/lead-identity";
 import { linkedInPublicId, normalizeLinkedInUrl } from "@/lib/linkedin-profile";
 import { asCampaignStatus, isCampaignRunning } from "@/lib/campaign-status";
-import { firstOpenStep, isRunnable, repairLeadFlowCursor, scheduleAt } from "@/lib/sequence";
+import { earliestStepAt, findStep, firstOpenStep, isRunnable, repairLeadFlowCursor, scheduleAt, snapToWorkingHours } from "@/lib/sequence";
 import { isQuietHours, normalizeSchedule } from "@/lib/pacing";
 import { hydrateCampaignDates } from "@/lib/storage";
 import { toDateKey } from "@/lib/dates";
@@ -605,12 +605,13 @@ async function brandSchedule(brandId: string) {
 }
 
 export async function repairBrandLeadCursors(brandId: string) {
+  const schedule = await brandSchedule(brandId);
   const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
   const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
   for (const lead of leads) {
     const campaign = byId.get(lead.campaignId);
     if (!campaign) continue;
-    if (repairLeadFlowCursor(lead, campaign.flow)) await saveLead(lead);
+    if (repairLeadFlowCursor(lead, campaign.flow, schedule)) await saveLead(lead);
   }
 }
 
@@ -627,7 +628,8 @@ export async function ensureRunningLeadSchedules(brandId: string) {
     const first = firstOpenStep(campaign?.flow ?? []);
     if (!first) continue;
     lead.nextStepId = lead.nextStepId || first.id;
-    lead.nextStepAt = scheduleAt(first, now, schedule);
+    const step = findStep(campaign?.flow ?? [], lead.nextStepId) ?? first;
+    lead.nextStepAt = earliestStepAt(lead, step, schedule, now);
     await saveLead(lead);
   }
 }
@@ -635,19 +637,27 @@ export async function ensureRunningLeadSchedules(brandId: string) {
 export async function pullLeadsIntoWorkingHours(brandId: string, hours?: BrandSchedule) {
   const schedule = hours ?? (await brandSchedule(brandId));
   const now = new Date();
-  if (isQuietHours(now, schedule)) return;
+  const open = !isQuietHours(now, schedule);
   const [campaigns, leads] = await Promise.all([fetchCampaigns(brandId), fetchLeads(brandId)]);
   const running = new Set(
     campaigns.filter((campaign) => isCampaignRunning(campaign.status)).map((campaign) => campaign.id),
   );
   for (const lead of leads) {
     if (!running.has(lead.campaignId) || !isRunnable(lead)) continue;
-    if (historyHas(lead, "profile_viewed") || historyHas(lead, "connection_sent")) continue;
-    const campaign = campaigns.find((item) => item.id === lead.campaignId);
-    const first = firstOpenStep(campaign?.flow ?? []);
-    if (!first) continue;
-    lead.nextStepId = first.id;
-    lead.nextStepAt = scheduleAt(first, now, schedule);
+    const untouched = !historyHas(lead, "profile_viewed") && !historyHas(lead, "connection_sent");
+    if (untouched && open) {
+      const campaign = campaigns.find((item) => item.id === lead.campaignId);
+      const first = firstOpenStep(campaign?.flow ?? []);
+      if (!first) continue;
+      lead.nextStepId = first.id;
+      lead.nextStepAt = scheduleAt(first, now, schedule);
+      await saveLead(lead);
+      continue;
+    }
+    if (!lead.nextStepAt) continue;
+    const snapped = snapToWorkingHours(lead.nextStepAt, schedule);
+    if (snapped.getTime() === lead.nextStepAt.getTime()) continue;
+    lead.nextStepAt = snapped;
     await saveLead(lead);
   }
 }
